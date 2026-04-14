@@ -1,21 +1,25 @@
 // ==UserScript==
-// @name         SpeedGrader Copy/Paster
+// @name         Canvas SpeedGrader Copy Paster
 // @namespace    VisComm@UON
 // @version      2
 // @description  Floating assignment-specific comment snippet panel for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/SpeedGrader Copy-Paster.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-copy-paster.user.js
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  // Manages reusable SpeedGrader comment snippets for the current assignment.
+
+  // constants/config
   const PANEL_ID = 'sg-copypaster-panel';
   const STYLE_ID = 'sg-copypaster-style';
-  const STORAGE_PREFIX = 'sgCopyPaster_v01';
+  const STORAGE_PREFIX = 'canvas_speedgrader_copy_paster_v1';
+  const LEGACY_STORAGE_PREFIX = 'sgCopyPaster_v01';
 
   const DEFAULT_SNIPPETS = [
     {
@@ -35,11 +39,26 @@
     }
   ];
 
-  function qs(sel, root = document) {
+  // selectors
+  const selectors = {
+    panel: `#${PANEL_ID}`,
+    editorIframeSuffix: 'iframe[id$="_ifr"]'
+  };
+
+  // state
+  const state = {
+    lastHref: location.href
+  };
+
+  // elements
+  const elements = {};
+
+  // utilities
+  function getElement(sel, root = document) {
     return root.querySelector(sel);
   }
 
-  function qsa(sel, root = document) {
+  function getElements(sel, root = document) {
     return Array.from(root.querySelectorAll(sel));
   }
 
@@ -65,10 +84,19 @@
     );
   }
 
-  function storageKey() {
-    return `${STORAGE_PREFIX}:${getCourseId()}:${getAssignmentId()}`;
+  function getStorageKey(prefix = STORAGE_PREFIX) {
+    return `${prefix}:${getCourseId()}:${getAssignmentId()}`;
   }
 
+  function getLegacyStorageKey() {
+    return getStorageKey(LEGACY_STORAGE_PREFIX);
+  }
+
+  function getStoredJson() {
+    return localStorage.getItem(getStorageKey()) || localStorage.getItem(getLegacyStorageKey());
+  }
+
+  // storage helpers
   function defaultStore() {
     return {
       snippets: DEFAULT_SNIPPETS,
@@ -83,7 +111,7 @@
 
   function loadStore() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(storageKey()));
+      const parsed = JSON.parse(getStoredJson());
       if (!parsed) return defaultStore();
       parsed.snippets = Array.isArray(parsed.snippets) ? parsed.snippets : DEFAULT_SNIPPETS;
       parsed.ui = parsed.ui || { collapsed: false, posX: null, posY: null, mode: 'append' };
@@ -95,10 +123,10 @@
   }
 
   function saveStore(store) {
-    localStorage.setItem(storageKey(), JSON.stringify(store));
+    localStorage.setItem(getStorageKey(), JSON.stringify(store));
   }
 
-  function setCollapsed(collapsed) {
+  function updateCollapsed(collapsed) {
     const store = loadStore();
     store.ui.collapsed = collapsed;
     saveStore(store);
@@ -109,7 +137,7 @@
     return !!loadStore().ui?.collapsed;
   }
 
-  function setMode(mode) {
+  function updateMode(mode) {
     const store = loadStore();
     store.ui.mode = mode;
     saveStore(store);
@@ -120,7 +148,7 @@
     return loadStore().ui?.mode || 'append';
   }
 
-  function setPanelPosition(x, y) {
+  function updatePanelPosition(x, y) {
     const store = loadStore();
     store.ui.posX = x;
     store.ui.posY = y;
@@ -180,11 +208,12 @@
     );
     if (!ok) return;
 
-    localStorage.removeItem(storageKey());
+    localStorage.removeItem(getStorageKey());
+    localStorage.removeItem(getLegacyStorageKey());
     renderPanel();
   }
 
-  function exportData() {
+  function handleExportData() {
     const payload = {
       context: {
         courseId: getCourseId(),
@@ -203,7 +232,7 @@
     a.remove();
   }
 
-function importData(file) {
+function handleImportData(file) {
   const reader = new FileReader();
 
   reader.onload = () => {
@@ -300,9 +329,9 @@ function importData(file) {
   function getEditorIframe() {
     // Prefer TinyMCE/Canvas RCE iframe IDs ending in _ifr
     const iframe =
-      qs('iframe.tox-edit-area__iframe') ||
-      qs('iframe[id$="_ifr"]') ||
-      qsa('iframe').find(el => /rce|tox|_ifr/i.test(el.id || ''));
+      getElement('iframe.tox-edit-area__iframe') ||
+      getElement(selectors.editorIframeSuffix) ||
+      getElements('iframe').find(el => /rce|tox|_ifr/i.test(el.id || ''));
 
     return iframe || null;
   }
@@ -474,7 +503,7 @@ function importData(file) {
   // UI
   // ----------------------------
 
-  function make(tag, attrs = {}, children = []) {
+  function createElement(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (k === 'class') el.className = v;
@@ -493,7 +522,7 @@ function importData(file) {
     return el;
   }
 
- function injectStyles() {
+ function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
   const style = document.createElement('style');
@@ -731,7 +760,7 @@ function importData(file) {
   document.head.appendChild(style);
 }
 
-  function enableDragging(panel, handle) {
+  function bindDragging(panel, handle) {
     let dragging = false;
     let startX = 0;
     let startY = 0;
@@ -770,7 +799,7 @@ function importData(file) {
       panel.classList.remove('dragging');
 
       const rect = panel.getBoundingClientRect();
-      setPanelPosition(rect.left, rect.top);
+      updatePanelPosition(rect.left, rect.top);
     });
   }
 
@@ -791,7 +820,7 @@ function importData(file) {
   function renderPanel() {
     if (!document.body) return;
 
-    injectStyles();
+    addStyles();
 
     let panel = document.getElementById(PANEL_ID);
     if (!panel) {
@@ -799,6 +828,7 @@ function importData(file) {
       panel.id = PANEL_ID;
       document.body.appendChild(panel);
     }
+    elements.panel = panel;
 
     const collapsed = getCollapsed();
     const mode = getMode();
@@ -806,15 +836,15 @@ function importData(file) {
 
     panel.innerHTML = '';
 
-    const head = make('div', {
+    const head = createElement('div', {
   class: 'cp-head',
   style: collapsed ? 'border-bottom:0;' : ''
 }, [
-      make('div', { text: 'Copy + Paster' }),
-      make('div', { class: 'cp-head-buttons' }, [
-        make('button', {
+      createElement('div', { text: 'Copy + Paster' }),
+      createElement('div', { class: 'cp-head-buttons' }, [
+        createElement('button', {
           text: collapsed ? 'Expand' : 'Minimise',
-          onclick: () => setCollapsed(!collapsed)
+          onclick: () => updateCollapsed(!collapsed)
         })
       ])
     ]);
@@ -828,14 +858,14 @@ function importData(file) {
       panel.style.right = 'auto';
     }
 
-    enableDragging(panel, head);
+    bindDragging(panel, head);
 
     if (collapsed) return;
 
-    const body = make('div', { class: 'cp-body' });
+    const body = createElement('div', { class: 'cp-body' });
 
 body.appendChild(
-  make('div', {
+  createElement('div', {
     class: 'cp-row cp-small',
     style: 'background:#161a20;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
   }, [
@@ -844,23 +874,23 @@ body.appendChild(
 );
 
     body.appendChild(
-      make('div', { class: 'cp-row cp-grid' }, [
-        make('button', {
+      createElement('div', { class: 'cp-row cp-grid' }, [
+        createElement('button', {
           class: mode === 'append' ? 'active' : '',
           text: 'Append mode',
-          onclick: () => setMode('append')
+          onclick: () => updateMode('append')
         }),
-        make('button', {
+        createElement('button', {
           class: mode === 'replace' ? 'active' : '',
           text: 'Replace mode',
-          onclick: () => setMode('replace')
+          onclick: () => updateMode('replace')
         })
       ])
     );
 
 body.appendChild(
-  make('div', { class: 'cp-row', style: 'display:flex;justify-content:flex-start;' }, [
-    make('button', {
+  createElement('div', { class: 'cp-row', style: 'display:flex;justify-content:flex-start;' }, [
+    createElement('button', {
       text: 'Keep typing',
       onclick: () => {
         const ok = focusEditorAtEndWithNewLine();
@@ -870,42 +900,42 @@ body.appendChild(
   ])
 );
 
-const list = make('div', { class: 'cp-row cp-list' });
+const list = createElement('div', { class: 'cp-row cp-list' });
 
 if (!snippets.length) {
   list.appendChild(
-    make('div', { class: 'cp-item' }, [
-      make('div', { class: 'cp-item-text', text: 'No snippets yet.' })
+    createElement('div', { class: 'cp-item' }, [
+      createElement('div', { class: 'cp-item-text', text: 'No snippets yet.' })
     ])
   );
 } else {
   snippets.forEach(snippet => {
     list.appendChild(
-      make('div', { class: 'cp-item' }, [
-        make('div', { class: 'cp-item-head' }, [
-          make('div', { class: 'cp-item-title', text: snippet.label }),
+      createElement('div', { class: 'cp-item' }, [
+        createElement('div', { class: 'cp-item-head' }, [
+          createElement('div', { class: 'cp-item-title', text: snippet.label }),
         ]),
-        make('div', { class: 'cp-item-text', text: snippet.text }),
-        make('div', { class: 'cp-item-actions' }, [
-          make('div', { class: 'cp-item-actions-left' }, [
-            make('button', {
+        createElement('div', { class: 'cp-item-text', text: snippet.text }),
+        createElement('div', { class: 'cp-item-actions' }, [
+          createElement('div', { class: 'cp-item-actions-left' }, [
+            createElement('button', {
               class: 'cp-btn-primary',
               text: 'Insert',
               onclick: () => insertSnippet(snippet.text)
             })
           ]),
-          make('div', { class: 'cp-item-actions-right' }, [
-            make('button', {
+          createElement('div', { class: 'cp-item-actions-right' }, [
+            createElement('button', {
               class: 'cp-btn-small',
               text: 'Copy',
               onclick: () => copySnippetToClipboard(snippet.text)
             }),
-            make('button', {
+            createElement('button', {
               class: 'cp-btn-small',
               text: 'Edit',
               onclick: () => openSnippetEditor(snippet)
             }),
-            make('button', {
+            createElement('button', {
               class: 'cp-btn-small cp-btn-danger',
               text: 'Delete',
               onclick: () => deleteSnippet(snippet.id)
@@ -918,8 +948,8 @@ if (!snippets.length) {
 }
 
   body.appendChild(
-  make('div', { class: 'cp-row' }, [
-    make('button', {
+  createElement('div', { class: 'cp-row' }, [
+    createElement('button', {
       class: 'cp-btn-primary cp-btn-wide',
       text: 'Add snippet',
       onclick: () => openSnippetEditor()
@@ -929,27 +959,27 @@ if (!snippets.length) {
 
     body.appendChild(list);
 
-    const fileInput = make('input', {
+    const fileInput = createElement('input', {
       type: 'file',
       accept: 'application/json'
     });
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
-      if (file) importData(file);
+      if (file) handleImportData(file);
     });
     body.appendChild(fileInput);
 
     body.appendChild(
-      make('div', { class: 'cp-row cp-grid-3' }, [
-        make('button', {
+      createElement('div', { class: 'cp-row cp-grid-3' }, [
+        createElement('button', {
           text: 'Export JSON',
-          onclick: exportData
+          onclick: handleExportData
         }),
-        make('button', {
+        createElement('button', {
           text: 'Import JSON',
           onclick: () => body.querySelector('input[type="file"]')?.click()
         }),
-        make('button', {
+        createElement('button', {
           text: 'Reset assignment',
           onclick: resetAssignmentSnippets
         })
@@ -957,7 +987,7 @@ if (!snippets.length) {
     );
 
     body.appendChild(
-      make('div', { class: 'cp-small' }, [
+      createElement('div', { class: 'cp-small' }, [
         'Insert writes into the SpeedGrader comment editor. Append mode adds below existing text. Replace mode overwrites it.'
       ])
     );
@@ -965,7 +995,7 @@ if (!snippets.length) {
     panel.appendChild(body);
   }
 
-  function boot() {
+  function init() {
     const tryRender = () => {
       if (!document.body) {
         setTimeout(tryRender, 250);
@@ -976,10 +1006,9 @@ if (!snippets.length) {
 
     tryRender();
 
-    let lastHref = location.href;
     setInterval(() => {
-      if (location.href !== lastHref) {
-        lastHref = location.href;
+      if (location.href !== state.lastHref) {
+        state.lastHref = location.href;
         setTimeout(renderPanel, 250);
       }
     }, 400);
@@ -1001,5 +1030,5 @@ if (!snippets.length) {
     startObserver();
   }
 
-  boot();
+  init();
 })();

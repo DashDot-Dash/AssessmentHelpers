@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Speedgrader Slider
+// @name         Canvas SpeedGrader Slider
 // @namespace    VisComm@UON
 // @description  Adds a score slider to each criterion in Canvas SpeedGrader rubrics, scoped to the selected rating band
 // @version      4
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/Speedgrader Slider.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-slider.user.js
 // @include      https://*/courses/*/gradebook/speed_grader?*
 // @grant        none
 // ==/UserScript==
@@ -11,20 +11,34 @@
 (function () {
   'use strict';
 
+  // Adds range inputs beside Canvas rubric score fields and keeps them synced.
+
+  // constants/config
   const ENHANCED_ATTR = 'data-jg-slider-enhanced';
   const WRAP_CLASS = 'jg-slider-wrap';
   const SLIDER_CLASS = 'jg-slider';
-  const LABEL_CLASS = 'jg-slider-label';
 
+  // selectors
+  const selectors = {
+    criterionScoreInput: 'input[data-testid^="criterion-score-"]',
+    formFieldHost: 'span.css-j7s35e-formFieldLayout__children',
+    screenReaderContent: '.css-r9cwls-screenReaderContent',
+    ratingPoints: '[data-testid$="-points"]'
+  };
 
-  addStyles();
-  boot();
+  init();
 
-  function boot() {
-    enhanceAll();
+  function init() {
+    if (!document.body || !document.head) {
+      setTimeout(init, 250);
+      return;
+    }
+
+    addStyles();
+    updateAllSlidersSafely();
 
     const observer = new MutationObserver(() => {
-      enhanceAll();
+      updateAllSlidersSafely();
     });
 
     observer.observe(document.body, {
@@ -33,27 +47,58 @@
     });
   }
 
-  function enhanceAll() {
-    const inputs = document.querySelectorAll('input[data-testid^="criterion-score-"]');
-    inputs.forEach(enhanceInput);
+  // render/UI functions
+  function updateAllSlidersSafely() {
+    try {
+      updateAllSliders();
+    } catch (err) {
+      console.warn('[Canvas SpeedGrader Slider] Enhancement skipped after error:', err);
+    }
   }
 
-  function enhanceInput(input) {
+  function updateAllSliders() {
+    const inputs = document.querySelectorAll(selectors.criterionScoreInput);
+    inputs.forEach(createSliderForInput);
+  }
+
+  function createSliderForInput(input) {
     if (!input || input.getAttribute(ENHANCED_ATTR) === 'true') return;
 
     const criterionId = getCriterionIdFromInput(input);
     if (!criterionId) return;
 
-    const host = input.closest('span.css-j7s35e-formFieldLayout__children') || input.parentElement;
+    const host = input.closest(selectors.formFieldHost) || input.parentElement;
     if (!host) return;
 
-    // avoid duplicate insertion if Canvas partially rerenders
+    // Canvas can partially rerender a field without replacing the input.
     const existingNext = host.nextElementSibling;
     if (existingNext && existingNext.classList?.contains(WRAP_CLASS)) {
       input.setAttribute(ENHANCED_ATTR, 'true');
       return;
     }
 
+    const { wrap, slider } = createSlider();
+    host.insertAdjacentElement('afterend', wrap);
+
+    slider.addEventListener('input', () => handleSliderInput(input, slider));
+    slider.addEventListener('change', () => handleSliderInput(input, slider));
+    input.addEventListener('input', () => updateSliderFromInput(input, slider));
+    input.addEventListener('change', () => updateSliderFromInput(input, slider));
+
+    bindRatingHandlers(criterionId, () => {
+      setTimeout(() => {
+        updateSliderForSelectedBand(criterionId, input, slider);
+      }, 50);
+    });
+
+    setTimeout(() => {
+      updateSliderForSelectedBand(criterionId, input, slider);
+    }, 100);
+
+    input.setAttribute(ENHANCED_ATTR, 'true');
+  }
+
+  function createSlider() {
     const wrap = document.createElement('div');
     wrap.className = WRAP_CLASS;
 
@@ -66,45 +111,48 @@
     slider.step = '0.1';
     slider.value = '0';
 
+    wrap.appendChild(slider);
 
-wrap.appendChild(slider);
-
-
-     host.insertAdjacentElement('afterend', wrap);
-
-    slider.addEventListener('input', () => {
-      const value = Number(slider.value);
-      setCanvasInputValue(input, value);
-    });
-
-    slider.addEventListener('change', () => {
-      const value = Number(slider.value);
-      setCanvasInputValue(input, value);
-    });
-
-    input.addEventListener('input', () => {
-      syncSliderFromInput(input, slider);
-    });
-
-    input.addEventListener('change', () => {
-      syncSliderFromInput(input, slider);
-    });
-
-attachRatingListeners(criterionId, () => {
-  setTimeout(() => {
-    updateSliderForSelectedBand(criterionId, input, slider);
-  }, 50);
-});
-
-// initialize once in case a band is already selected
-setTimeout(() => {
-  updateSliderForSelectedBand(criterionId, input, slider);
-}, 100);
-
-    input.setAttribute(ENHANCED_ATTR, 'true');
+    return { wrap, slider };
   }
 
-  function attachRatingListeners(criterionId, callback) {
+  function updateSliderForSelectedBand(criterionId, input, slider) {
+    const selectedButton = getSelectedRatingButton(criterionId);
+
+    if (!selectedButton) {
+      slider.disabled = true;
+      return;
+    }
+
+    const range = getRangeFromRatingButton(selectedButton);
+    if (!range) {
+      slider.disabled = true;
+      return;
+    }
+
+    const { min, max } = range;
+    const step = (Number.isInteger(min) && Number.isInteger(max)) ? 1 : 0.1;
+
+    slider.disabled = false;
+    slider.min = String(min);
+    slider.max = String(max);
+    slider.step = String(step);
+
+    const value = clamp(parseScore(input.value, max), min, max);
+    slider.value = String(value);
+  }
+
+  function updateSliderFromInput(input, slider) {
+    if (slider.disabled) return;
+
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    const value = clamp(parseScore(input.value, Number(slider.value)), min, max);
+    slider.value = String(value);
+  }
+
+  // event handlers
+  function bindRatingHandlers(criterionId, callback) {
     const buttons = getRatingButtons(criterionId);
     buttons.forEach(btn => {
       if (btn.dataset.jgSliderBound === 'true') return;
@@ -113,42 +161,11 @@ setTimeout(() => {
     });
   }
 
-function updateSliderForSelectedBand(criterionId, input, slider) {
-  const selectedButton = getSelectedRatingButton(criterionId);
-
-  if (!selectedButton) {
-    slider.disabled = true;
-    return;
+  function handleSliderInput(input, slider) {
+    updateCanvasInputValue(input, Number(slider.value));
   }
 
-  const range = getRangeFromRatingButton(selectedButton);
-  if (!range) {
-    slider.disabled = true;
-    return;
-  }
-
-  const { min, max } = range;
-  const step = (Number.isInteger(min) && Number.isInteger(max)) ? 1 : 0.1;
-
-  slider.disabled = false;
-  slider.min = String(min);
-  slider.max = String(max);
-  slider.step = String(step);
-
-  const value = clamp(parseScore(input.value, max), min, max);
-  slider.value = String(value);
-}
-
-  function syncSliderFromInput(input, slider, label) {
-    if (slider.disabled) return;
-
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    const value = clamp(parseScore(input.value, Number(slider.value)), min, max);
-    slider.value = String(value);
-    label.textContent = formatScore(value);
-  }
-
+  // data functions
   function getCriterionIdFromInput(input) {
     const testId = input.getAttribute('data-testid') || '';
     const match = testId.match(/^criterion-score-(.+)$/);
@@ -168,7 +185,7 @@ function updateSliderForSelectedBand(criterionId, input, slider) {
       const selectedMarker = btn.querySelector(`[data-testid*="traditional-criterion-${criterionId}-ratings-"][data-testid$="-selected"]`);
       if (selectedMarker) return btn;
 
-      const sr = btn.querySelector('.css-r9cwls-screenReaderContent');
+      const sr = btn.querySelector(selectors.screenReaderContent);
       if (sr && sr.textContent.trim() === 'Selected') return btn;
     }
 
@@ -176,7 +193,7 @@ function updateSliderForSelectedBand(criterionId, input, slider) {
   }
 
   function getRangeFromRatingButton(button) {
-    const pointsEl = button.querySelector('[data-testid$="-points"]');
+    const pointsEl = button.querySelector(selectors.ratingPoints);
     if (!pointsEl) return null;
 
     const text = pointsEl.textContent.trim();
@@ -201,6 +218,7 @@ function updateSliderForSelectedBand(criterionId, input, slider) {
     return null;
   }
 
+  // utilities
   function parseScore(raw, fallback) {
     const text = String(raw || '').trim();
     const match = text.match(/\d+(?:\.\d+)?/);
@@ -217,22 +235,21 @@ function updateSliderForSelectedBand(criterionId, input, slider) {
     return Number.isInteger(value) ? String(value) : value.toFixed(1);
   }
 
-function setCanvasInputValue(input, value) {
-  const formatted = formatScore(value);
+  function updateCanvasInputValue(input, value) {
+    const formatted = formatScore(value);
 
-  const setter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
-    'value'
-  )?.set;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value'
+    )?.set;
 
-  if (setter) setter.call(input, formatted);
-  else input.value = formatted;
+    if (setter) setter.call(input, formatted);
+    else input.value = formatted;
 
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-  input.focus();
-  input.blur();
-}
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   function addStyles() {
     const style = document.createElement('style');
     style.textContent = `

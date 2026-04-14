@@ -4,12 +4,27 @@
 // @version      0.2
 // @description  Choose rubric criteria from a library and download Canvas import CSV
 // @match        https://*/courses/*/rubrics*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/Canvas Rubric Library Chooser.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-rubric-library-chooser.user.js
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  // Lets rubric criteria be chosen from an embedded library and exported as Canvas CSV.
+
+  // constants/config
+  const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
+  const LEGACY_POSITION_KEYS = {
+    left: 'jjRubricBtnLeft',
+    top: 'jjRubricBtnTop'
+  };
+
+  const selectors = {
+    launcher: '#jj-rubric-library-btn',
+    overlay: '#jj-rubric-overlay',
+    status: '#jj-status'
+  };
 
   // =========================================================
   // 1. PASTE YOUR TSV LIBRARY HERE
@@ -45,7 +60,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
   // =========================================================
   // 2. PARSE LIBRARY
   // =========================================================
-  function parseTSV(tsv) {
+  function parseTsv(tsv) {
     const lines = tsv.split(/\r?\n/).filter(Boolean);
     if (!lines.length) return [];
 
@@ -70,7 +85,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     }).filter(r => r.active);
   }
 
-  function groupRows(rows) {
+  function getRowsByCategory(rows) {
     const grouped = {};
     for (const row of rows) {
       const cat = row.category || 'Uncategorised';
@@ -138,7 +153,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     return (row.framing || row.criterion_summary || '').trim();
   }
 
-  function rowToCanvasRow(row, rubricName, weight) {
+  function createCanvasCsvRow(row, rubricName, weight) {
     const scores = calculateBandScores(weight);
 
     return {
@@ -174,7 +189,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
 
-  function rowsToCsv(rows) {
+  function createCsvText(rows) {
     const lines = [
       CSV_HEADERS.map(csvEscape).join(','),
       ...rows.map(row => CSV_HEADERS.map(h => csvEscape(row[h])).join(',')),
@@ -182,7 +197,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     return lines.join('\n');
   }
 
-  function downloadCsv(filename, text) {
+  function downloadTextFile(filename, text) {
     const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -197,21 +212,37 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
   // =========================================================
   // 5. UI
   // =========================================================
+  // state
   const state = {
-    rows: parseTSV(LIBRARY_TSV),
+    rows: parseTsv(LIBRARY_TSV),
     selected: new Map(), // criterion_code -> { row, weight }
   };
 
-function ensureButton() {
-  if (document.getElementById('jj-rubric-library-btn')) return;
+  // elements
+  const elements = {};
+
+  function getStorageKey(name) {
+    return `${STORAGE_PREFIX}:${name}`;
+  }
+
+  function loadStoredValue(name, legacyKey = '') {
+    return localStorage.getItem(getStorageKey(name)) || (legacyKey ? localStorage.getItem(legacyKey) : null);
+  }
+
+  function saveStoredValue(name, value) {
+    localStorage.setItem(getStorageKey(name), value);
+  }
+
+function createLauncherButton() {
+  if (document.querySelector(selectors.launcher)) return;
 
   const btn = document.createElement('button');
   btn.id = 'jj-rubric-library-btn';
   btn.textContent = 'VisComm Rubric Builder';
   btn.type = 'button';
 
-  const savedX = localStorage.getItem('jjRubricBtnLeft');
-  const savedY = localStorage.getItem('jjRubricBtnTop');
+  const savedX = loadStoredValue('launcher_left', LEGACY_POSITION_KEYS.left);
+  const savedY = loadStoredValue('launcher_top', LEGACY_POSITION_KEYS.top);
 
   btn.style.cssText = `
     position: fixed;
@@ -234,13 +265,14 @@ function ensureButton() {
       btn.dataset.dragged = 'false';
       return;
     }
-    openModal();
+    renderModal();
   });
 
-  makeDraggable(btn);
+  bindDragging(btn);
   document.body.appendChild(btn);
+  elements.launcher = btn;
 }
-    function makeDraggable(el) {
+    function bindDragging(el) {
   let isDragging = false;
   let startX = 0;
   let startY = 0;
@@ -284,16 +316,16 @@ function ensureButton() {
     isDragging = false;
     el.style.cursor = 'grab';
 
-    localStorage.setItem('jjRubricBtnLeft', el.style.left);
-    localStorage.setItem('jjRubricBtnTop', el.style.top);
+    saveStoredValue('launcher_left', el.style.left);
+    saveStoredValue('launcher_top', el.style.top);
 
     if (moved) {
       el.dataset.dragged = 'true';
     }
   });
 }
-  function openModal() {
-    closeModal();
+  function renderModal() {
+    handleCloseModal();
 
     const overlay = document.createElement('div');
     overlay.id = 'jj-rubric-overlay';
@@ -346,16 +378,16 @@ function ensureButton() {
     document.body.appendChild(overlay);
 
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeModal();
+      if (e.target === overlay) handleCloseModal();
     });
-    modal.querySelector('#jj-close-modal').addEventListener('click', closeModal);
-    modal.querySelector('#jj-download-csv').addEventListener('click', exportCsv);
+    modal.querySelector('#jj-close-modal').addEventListener('click', handleCloseModal);
+    modal.querySelector('#jj-download-csv').addEventListener('click', handleExportCsv);
 
     renderLibrary();
     renderSelected();
   }
 
-  function closeModal() {
+  function handleCloseModal() {
     document.getElementById('jj-rubric-overlay')?.remove();
   }
 
@@ -363,7 +395,7 @@ function ensureButton() {
     const container = document.getElementById('jj-library-panel');
     if (!container) return;
 
-    const grouped = groupRows(state.rows);
+    const grouped = getRowsByCategory(state.rows);
     container.innerHTML = '';
 
     Object.keys(grouped).sort().forEach(category => {
@@ -533,7 +565,7 @@ function updateStatus() {
   status.style.fontWeight = roundedTotal > 100 ? '700' : '400';
 }
 
-  function exportCsv() {
+  function handleExportCsv() {
     const rubricTitleInput = document.getElementById('jj-rubric-title');
     const rubricName = (rubricTitleInput?.value || '').trim() || 'Rubric Library Export';
 
@@ -544,12 +576,12 @@ function updateStatus() {
     }
 
     const rows = selectedItems.map(item =>
-      rowToCanvasRow(item.row, rubricName, item.weight)
+      createCanvasCsvRow(item.row, rubricName, item.weight)
     );
 
-    const csv = rowsToCsv(rows);
+    const csv = createCsvText(rows);
     const safeName = rubricName.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'rubric_export';
-    downloadCsv(`${safeName}.csv`, csv);
+    downloadTextFile(`${safeName}.csv`, csv);
   }
 
   function escapeHtml(str) {
@@ -565,10 +597,10 @@ function updateStatus() {
   // 6. START
   // =========================================================
   function init() {
-    ensureButton();
+    createLauncherButton();
   }
 
-  const observer = new MutationObserver(() => ensureButton());
+  const observer = new MutationObserver(() => createLauncherButton());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   init();

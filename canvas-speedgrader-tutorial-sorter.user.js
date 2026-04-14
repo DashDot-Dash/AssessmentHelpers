@@ -1,17 +1,20 @@
 // ==UserScript==
-// @name         SpeedGrader - Tutorial Sorter
+// @name         Canvas SpeedGrader Tutorial Sorter
 // @namespace    VisComm@UON
 // @version      2
 // @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/SpeedGrader - Tutorial Sorter.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-tutorial-sorter.user.js
 // @require      https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  // Imports class lists and provides tutorial-group navigation in SpeedGrader.
+
+  // constants/config
   const PANEL_ID = 'chatster-lmg-panel';
   const STYLE_ID = 'chatster-lmg-style';
 
@@ -25,17 +28,32 @@
   const DEFAULT_PANEL_POS = { top: 80, right: 18 };
   const PANEL_MARGIN = 8;
 
-  let lastRenderSig = '';
-  let tick = null;
-  let dragState = null;
-  let isDropActive = false;
-  let lastImportSummary = '';
+  // selectors
+  const selectors = {
+    panel: `#${PANEL_ID}`,
+    selectedStudent: '[data-testid="selected-student"]',
+    studentSelectTrigger: '[data-testid="student-select-trigger"]',
+    studentMenuItem: 'span[data-testid^="student-option-"][role="menuitem"]'
+  };
 
-  function qs(sel, root = document) {
+  // state
+  const state = {
+    lastRenderSig: '',
+    tick: null,
+    drag: null,
+    isDropActive: false,
+    lastImportSummary: ''
+  };
+
+  // elements
+  const elements = {};
+
+  // utilities
+  function getElement(sel, root = document) {
     return root.querySelector(sel);
   }
 
-  function qsa(sel, root = document) {
+  function getElements(sel, root = document) {
     return Array.from(root.querySelectorAll(sel));
   }
 
@@ -64,12 +82,12 @@
     return localStorage.getItem(ACTIVE_GROUP_KEY) || '';
   }
 
-  function setActiveGroupId(id) {
+  function updateActiveGroupId(id) {
     if (id) localStorage.setItem(ACTIVE_GROUP_KEY, id);
     else localStorage.removeItem(ACTIVE_GROUP_KEY);
   }
 
-  function getPanelPos() {
+  function getPanelPosition() {
     try {
       const pos = JSON.parse(localStorage.getItem(PANEL_POS_KEY));
       if (pos && Number.isFinite(pos.left) && Number.isFinite(pos.top)) return pos;
@@ -77,7 +95,7 @@
     return { ...DEFAULT_PANEL_POS };
   }
 
-  function savePanelPos(left, top) {
+  function savePanelPosition(left, top) {
     localStorage.setItem(PANEL_POS_KEY, JSON.stringify({ left, top }));
   }
 
@@ -97,7 +115,7 @@
     return !!loadPanelUi().minimized;
   }
 
-  function setMinimized(minimized) {
+  function updateMinimized(minimized) {
     const ui = loadPanelUi();
     ui.minimized = !!minimized;
     savePanelUi(ui);
@@ -108,24 +126,24 @@
     return m ? m[1] : 'unknown_course';
   }
 
-  function canvasMenuStorageKey() {
+  function getCanvasMenuStorageKey() {
     return `${CANVAS_MENU_KEY}:${getCourseKey()}`;
   }
 
   function loadCanvasMenuCache() {
     try {
-      return JSON.parse(localStorage.getItem(canvasMenuStorageKey())) || {};
+      return JSON.parse(localStorage.getItem(getCanvasMenuStorageKey())) || {};
     } catch {
       return {};
     }
   }
 
   function saveCanvasMenuCache(map) {
-    localStorage.setItem(canvasMenuStorageKey(), JSON.stringify(map));
+    localStorage.setItem(getCanvasMenuStorageKey(), JSON.stringify(map));
   }
 
   function clearCanvasMenuCache() {
-    localStorage.removeItem(canvasMenuStorageKey());
+    localStorage.removeItem(getCanvasMenuStorageKey());
   }
 
 function stat(label, value) {
@@ -226,7 +244,7 @@ function fieldLabel(text) {
     panel.style.top = `${top}px`;
     panel.style.right = 'auto';
 
-    savePanelPos(left, top);
+    savePanelPosition(left, top);
   }
 
   function csvEscape(value) {
@@ -582,10 +600,10 @@ function fieldLabel(text) {
     }
 
     saveGroups(groups);
-    setActiveGroupId(imported[0].id);
+    updateActiveGroupId(imported[0].id);
 
-    lastImportSummary = `Imported ${imported.length} group${imported.length === 1 ? '' : 's'} from ${file.name}`;
-    render(true);
+    state.lastImportSummary = `Imported ${imported.length} group${imported.length === 1 ? '' : 's'} from ${file.name}`;
+    renderPanel(true);
   }
 
   async function importDroppedOrPickedClassFile(file) {
@@ -610,10 +628,10 @@ function fieldLabel(text) {
     const group = makeGroup(parsed.suggestedName, parsed.students, file.name, parsed.metadata);
     groups.push(group);
     saveGroups(groups);
-    setActiveGroupId(group.id);
+    updateActiveGroupId(group.id);
 
-    lastImportSummary = `Imported 1 group from ${file.name}`;
-    render(true);
+    state.lastImportSummary = `Imported 1 group from ${file.name}`;
+    renderPanel(true);
   }
 
   function buildAllCanvasGroupsCsv(groups) {
@@ -647,11 +665,11 @@ function fieldLabel(text) {
   }
 
   function getCurrentStudentDisplayName() {
-    const selectedStudentEl = qs('[data-testid="selected-student"]');
+    const selectedStudentEl = getElement(selectors.selectedStudent);
     const selectedStudentText = cleanText(selectedStudentEl?.textContent || '');
     if (selectedStudentText) return selectedStudentText;
 
-    const triggerEl = qs('[data-testid="student-select-trigger"]');
+    const triggerEl = getElement(selectors.studentSelectTrigger);
     const triggerText = cleanText(triggerEl?.textContent || '');
     if (triggerText) {
       const cleanedTrigger = triggerText.replace(/^●\s*/, '').trim();
@@ -662,7 +680,7 @@ function fieldLabel(text) {
   }
 
   function getStudentMenuItems() {
-    return qsa('span[data-testid^="student-option-"][role="menuitem"]').map(el => {
+    return getElements(selectors.studentMenuItem).map(el => {
       const labelId = el.getAttribute('aria-labelledby');
       const labelEl = labelId ? document.getElementById(labelId) : null;
       const labelText = (labelEl?.textContent || el.textContent || '').trim();
@@ -688,7 +706,7 @@ function fieldLabel(text) {
 
   function openStudentDrilldown() {
     if (isStudentMenuOpen()) return true;
-    const trigger = qs('[data-testid="student-select-trigger"]');
+    const trigger = getElement(selectors.studentSelectTrigger);
     if (!trigger) return false;
     trigger.click();
     return true;
@@ -696,7 +714,7 @@ function fieldLabel(text) {
 
   function closeStudentDrilldown() {
     if (!isStudentMenuOpen()) return;
-    const trigger = qs('[data-testid="student-select-trigger"]');
+    const trigger = getElement(selectors.studentSelectTrigger);
     if (trigger) trigger.click();
   }
 
@@ -848,7 +866,7 @@ function fieldLabel(text) {
     };
   }
 
-function ensureStyles() {
+function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
   const style = document.createElement('style');
@@ -1075,11 +1093,14 @@ function ensureStyles() {
 
   function ensurePanel() {
   let panel = document.getElementById(PANEL_ID);
-  if (panel) return panel;
+  if (panel) {
+    elements.panel = panel;
+    return panel;
+  }
 
   panel = document.createElement('div');
 
-  const pos = getPanelPos();
+  const pos = getPanelPosition();
 
   panel.id = PANEL_ID;
   panel.className = 'chatster-ui-panel';
@@ -1095,9 +1116,10 @@ function ensureStyles() {
   }
 
   document.body.appendChild(panel);
-  ensureStyles();
+  addStyles();
   bindDragging(panel);
-  bindDropZone(panel);
+  bindDropHandlers(panel);
+  elements.panel = panel;
   return panel;
 }
 
@@ -1111,7 +1133,7 @@ function ensureStyles() {
       if (!handle || clickable) return;
 
       const rect = panel.getBoundingClientRect();
-      dragState = {
+      state.drag = {
         startX: e.clientX,
         startY: e.clientY,
         panelLeft: rect.left,
@@ -1123,12 +1145,12 @@ function ensureStyles() {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!dragState) return;
+      if (!state.drag) return;
 
-      const dx = e.clientX - dragState.startX;
-      const dy = e.clientY - dragState.startY;
-      const left = dragState.panelLeft + dx;
-      const top = dragState.panelTop + dy;
+      const dx = e.clientX - state.drag.startX;
+      const dy = e.clientY - state.drag.startY;
+      const left = state.drag.panelLeft + dx;
+      const top = state.drag.panelTop + dy;
 
       panel.style.left = `${left}px`;
       panel.style.top = `${top}px`;
@@ -1136,8 +1158,8 @@ function ensureStyles() {
     });
 
     document.addEventListener('mouseup', () => {
-      if (!dragState) return;
-      dragState = null;
+      if (!state.drag) return;
+      state.drag = null;
       document.body.style.cursor = '';
       clampPanelToViewport(panel);
     });
@@ -1147,7 +1169,7 @@ function ensureStyles() {
     });
   }
 
-  function bindDropZone(panel) {
+  function bindDropHandlers(panel) {
     if (panel.dataset.dropBound === '1') return;
     panel.dataset.dropBound = '1';
 
@@ -1156,7 +1178,7 @@ function ensureStyles() {
     }
 
     function setZoneActive(active) {
-      isDropActive = !!active;
+      state.isDropActive = !!active;
       const zone = panel.querySelector('#chatster-lmg-dropzone');
       if (!zone) return;
 
@@ -1209,15 +1231,15 @@ function ensureStyles() {
         alert(`Import failed: ${err.message}`);
       }
 
-      render(true);
+      renderPanel(true);
     });
   }
 
-  function writeSharedContext(payload) {
+  function saveSharedContext(payload) {
     localStorage.setItem(CONTEXT_KEY, JSON.stringify(payload));
   }
 
-  function render(force = false) {
+  function renderPanel(force = false) {
     const panel = ensurePanel();
     const groups = loadGroups();
     const activeGroupId = getActiveGroupId();
@@ -1250,16 +1272,16 @@ function ensureStyles() {
       currentStudentName,
       matchedCount: matchInfo.matches.length,
       currentIndexInGroup,
-      drop: isDropActive,
-      summary: lastImportSummary,
+      drop: state.isDropActive,
+      summary: state.lastImportSummary,
       cacheCount: Object.keys(menuCache).length,
       minimized
     });
 
-    if (!force && sig === lastRenderSig) return;
-    lastRenderSig = sig;
+    if (!force && sig === state.lastRenderSig) return;
+    state.lastRenderSig = sig;
 
-    writeSharedContext({
+    saveSharedContext({
       version: 11,
       updated_at: currentTimestamp(),
       course_key: getCourseKey(),
@@ -1285,9 +1307,9 @@ function ensureStyles() {
       id="chatster-lmg-dropzone"
       class="chatster-ui-dropzone"
       style="
-        border:1px dashed ${isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-        background:${isDropActive ? '#2b313a' : '#161a20'};
-        color:${isDropActive ? '#fff' : '#c7ced8'};
+        border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
+        background:${state.isDropActive ? '#2b313a' : '#161a20'};
+        color:${state.isDropActive ? '#fff' : '#c7ced8'};
       "
     >
       <div style="font-weight:700;">Drop class file here</div>
@@ -1306,9 +1328,9 @@ function ensureStyles() {
       >
     </div>
 
-    ${lastImportSummary ? `
+    ${state.lastImportSummary ? `
       <div class="chatster-ui-summary chatster-ui-muted">
-        ${escapeHtml(lastImportSummary)}
+        ${escapeHtml(state.lastImportSummary)}
       </div>
     ` : ''}
 
@@ -1391,15 +1413,15 @@ function ensureStyles() {
 `;
 
     panel.querySelector('#chatster-lmg-minimize')?.addEventListener('click', () => {
-      setMinimized(!minimized);
-      render(true);
+      updateMinimized(!minimized);
+      renderPanel(true);
     });
 
     if (minimized) return;
 
     panel.querySelector('#chatster-lmg-select')?.addEventListener('change', (e) => {
-      setActiveGroupId(e.target.value);
-      render(true);
+      updateActiveGroupId(e.target.value);
+      renderPanel(true);
     });
 
     panel.querySelector('#chatster-lmg-import')?.addEventListener('click', () => {
@@ -1417,7 +1439,7 @@ function ensureStyles() {
         }
       }
       e.target.value = '';
-      render(true);
+      renderPanel(true);
     });
 
     panel.querySelector('#chatster-lmg-export-csv')?.addEventListener('click', () => {
@@ -1430,8 +1452,8 @@ function ensureStyles() {
 
       clearSavedData();
       clearCanvasMenuCache();
-      lastImportSummary = 'Reset Tutorial Sorter';
-      render(true);
+      state.lastImportSummary = 'Reset Tutorial Sorter';
+      renderPanel(true);
     });
 
     panel.querySelector('#chatster-lmg-prev')?.addEventListener('click', async () => {
@@ -1470,10 +1492,10 @@ function ensureStyles() {
 
   function init() {
     if (document.getElementById(PANEL_ID)) return;
-    render(true);
+    renderPanel(true);
 
-    if (tick) clearInterval(tick);
-    tick = setInterval(() => render(false), 1000);
+    if (state.tick) clearInterval(state.tick);
+    state.tick = setInterval(() => renderPanel(false), 1000);
   }
 
   setTimeout(init, 1800);

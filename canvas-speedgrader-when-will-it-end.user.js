@@ -1,32 +1,50 @@
 // ==UserScript==
-// @name         SpeedGrader, When Will It End?
+// @name         Canvas SpeedGrader When Will It End
 // @namespace    VisComm@UON
 // @version      0.5
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/SpeedGrader, When Will It End-.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-when-will-it-end.user.js
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  // Estimates SpeedGrader marking time and logs local session timing data.
+
+  // constants/config
   const PANEL_ID = 'wwie-panel';
-  const STORAGE_PREFIX = 'wwie_';
-  const POSITION_KEY = 'wwie_panel_position';
+  const STORAGE_PREFIX = 'canvas_speedgrader_when_will_it_end_v1';
+  const LEGACY_STORAGE_PREFIX = 'wwie_';
+  const POSITION_KEY = `${STORAGE_PREFIX}:panel_position`;
+  const LEGACY_POSITION_KEY = 'wwie_panel_position';
   const MAX_VALID_SECONDS = 20 * 60;
   const MIN_VALID_SECONDS = 15;
   const ROLLING_COUNT = 5;
   const STYLE_ID = 'wwie-style';
   const PANEL_WIDTH = 340;
 
-  let currentStudentKey = null;
-  let currentStartTime = null;
-  let lastSeenUrl = location.href;
-  let lastRenderedSignature = '';
-  let tickInterval = null;
-  let navInterval = null;
-  let dragState = null;
+  // selectors
+  const selectors = {
+    panel: `#${PANEL_ID}`,
+    selectedStudent: '[data-testid="selected-student"]',
+    studentSelectTrigger: '[data-testid="student-select-trigger"]'
+  };
+
+  // state
+  const state = {
+    currentStudentKey: null,
+    currentStartTime: null,
+    lastSeenUrl: location.href,
+    lastRenderedSignature: '',
+    tickInterval: null,
+    navInterval: null,
+    drag: null
+  };
+
+  // elements
+  const elements = {};
 
   function getAssignmentKey() {
     const url = new URL(window.location.href);
@@ -36,8 +54,16 @@
     return `${courseId}_${assignmentId}`;
   }
 
-  function getStorageKey() {
-    return STORAGE_PREFIX + getAssignmentKey();
+  function getStorageKey(prefix = STORAGE_PREFIX) {
+    return `${prefix}:${getAssignmentKey()}`;
+  }
+
+  function getLegacyStorageKey() {
+    return LEGACY_STORAGE_PREFIX + getAssignmentKey();
+  }
+
+  function getStoredJson() {
+    return localStorage.getItem(getStorageKey()) || localStorage.getItem(getLegacyStorageKey());
   }
 
   function defaultData() {
@@ -52,7 +78,7 @@
 
   function loadData() {
     try {
-      return { ...defaultData(), ...(JSON.parse(localStorage.getItem(getStorageKey())) || {}) };
+      return { ...defaultData(), ...(JSON.parse(getStoredJson()) || {}) };
     } catch {
       return defaultData();
     }
@@ -64,7 +90,7 @@
 
   function getPanelPosition() {
     try {
-      const pos = JSON.parse(localStorage.getItem(POSITION_KEY));
+      const pos = JSON.parse(localStorage.getItem(POSITION_KEY) || localStorage.getItem(LEGACY_POSITION_KEY));
       if (pos && Number.isFinite(pos.left) && Number.isFinite(pos.top)) return pos;
     } catch {}
     return { top: 80, right: 18 };
@@ -105,11 +131,11 @@ function normalizeName(str) {
 }
 
 function getCurrentStudentDisplayName() {
-  const selectedStudentEl = document.querySelector('[data-testid="selected-student"]');
+  const selectedStudentEl = document.querySelector(selectors.selectedStudent);
   const selectedStudentText = cleanText(selectedStudentEl?.textContent || '');
   if (selectedStudentText) return selectedStudentText;
 
-  const triggerEl = document.querySelector('[data-testid="student-select-trigger"]');
+  const triggerEl = document.querySelector(selectors.studentSelectTrigger);
   const triggerText = cleanText(triggerEl?.textContent || '');
   if (triggerText) {
     const cleanedTrigger = triggerText.replace(/^●\s*/, '').trim();
@@ -286,15 +312,15 @@ function getLocalGroupContext() {
     return 'running through mud';
   }
 
-function buttonCss() {
+function getButtonCss() {
   return 'wwie-btn';
 }
 
-function quietButtonCss() {
+function getQuietButtonCss() {
   return 'wwie-btn-quiet';
 }
 
-function dangerButtonCss() {
+function getDangerButtonCss() {
   return 'wwie-btn-danger';
 }
 
@@ -347,7 +373,7 @@ function stat(label, value) {
     `;
   }
 
-    function ensureStyles() {
+    function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
   const style = document.createElement('style');
@@ -477,7 +503,10 @@ function stat(label, value) {
 
 function ensurePanel() {
   let panel = document.getElementById(PANEL_ID);
-  if (panel) return panel;
+  if (panel) {
+    elements.panel = panel;
+    return panel;
+  }
 
   panel = document.createElement('div');
   panel.id = PANEL_ID;
@@ -500,7 +529,8 @@ function ensurePanel() {
   `;
 
   document.body.appendChild(panel);
-  ensureStyles();
+  addStyles();
+  elements.panel = panel;
   return panel;
 }
 
@@ -514,7 +544,7 @@ function ensurePanel() {
       if (!handle || clickable) return;
 
       const rect = panel.getBoundingClientRect();
-      dragState = {
+      state.drag = {
         startX: e.clientX,
         startY: e.clientY,
         panelLeft: rect.left,
@@ -526,12 +556,12 @@ function ensurePanel() {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!dragState) return;
+      if (!state.drag) return;
 
-      const dx = e.clientX - dragState.startX;
-      const dy = e.clientY - dragState.startY;
-      const left = Math.max(8, dragState.panelLeft + dx);
-      const top = Math.max(8, dragState.panelTop + dy);
+      const dx = e.clientX - state.drag.startX;
+      const dy = e.clientY - state.drag.startY;
+      const left = Math.max(8, state.drag.panelLeft + dx);
+      const top = Math.max(8, state.drag.panelTop + dy);
 
       panel.style.left = `${left}px`;
       panel.style.top = `${top}px`;
@@ -539,10 +569,10 @@ function ensurePanel() {
     });
 
     document.addEventListener('mouseup', () => {
-      if (!dragState) return;
+      if (!state.drag) return;
       const rect = panel.getBoundingClientRect();
       savePanelPosition(rect.left, rect.top);
-      dragState = null;
+      state.drag = null;
       document.body.style.cursor = '';
     });
   }
@@ -596,24 +626,24 @@ const contextMeta =
     med: Math.round(med || 0),
     remaining,
     eta: Math.round(etaSeconds || 0),
-    elapsed: currentStartTime ? Math.round((Date.now() - currentStartTime) / 1000) : 0,
+    elapsed: state.currentStartTime ? Math.round((Date.now() - state.currentStartTime) / 1000) : 0,
     source: info.source,
     groupName: info.groupName,
     total,
     done: visibleDone
   });
 
-  if (!force && signature === lastRenderedSignature) return;
-  lastRenderedSignature = signature;
+  if (!force && signature === state.lastRenderedSignature) return;
+  state.lastRenderedSignature = signature;
 
   if (data.minimized) {
     panel.innerHTML = `
       <div class="wwie-drag-handle wwie-header" style="align-items:center;">
         <div class="wwie-title">When will it end?</div>
-        <button id="wwie-toggle" class="${quietButtonCss()}">Expand</button>
+        <button id="wwie-toggle" class="${getQuietButtonCss()}">Expand</button>
       </div>
     `;
-    panel.querySelector('#wwie-toggle')?.addEventListener('click', toggleMinimize);
+    panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
     return;
   }
 
@@ -627,7 +657,7 @@ const contextMeta =
       </div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button id="wwie-toggle" class="${quietButtonCss()}">Minimise</button>
+      <button id="wwie-toggle" class="${getQuietButtonCss()}">Minimise</button>
     </div>
   </div>
 
@@ -650,42 +680,42 @@ const contextMeta =
     </div>
 
     <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
-      Current student: ${currentStartTime ? formatDuration((Date.now() - currentStartTime) / 1000) : '—'}<br>
+      Current student: ${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}<br>
       Logged entries: ${data.entries.length}<br>
       Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
     </div>
 
     <div class="wwie-button-row">
-      <button id="wwie-log" class="${buttonCss()}">Log now</button>
-      <button id="wwie-export-csv" class="${buttonCss()}">Export CSV</button>
-      <button id="wwie-save-json" class="${buttonCss()}">Save JSON</button>
+      <button id="wwie-log" class="${getButtonCss()}">Log now</button>
+      <button id="wwie-export-csv" class="${getButtonCss()}">Export CSV</button>
+      <button id="wwie-save-json" class="${getButtonCss()}">Save JSON</button>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-      <button id="wwie-reset" class="${dangerButtonCss()}">Reset</button>
+      <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
     </div>
   </div>
 `;
-  panel.querySelector('#wwie-reset')?.addEventListener('click', resetSession);
-  panel.querySelector('#wwie-toggle')?.addEventListener('click', toggleMinimize);
-  panel.querySelector('#wwie-log')?.addEventListener('click', logNow);
-  panel.querySelector('#wwie-export-csv')?.addEventListener('click', exportCSV);
-  panel.querySelector('#wwie-save-json')?.addEventListener('click', saveJSON);
+  panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
+  panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
+  panel.querySelector('#wwie-log')?.addEventListener('click', handleLogNow);
+  panel.querySelector('#wwie-export-csv')?.addEventListener('click', handleExportCsv);
+  panel.querySelector('#wwie-save-json')?.addEventListener('click', handleSaveJson);
 }
 
-  function toggleMinimize() {
+  function handleToggleMinimize() {
     const data = loadData();
     data.minimized = !data.minimized;
     saveData(data);
     renderPanel(true);
   }
 
-  function resetSession() {
+  function handleResetSession() {
     const data = defaultData();
     data.minimized = false;
     saveData(data);
-    currentStudentKey = getCurrentStudentKey();
-    currentStartTime = Date.now();
+    state.currentStudentKey = getCurrentStudentKey();
+    state.currentStartTime = Date.now();
     renderPanel(true);
   }
 
@@ -693,9 +723,9 @@ const contextMeta =
     const now = Date.now();
     return {
       course_assignment: getAssignmentKey(),
-      student_key: currentStudentKey,
-      student_label: getCurrentStudentDisplayName() || currentStudentKey,
-      started_at: formatISO(currentStartTime),
+      student_key: state.currentStudentKey,
+      student_label: getCurrentStudentDisplayName() || state.currentStudentKey,
+      started_at: formatISO(state.currentStartTime),
       logged_at: formatISO(now),
       elapsed_seconds: elapsedSeconds,
       elapsed_readable: formatDuration(elapsedSeconds),
@@ -704,36 +734,36 @@ const contextMeta =
   }
 
   function addEntry(elapsedSeconds, mode = 'auto') {
-    if (!currentStudentKey || !currentStartTime) return false;
+    if (!state.currentStudentKey || !state.currentStartTime) return false;
     if (elapsedSeconds < MIN_VALID_SECONDS || elapsedSeconds > MAX_VALID_SECONDS) return false;
 
     const data = loadData();
     const lastLoggedKey = data.completedStudentKeys[data.completedStudentKeys.length - 1];
 
-    if (mode === 'auto' && lastLoggedKey === currentStudentKey) return false;
+    if (mode === 'auto' && lastLoggedKey === state.currentStudentKey) return false;
 
     data.timings.push(elapsedSeconds);
-    data.completedStudentKeys.push(currentStudentKey);
+    data.completedStudentKeys.push(state.currentStudentKey);
     data.entries.push(createEntry(elapsedSeconds, mode));
     saveData(data);
     return true;
   }
 
   function logCurrentStudentIfValid() {
-    const elapsed = Math.round((Date.now() - currentStartTime) / 1000);
+    const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     return addEntry(elapsed, 'auto');
   }
 
-  function logNow() {
-    const elapsed = Math.round((Date.now() - currentStartTime) / 1000);
+  function handleLogNow() {
+    const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     const ok = addEntry(elapsed, 'manual');
     if (ok) {
-      currentStartTime = Date.now();
+      state.currentStartTime = Date.now();
       renderPanel(true);
     }
   }
 
-  function exportCSV() {
+  function handleExportCsv() {
     const data = loadData();
     const rows = [
       [
@@ -762,7 +792,7 @@ const contextMeta =
     downloadFile(csv, `marking-log-${getAssignmentKey()}.csv`, 'text/csv;charset=utf-8;');
   }
 
-  function saveJSON() {
+  function handleSaveJson() {
     const data = loadData();
     downloadFile(
       JSON.stringify(data, null, 2),
@@ -786,27 +816,27 @@ const contextMeta =
   function detectStudentChange() {
     const newKey = getCurrentStudentKey();
 
-    if (!currentStudentKey) {
-      currentStudentKey = newKey;
-      currentStartTime = Date.now();
+    if (!state.currentStudentKey) {
+      state.currentStudentKey = newKey;
+      state.currentStartTime = Date.now();
       return;
     }
 
-    if (newKey !== currentStudentKey) {
+    if (newKey !== state.currentStudentKey) {
       logCurrentStudentIfValid();
-      currentStudentKey = newKey;
-      currentStartTime = Date.now();
+      state.currentStudentKey = newKey;
+      state.currentStartTime = Date.now();
       renderPanel(true);
     }
   }
 
   function startLoops() {
-    if (navInterval) clearInterval(navInterval);
-    if (tickInterval) clearInterval(tickInterval);
+    if (state.navInterval) clearInterval(state.navInterval);
+    if (state.tickInterval) clearInterval(state.tickInterval);
 
-    navInterval = setInterval(() => {
-      if (location.href !== lastSeenUrl) {
-        lastSeenUrl = location.href;
+    state.navInterval = setInterval(() => {
+      if (location.href !== state.lastSeenUrl) {
+        state.lastSeenUrl = location.href;
         setTimeout(() => {
           detectStudentChange();
           renderPanel(true);
@@ -816,15 +846,15 @@ const contextMeta =
       }
     }, 800);
 
-    tickInterval = setInterval(() => {
+    state.tickInterval = setInterval(() => {
       renderPanel(false);
     }, 1000);
   }
 
   function init() {
     if (document.getElementById(PANEL_ID)) return;
-    currentStudentKey = getCurrentStudentKey();
-    currentStartTime = Date.now();
+    state.currentStudentKey = getCurrentStudentKey();
+    state.currentStartTime = Date.now();
     renderPanel(true);
     startLoops();
   }

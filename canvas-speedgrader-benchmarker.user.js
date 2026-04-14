@@ -6,16 +6,20 @@
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/Canvas SpeedGrader Benchmarker.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-benchmarker.user.js
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  // Tracks local SpeedGrader benchmarking buckets and filtered navigation state.
+
+  // constants/config
   const PANEL_ID = 'sg-benchmarker-panel';
   const STYLE_ID = 'sg-benchmarker-style';
-  const STORAGE_PREFIX = 'sgBenchmarker_v06';
+  const STORAGE_PREFIX = 'canvas_speedgrader_benchmarker_v1';
+  const LEGACY_STORAGE_PREFIX = 'sgBenchmarker_v06';
 
   const BUCKETS = [
     { id: 'hd', label: 'HD', key: '1', color: '#2e7d32' },
@@ -26,15 +30,32 @@
     { id: 'no_submission', label: 'No Submission', key: '6', color: '#616161' }
   ];
 
+  // selectors
+  const selectors = {
+    panel: `#${PANEL_ID}`,
+    selectedStudent: '[data-testid="selected-student"]',
+    studentSelectTrigger: '[data-testid="student-select-trigger"]',
+    studentMenuItem: 'span[data-testid^="student-option-"][role="menuitem"]'
+  };
+
+  // state
+  const state = {
+    lastHref: location.href
+  };
+
+  // elements
+  const elements = {};
+
+  // utilities
   function log(...args) {
     console.log('[Benchmarker]', ...args);
   }
 
-  function qs(sel, root = document) {
+  function getElement(sel, root = document) {
     return root.querySelector(sel);
   }
 
-  function qsa(sel, root = document) {
+  function getElements(sel, root = document) {
     return Array.from(root.querySelectorAll(sel));
   }
 
@@ -68,15 +89,15 @@
   }
 
   function findStudentIdFromPage() {
-    const selectors = [
+    const selectorList = [
       '[data-student-id]',
       '[data-user-id]',
       'a[href*="student_id="]',
       'a[href*="user_id="]'
     ];
 
-    for (const sel of selectors) {
-      const nodes = qsa(sel);
+    for (const sel of selectorList) {
+      const nodes = getElements(sel);
       for (const el of nodes) {
         const dsid = el.getAttribute('data-student-id') || el.dataset?.studentId;
         if (dsid) return dsid;
@@ -106,14 +127,14 @@
     const store = loadStore();
     const studentId = getStudentId();
 
-    const selectedStudentEl = qs('[data-testid="selected-student"]');
+    const selectedStudentEl = getElement(selectors.selectedStudent);
     const selectedStudentText = cleanText(selectedStudentEl?.textContent || '');
 
     if (selectedStudentText) {
       return selectedStudentText;
     }
 
-    const triggerEl = qs('[data-testid="student-select-trigger"]');
+    const triggerEl = getElement(selectors.studentSelectTrigger);
     const triggerText = cleanText(triggerEl?.textContent || '');
 
     if (triggerText) {
@@ -145,7 +166,7 @@
 }
 
 function getStudentMenuItems() {
-  return qsa('span[data-testid^="student-option-"][role="menuitem"]').map(el => {
+  return getElements(selectors.studentMenuItem).map(el => {
     const labelId = el.getAttribute('aria-labelledby');
     const labelEl = labelId ? document.getElementById(labelId) : null;
     const labelText = (labelEl?.textContent || el.textContent || '').trim();
@@ -171,7 +192,7 @@ function isStudentMenuOpen() {
 
 function openStudentDrilldown() {
   if (isStudentMenuOpen()) return true;
-  const trigger = qs('[data-testid="student-select-trigger"]');
+  const trigger = getElement(selectors.studentSelectTrigger);
   if (!trigger) return false;
   trigger.click();
   return true;
@@ -179,7 +200,7 @@ function openStudentDrilldown() {
 
 function closeStudentDrilldown() {
   if (!isStudentMenuOpen()) return;
-  const trigger = qs('[data-testid="student-select-trigger"]');
+  const trigger = getElement(selectors.studentSelectTrigger);
   if (trigger) trigger.click();
 }
 
@@ -245,8 +266,16 @@ function clickStudentInOpenMenuByName(targetName) {
     return bucketById(bucketId)?.color || '#455a64';
   }
 
-  function contextKey() {
-    return `${STORAGE_PREFIX}:${getCourseId()}:${getAssignmentId()}`;
+  function getStorageKey(prefix = STORAGE_PREFIX) {
+    return `${prefix}:${getCourseId()}:${getAssignmentId()}`;
+  }
+
+  function getLegacyStorageKey() {
+    return getStorageKey(LEGACY_STORAGE_PREFIX);
+  }
+
+  function getStoredJson() {
+    return localStorage.getItem(getStorageKey()) || localStorage.getItem(getLegacyStorageKey());
   }
 
   function defaultStore() {
@@ -264,14 +293,14 @@ function clickStudentInOpenMenuByName(targetName) {
 
   function loadStore() {
     try {
-      return JSON.parse(localStorage.getItem(contextKey())) || defaultStore();
+      return JSON.parse(getStoredJson()) || defaultStore();
     } catch {
       return defaultStore();
     }
   }
 
   function saveStore(store) {
-    localStorage.setItem(contextKey(), JSON.stringify(store));
+    localStorage.setItem(getStorageKey(), JSON.stringify(store));
   }
 
   function ensureCurrentStudentTracked() {
@@ -295,7 +324,7 @@ function clickStudentInOpenMenuByName(targetName) {
     saveStore(store);
   }
 
-  function setBucket(bucketId) {
+  function updateStudentBucket(bucketId) {
     const studentId = getStudentId();
     if (!studentId) {
       alert('No student ID found on this page.');
@@ -329,7 +358,7 @@ function clickStudentInOpenMenuByName(targetName) {
     return store.students[studentId]?.bucket || null;
   }
 
-  function setActiveFilter(filter) {
+  function updateActiveFilter(filter) {
     const store = loadStore();
     store.ui.activeFilter = filter;
     saveStore(store);
@@ -340,7 +369,7 @@ function clickStudentInOpenMenuByName(targetName) {
     return loadStore().ui?.activeFilter || 'all';
   }
 
-  function setCollapsed(collapsed) {
+  function updateCollapsed(collapsed) {
     const store = loadStore();
     store.ui.collapsed = collapsed;
     saveStore(store);
@@ -351,7 +380,7 @@ function clickStudentInOpenMenuByName(targetName) {
     return !!loadStore().ui?.collapsed;
   }
 
-  function setPanelPosition(x, y) {
+  function updatePanelPosition(x, y) {
     const store = loadStore();
     store.ui.posX = x;
     store.ui.posY = y;
@@ -503,11 +532,12 @@ async function navigateInFilter(direction) {
 
     if (!ok) return;
 
-    localStorage.removeItem(contextKey());
+    localStorage.removeItem(getStorageKey());
+    localStorage.removeItem(getLegacyStorageKey());
     renderPanel();
   }
 
-  function exportData() {
+  function handleExportData() {
     const payload = {
       context: {
         courseId: getCourseId(),
@@ -526,7 +556,7 @@ async function navigateInFilter(direction) {
     a.remove();
   }
 
-  function importData(file) {
+  function handleImportData(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -543,7 +573,7 @@ async function navigateInFilter(direction) {
     reader.readAsText(file);
   }
 
-  function make(tag, attrs = {}, children = []) {
+  function createElement(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (k === 'class') el.className = v;
@@ -562,7 +592,7 @@ async function navigateInFilter(direction) {
     return el;
   }
 
-  function injectStyles() {
+  function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
   const style = document.createElement('style');
@@ -833,7 +863,7 @@ async function navigateInFilter(direction) {
   document.head.appendChild(style);
 }
 
-  function enableDragging(panel, handle) {
+  function bindDragging(panel, handle) {
     let dragging = false;
     let startX = 0;
     let startY = 0;
@@ -872,14 +902,14 @@ async function navigateInFilter(direction) {
       panel.classList.remove('dragging');
 
       const rect = panel.getBoundingClientRect();
-      setPanelPosition(rect.left, rect.top);
+      updatePanelPosition(rect.left, rect.top);
     });
   }
 
   function renderPanel() {
     if (!document.body) return;
 
-    injectStyles();
+    addStyles();
     ensureCurrentStudentTracked();
 
 
@@ -889,6 +919,7 @@ async function navigateInFilter(direction) {
       panel.id = PANEL_ID;
       document.body.appendChild(panel);
     }
+    elements.panel = panel;
 
     const studentId = getStudentId();
     const studentName = getStudentName();
@@ -899,15 +930,15 @@ async function navigateInFilter(direction) {
 
     panel.innerHTML = '';
 
-const head = make('div', {
+const head = createElement('div', {
   class: 'sg-head',
   style: collapsed ? 'border-bottom:0;' : ''
 }, [
-  make('div', { class: 'sg-head-title', text: 'Benchmarker' }),
-      make('div', { class: 'sg-head-buttons' }, [
-        make('button', {
+  createElement('div', { class: 'sg-head-title', text: 'Benchmarker' }),
+      createElement('div', { class: 'sg-head-buttons' }, [
+        createElement('button', {
           text: collapsed ? 'Expand' : 'Minimise',
-          onclick: () => setCollapsed(!collapsed)
+          onclick: () => updateCollapsed(!collapsed)
         })
       ])
     ]);
@@ -921,17 +952,17 @@ const head = make('div', {
       panel.style.right = 'auto';
     }
 
-    enableDragging(panel, head);
+    bindDragging(panel, head);
 
     if (collapsed) return;
 
-    const body = make('div', { class: 'sg-body' });
+    const body = createElement('div', { class: 'sg-body' });
 
     // Student info
-    const studentSection = make('div', { class: 'sg-section sg-student' });
-    const studentTop = make('div', { class: 'sg-student-top' }, [
-      make('div', { class: 'sg-student-name', text: studentName }),
-      make('div', {
+    const studentSection = createElement('div', { class: 'sg-section sg-student' });
+    const studentTop = createElement('div', { class: 'sg-student-top' }, [
+      createElement('div', { class: 'sg-student-name', text: studentName }),
+      createElement('div', {
         class: 'sg-bucket-pill',
         text: currentBucket ? bucketLabel(currentBucket) : 'Unbucketed'
       })
@@ -941,10 +972,10 @@ const head = make('div', {
       ? bucketColor(currentBucket)
       : '#455a64';
 
-    studentSection.appendChild(make('div', { class: 'sg-section-title', text: 'Current Student' }));
+    studentSection.appendChild(createElement('div', { class: 'sg-section-title', text: 'Current Student' }));
     studentSection.appendChild(studentTop);
     studentSection.appendChild(
-      make('div', {
+      createElement('div', {
         class: 'sg-small',
         text: `Assignment: ${getAssignmentId()} | Student ID: ${studentId || 'unknown'}`
       })
@@ -952,15 +983,15 @@ const head = make('div', {
     body.appendChild(studentSection);
 
     // Bucket assignment buttons
-const bucketButtons = make('div', { class: 'sg-row sg-grid' });
+const bucketButtons = createElement('div', { class: 'sg-row sg-grid' });
 for (const b of BUCKETS) {
   bucketButtons.appendChild(
-    make('button', {
+    createElement('button', {
       class: `sg-grade-btn ${currentBucket === b.id ? 'active' : ''}`,
-      onclick: () => setBucket(b.id)
+      onclick: () => updateStudentBucket(b.id)
     }, [
-      make('span', { class: 'sg-grade-key', text: b.key }),
-      make('span', { class: 'sg-grade-label', text: b.label })
+      createElement('span', { class: 'sg-grade-key', text: b.key }),
+      createElement('span', { class: 'sg-grade-label', text: b.label })
     ])
   );
 }
@@ -968,28 +999,28 @@ body.appendChild(bucketButtons);
 
     // Student list
     const filteredList = getFilteredStudents(activeFilter).slice(0, 80);
-    const listSection = make('div', { class: 'sg-section' }, [
-      make('div', { class: 'sg-section-title', text: 'Student List' }),
-      make('div', {
+    const listSection = createElement('div', { class: 'sg-section' }, [
+      createElement('div', { class: 'sg-section-title', text: 'Student List' }),
+      createElement('div', {
         class: 'sg-small',
         text: `Students in "${activeFilter}" queue`
       })
     ]);
 
-    const list = make('div', { class: 'sg-list' });
+    const list = createElement('div', { class: 'sg-list' });
 
     if (!filteredList.length) {
-      list.appendChild(make('div', { class: 'sg-item' }, [
-        make('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
+      list.appendChild(createElement('div', { class: 'sg-item' }, [
+        createElement('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
       ]));
     } else {
       filteredList.forEach(s => {
-        const item = make('div', {
+        const item = createElement('div', {
           class: `sg-item ${s.id === studentId ? 'current' : ''}`,
           onclick: async () => { await navigateToStudent(s.id); }
         }, [
-          make('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
-          make('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
+          createElement('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
+          createElement('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
         ]);
 
         item.style.borderLeftColor = bucketColor(s.bucket);
@@ -1001,8 +1032,8 @@ body.appendChild(bucketButtons);
     body.appendChild(listSection);
 
     // Clickable bucket list
-    const countsSection = make('div', { class: 'sg-section' }, [
-      make('div', { class: 'sg-section-title', text: 'Buckets' })
+    const countsSection = createElement('div', { class: 'sg-section' }, [
+      createElement('div', { class: 'sg-section-title', text: 'Buckets' })
     ]);
 
     [
@@ -1014,12 +1045,12 @@ body.appendChild(bucketButtons);
       { id: 'fail', label: 'Fail', value: counts.fail, bucket: 'fail' },
       { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
     ].forEach(item => {
-      const chip = make('div', {
+      const chip = createElement('div', {
         class: `sg-count-chip ${activeFilter === item.id ? 'active' : ''}`,
-        onclick: () => setActiveFilter(item.id)
+        onclick: () => updateActiveFilter(item.id)
       }, [
-        make('div', { text: item.label }),
-        make('div', { text: String(item.value) })
+        createElement('div', { text: item.label }),
+        createElement('div', { text: String(item.value) })
       ]);
 
       chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : '#455a64';
@@ -1027,17 +1058,17 @@ body.appendChild(bucketButtons);
     });
 
     countsSection.appendChild(
-   make('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px;' }, [
-        make('button', {
+   createElement('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px;' }, [
+        createElement('button', {
           class: activeFilter === 'all' ? 'active' : '',
           text: 'Show All',
-          onclick: () => setActiveFilter('all')
+          onclick: () => updateActiveFilter('all')
         }),
-        make('button', {
+        createElement('button', {
           text: '◀ Prev in group',
           onclick: () => navigateInFilter(-1)
         }),
-        make('button', {
+        createElement('button', {
           text: 'Next in group ▶',
           onclick: () => navigateInFilter(1)
         })
@@ -1046,28 +1077,28 @@ body.appendChild(bucketButtons);
 
     body.appendChild(countsSection);
 
-    const fileInput = make('input', {
+    const fileInput = createElement('input', {
       type: 'file',
       accept: 'application/json'
     });
 
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
-      if (file) importData(file);
+      if (file) handleImportData(file);
     });
     body.appendChild(fileInput);
 
     body.appendChild(
-      make('div', { class: 'sg-row sg-grid sg-grid-3' }, [
-        make('button', {
+      createElement('div', { class: 'sg-row sg-grid sg-grid-3' }, [
+        createElement('button', {
           text: 'Export JSON',
-          onclick: exportData
+          onclick: handleExportData
         }),
-        make('button', {
+        createElement('button', {
           text: 'Import JSON',
           onclick: () => body.querySelector('input[type="file"]')?.click()
         }),
-        make('button', {
+        createElement('button', {
           text: 'Reset',
           onclick: resetCurrentAssignmentData
         })
@@ -1075,7 +1106,7 @@ body.appendChild(bucketButtons);
     );
 
     body.appendChild(
-      make('div', { class: 'sg-small' }, [
+      createElement('div', { class: 'sg-small' }, [
         'Hotkeys: 1–6 assign categories, [ and ] move through the selected queue. Queue items are clickable.'
       ])
     );
@@ -1098,17 +1129,17 @@ body.appendChild(bucketButtons);
     if (shouldIgnoreKeys(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    if (e.key === '1') { e.preventDefault(); setBucket('hd'); return; }
-    if (e.key === '2') { e.preventDefault(); setBucket('distinction'); return; }
-    if (e.key === '3') { e.preventDefault(); setBucket('credit'); return; }
-    if (e.key === '4') { e.preventDefault(); setBucket('pass'); return; }
-    if (e.key === '5') { e.preventDefault(); setBucket('fail'); return; }
-    if (e.key === '6') { e.preventDefault(); setBucket('no_submission'); return; }
+    if (e.key === '1') { e.preventDefault(); updateStudentBucket('hd'); return; }
+    if (e.key === '2') { e.preventDefault(); updateStudentBucket('distinction'); return; }
+    if (e.key === '3') { e.preventDefault(); updateStudentBucket('credit'); return; }
+    if (e.key === '4') { e.preventDefault(); updateStudentBucket('pass'); return; }
+    if (e.key === '5') { e.preventDefault(); updateStudentBucket('fail'); return; }
+    if (e.key === '6') { e.preventDefault(); updateStudentBucket('no_submission'); return; }
     if (e.key === '[') { e.preventDefault(); navigateInFilter(-1); return; }
     if (e.key === ']') { e.preventDefault(); navigateInFilter(1); return; }
   }
 
-  function boot() {
+  function init() {
     log('Booting');
 
     const tryRender = () => {
@@ -1122,10 +1153,9 @@ body.appendChild(bucketButtons);
     tryRender();
     document.addEventListener('keydown', handleKeydown, true);
 
-    let lastHref = location.href;
     setInterval(() => {
-      if (location.href !== lastHref) {
-        lastHref = location.href;
+      if (location.href !== state.lastHref) {
+        state.lastHref = location.href;
         setTimeout(renderPanel, 250);
       }
     }, 400);
@@ -1147,5 +1177,5 @@ body.appendChild(bucketButtons);
     startObserver();
   }
 
-  boot();
+  init();
 })();
