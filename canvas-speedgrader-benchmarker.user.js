@@ -18,6 +18,7 @@
   // constants/config
   const PANEL_ID = 'sg-benchmarker-panel';
   const STYLE_ID = 'sg-benchmarker-style';
+  const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_benchmarker_v1';
   const LEGACY_STORAGE_PREFIX = 'sgBenchmarker_v06';
 
@@ -49,6 +50,14 @@
   // utilities
   function log(...args) {
     console.log('[Benchmarker]', ...args);
+  }
+
+  function bringPanelToFront(panel) {
+    if (!panel) return;
+    const current = Number(window.__canvasAssessmentPanelZIndex || Z_INDEX_BASE);
+    const next = current + 1;
+    window.__canvasAssessmentPanelZIndex = next;
+    panel.style.zIndex = String(next);
   }
 
   function getElement(sel, root = document) {
@@ -603,7 +612,7 @@ async function navigateInFilter(direction) {
       top: 20px;
       right: 20px;
       width: 340px;
-      z-index: 2147483647;
+      z-index: ${Z_INDEX_BASE};
       background: #1f2329;
       color: #f3f4f6;
       border-radius: 12px;
@@ -873,6 +882,7 @@ async function navigateInFilter(direction) {
     handle.addEventListener('mousedown', (e) => {
       if (e.target.closest('button')) return;
 
+      bringPanelToFront(panel);
       dragging = true;
       panel.classList.add('dragging');
 
@@ -920,6 +930,10 @@ async function navigateInFilter(direction) {
       document.body.appendChild(panel);
     }
     elements.panel = panel;
+    if (panel.dataset.frontBound !== '1') {
+      panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+      panel.dataset.frontBound = '1';
+    }
 
     const studentId = getStudentId();
     const studentName = getStudentName();

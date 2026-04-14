@@ -14,6 +14,7 @@
   // Lets rubric criteria be chosen from an embedded library and exported as Canvas CSV.
 
   // constants/config
+  const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
   const LEGACY_POSITION_KEYS = {
     left: 'jjRubricBtnLeft',
@@ -233,6 +234,14 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     localStorage.setItem(getStorageKey(name), value);
   }
 
+  function bringPanelToFront(panel) {
+    if (!panel) return;
+    const current = Number(window.__canvasAssessmentPanelZIndex || Z_INDEX_BASE);
+    const next = current + 1;
+    window.__canvasAssessmentPanelZIndex = next;
+    panel.style.zIndex = String(next);
+  }
+
 function createLauncherButton() {
   if (document.querySelector(selectors.launcher)) return;
 
@@ -248,7 +257,7 @@ function createLauncherButton() {
     position: fixed;
     top: ${savedY || '20px'};
     left: ${savedX || '20px'};
-    z-index: 999999;
+    z-index: ${Z_INDEX_BASE};
     padding: 10px 12px;
     background: #252b33;
     color: white;
@@ -261,6 +270,7 @@ function createLauncherButton() {
   `;
 
   btn.addEventListener('click', function (e) {
+    bringPanelToFront(btn);
     if (btn.dataset.dragged === 'true') {
       btn.dataset.dragged = 'false';
       return;
@@ -271,6 +281,7 @@ function createLauncherButton() {
   bindDragging(btn);
   document.body.appendChild(btn);
   elements.launcher = btn;
+  bringPanelToFront(btn);
 }
     function bindDragging(el) {
   let isDragging = false;
@@ -281,6 +292,7 @@ function createLauncherButton() {
   let moved = false;
 
   el.addEventListener('mousedown', (e) => {
+    bringPanelToFront(el);
     isDragging = true;
     moved = false;
 
@@ -333,12 +345,13 @@ function createLauncherButton() {
       position:fixed;
       inset:0;
       background:rgba(0,0,0,0.45);
-      z-index:99999;
+      z-index:${Z_INDEX_BASE};
       display:flex;
       align-items:center;
       justify-content:center;
       padding:24px;
     `;
+    bringPanelToFront(overlay);
 
     const modal = document.createElement('div');
  modal.style.cssText = `

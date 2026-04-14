@@ -18,6 +18,7 @@
   // constants/config
   const PANEL_ID = 'sg-copypaster-panel';
   const STYLE_ID = 'sg-copypaster-style';
+  const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_copy_paster_v1';
   const LEGACY_STORAGE_PREFIX = 'sgCopyPaster_v01';
 
@@ -56,6 +57,14 @@
   // utilities
   function getElement(sel, root = document) {
     return root.querySelector(sel);
+  }
+
+  function bringPanelToFront(panel) {
+    if (!panel) return;
+    const current = Number(window.__canvasAssessmentPanelZIndex || Z_INDEX_BASE);
+    const next = current + 1;
+    window.__canvasAssessmentPanelZIndex = next;
+    panel.style.zIndex = String(next);
   }
 
   function getElements(sel, root = document) {
@@ -533,7 +542,7 @@ function handleImportData(file) {
       top: 80px;
       left: 20px;
       width: 340px;
-      z-index: 2147483647;
+      z-index: ${Z_INDEX_BASE};
       background: #1f2329;
       color: #f3f4f6;
       border: 1px solid rgba(255,255,255,0.08);
@@ -770,6 +779,7 @@ function handleImportData(file) {
     handle.addEventListener('mousedown', (e) => {
       if (e.target.closest('button, input, textarea, select')) return;
 
+      bringPanelToFront(panel);
       dragging = true;
       panel.classList.add('dragging');
 
@@ -829,6 +839,10 @@ function handleImportData(file) {
       document.body.appendChild(panel);
     }
     elements.panel = panel;
+    if (panel.dataset.frontBound !== '1') {
+      panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+      panel.dataset.frontBound = '1';
+    }
 
     const collapsed = getCollapsed();
     const mode = getMode();

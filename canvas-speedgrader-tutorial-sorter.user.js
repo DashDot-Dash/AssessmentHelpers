@@ -17,6 +17,7 @@
   // constants/config
   const PANEL_ID = 'chatster-lmg-panel';
   const STYLE_ID = 'chatster-lmg-style';
+  const Z_INDEX_BASE = 100000;
 
   const GROUPS_KEY = 'chatster_tutorial_sorter_groups_v11';
   const ACTIVE_GROUP_KEY = 'chatster_tutorial_sorter_active_group_v11';
@@ -51,6 +52,14 @@
   // utilities
   function getElement(sel, root = document) {
     return root.querySelector(sel);
+  }
+
+  function bringPanelToFront(panel) {
+    if (!panel) return;
+    const current = Number(window.__canvasAssessmentPanelZIndex || Z_INDEX_BASE);
+    const next = current + 1;
+    window.__canvasAssessmentPanelZIndex = next;
+    panel.style.zIndex = String(next);
   }
 
   function getElements(sel, root = document) {
@@ -874,7 +883,7 @@ function addStyles() {
   style.textContent = `
     .chatster-ui-panel {
       width: 340px;
-      z-index: 99999;
+      z-index: ${Z_INDEX_BASE};
       background: #1f2329;
       color: #f3f4f6;
       border: 1px solid rgba(255,255,255,0.08);
@@ -1095,6 +1104,10 @@ function addStyles() {
   let panel = document.getElementById(PANEL_ID);
   if (panel) {
     elements.panel = panel;
+    if (panel.dataset.frontBound !== '1') {
+      panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+      panel.dataset.frontBound = '1';
+    }
     return panel;
   }
 
@@ -1120,6 +1133,11 @@ function addStyles() {
   bindDragging(panel);
   bindDropHandlers(panel);
   elements.panel = panel;
+  bringPanelToFront(panel);
+  if (panel.dataset.frontBound !== '1') {
+    panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+    panel.dataset.frontBound = '1';
+  }
   return panel;
 }
 
@@ -1132,6 +1150,7 @@ function addStyles() {
       const clickable = e.target.closest('button, select, input, option, label, summary, details');
       if (!handle || clickable) return;
 
+      bringPanelToFront(panel);
       const rect = panel.getBoundingClientRect();
       state.drag = {
         startX: e.clientX,

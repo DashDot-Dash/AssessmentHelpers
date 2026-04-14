@@ -15,6 +15,7 @@
 
   // constants/config
   const PANEL_ID = 'wwie-panel';
+  const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_when_will_it_end_v1';
   const LEGACY_STORAGE_PREFIX = 'wwie_';
   const POSITION_KEY = `${STORAGE_PREFIX}:panel_position`;
@@ -128,6 +129,14 @@ function normalizeName(str) {
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function bringPanelToFront(panel) {
+  if (!panel) return;
+  const current = Number(window.__canvasAssessmentPanelZIndex || Z_INDEX_BASE);
+  const next = current + 1;
+  window.__canvasAssessmentPanelZIndex = next;
+  panel.style.zIndex = String(next);
 }
 
 function getCurrentStudentDisplayName() {
@@ -505,6 +514,10 @@ function ensurePanel() {
   let panel = document.getElementById(PANEL_ID);
   if (panel) {
     elements.panel = panel;
+    if (panel.dataset.frontBound !== '1') {
+      panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+      panel.dataset.frontBound = '1';
+    }
     return panel;
   }
 
@@ -517,7 +530,7 @@ function ensurePanel() {
     top: ${pos.top != null ? `${pos.top}px` : '80px'};
     ${pos.left != null ? `left:${pos.left}px;` : 'right:18px;'}
     width: ${PANEL_WIDTH}px;
-    z-index: 99999;
+    z-index: ${Z_INDEX_BASE};
     background: #1f2329;
     color: #f3f4f6;
     border: 1px solid rgba(255,255,255,0.08);
@@ -531,6 +544,11 @@ function ensurePanel() {
   document.body.appendChild(panel);
   addStyles();
   elements.panel = panel;
+  bringPanelToFront(panel);
+  if (panel.dataset.frontBound !== '1') {
+    panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+    panel.dataset.frontBound = '1';
+  }
   return panel;
 }
 
@@ -543,6 +561,7 @@ function ensurePanel() {
       const clickable = e.target.closest('button');
       if (!handle || clickable) return;
 
+      bringPanelToFront(panel);
       const rect = panel.getBoundingClientRect();
       state.drag = {
         startX: e.clientX,
