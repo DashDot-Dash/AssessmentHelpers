@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Canvas Rubric Library Chooser
 // @namespace    VisComm@UON
-// @version      0.1
+// @version      0.2
 // @description  Choose rubric criteria from a library and download Canvas import CSV
 // @match        https://*/courses/*/rubrics*
-// @require      File:///Users/jbs939/Desktop/CanvasHelpers/Canvas Rubric Library Chooser.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/Canvas Rubric Library Chooser.user.js
 // @grant        none
 // ==/UserScript==
 

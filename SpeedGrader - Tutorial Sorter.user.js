@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         SpeedGrader - Tutorial Sorter
 // @namespace    VisComm@UON
-// @version      1.1
+// @version      2
 // @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
-// @require      File:///Users/jbs939/Desktop/CanvasHelpers/SpeedGrader - Tutorial Sorter.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/SpeedGrader - Tutorial Sorter.user.js
 // @require      https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js
 // ==/UserScript==
 

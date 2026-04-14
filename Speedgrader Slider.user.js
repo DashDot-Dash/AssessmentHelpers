@@ -2,8 +2,8 @@
 // @name         Speedgrader Slider
 // @namespace    VisComm@UON
 // @description  Adds a score slider to each criterion in Canvas SpeedGrader rubrics, scoped to the selected rating band
-// @version      3.1
-// @require      File:///Users/jbs939/Desktop/CanvasHelpers/Speedgrader Slider.user.js
+// @version      4
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/Speedgrader Slider.user.js
 // @include      https://*/courses/*/gradebook/speed_grader?*
 // @grant        none
 // ==/UserScript==

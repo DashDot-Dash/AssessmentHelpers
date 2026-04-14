@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         SpeedGrader, When Will It End?
 // @namespace    VisComm@UON
-// @version      0.4
+// @version      0.5
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/CanvasHelpers/SpeedGrader, When Will It End-.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/SpeedGrader, When Will It End-.user.js
 // @grant        none
 // ==/UserScript==
 
