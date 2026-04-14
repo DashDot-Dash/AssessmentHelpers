@@ -25,6 +25,7 @@
   const PANEL_UI_KEY = 'chatster_tutorial_sorter_ui_v11';
   const CONTEXT_KEY = 'chatster_tutorial_sorter_context_v11';
   const CANVAS_MENU_KEY = 'chatster_canvas_menu_cache_v1';
+  const EXPORT_NAME_MODE_KEY = 'chatster_tutorial_sorter_export_name_mode_v1';
 
   const DEFAULT_PANEL_POS = { top: 80, right: 18 };
   const PANEL_MARGIN = 8;
@@ -249,6 +250,14 @@
 
   function clearCanvasMenuCache() {
     localStorage.removeItem(getCanvasMenuStorageKey());
+  }
+
+  function getExportNameMode() {
+    return localStorage.getItem(EXPORT_NAME_MODE_KEY) || 'class_label';
+  }
+
+  function saveExportNameMode(mode) {
+    localStorage.setItem(EXPORT_NAME_MODE_KEY, mode || 'class_label');
   }
 
 function stat(label, value) {
@@ -826,14 +835,40 @@ function fieldLabel(text) {
     renderPanel(true);
   }
 
-  function buildAllCanvasGroupsCsv(groups) {
+  function getGroupExportName(group, mode = 'class_label') {
+    const metadata = group.metadata || {};
+    const courseCode = group.courseCode || metadata.courseCode || '';
+    const day = group.day || metadata.day || '';
+    const time = group.time || metadata.time || '';
+    const location = group.location || metadata.location || '';
+    const staff = metadata.staff || '';
+    const dayTime = [day, time].filter(Boolean).join(' ');
+    const separator = ' - ';
+
+    const partsByMode = {
+      class_label: [courseCode, dayTime, location],
+      day_time: [dayTime],
+      room: [location],
+      staff: [staff],
+      day_time_room: [dayTime, location],
+      day_time_staff: [dayTime, staff],
+      room_staff: [location, staff]
+    };
+
+    return (partsByMode[mode] || partsByMode.class_label)
+      .filter(Boolean)
+      .join(separator) || String(group.label || group.name || 'Imported class').replace(/\s*·\s*/g, separator);
+  }
+
+  function buildAllCanvasGroupsCsv(groups, nameMode = 'class_label') {
     const rows = [['user_id', 'group_name']];
 
     groups.forEach(group => {
+      const groupName = getGroupExportName(group, nameMode);
       group.students.forEach(student => {
         const userId = canonicalStudentId(student.user_id || student.student_number || student.login_id || '');
         if (!userId) return;
-        rows.push([userId, group.name]);
+        rows.push([userId, groupName]);
       });
     });
 
@@ -1609,6 +1644,23 @@ function addStyles() {
       </details>
     ` : ''}
 
+    <div class="chatster-ui-section-lg">
+      ${fieldLabel('Canvas group export names')}
+      <div class="chatster-ui-muted" style="margin-bottom:6px;">Choose how Canvas group names are generated in the exported CSV.</div>
+      <div class="chatster-ui-row chatster-ui-row--left">
+        <select id="chatster-lmg-export-name-mode" class="chatster-ui-select">
+          <option value="class_label" ${exportNameMode === 'class_label' ? 'selected' : ''}>Course - day/time - room</option>
+          <option value="day_time" ${exportNameMode === 'day_time' ? 'selected' : ''}>Day/time only</option>
+          <option value="room" ${exportNameMode === 'room' ? 'selected' : ''}>Room only</option>
+          <option value="staff" ${exportNameMode === 'staff' ? 'selected' : ''}>Staff only</option>
+          <option value="day_time_room" ${exportNameMode === 'day_time_room' ? 'selected' : ''}>Day/time - room</option>
+          <option value="day_time_staff" ${exportNameMode === 'day_time_staff' ? 'selected' : ''}>Day/time - staff</option>
+          <option value="room_staff" ${exportNameMode === 'room_staff' ? 'selected' : ''}>Room - staff</option>
+        </select>
+        <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas Group list</button>
+      </div>
+    </div>
+
     <div class="chatster-ui-row chatster-ui-row--right" style="margin-top:8px;">
       <button id="chatster-lmg-reset" class="chatster-ui-btn-danger">Reset</button>
     </div>
@@ -1648,6 +1700,11 @@ function addStyles() {
 
     panel.querySelector('#chatster-lmg-export-csv')?.addEventListener('click', () => {
       exportAllGroupsCsv();
+    });
+
+    panel.querySelector('#chatster-lmg-export-name-mode')?.addEventListener('change', (e) => {
+      saveExportNameMode(e.target.value);
+      renderPanel(true);
     });
 
     panel.querySelector('#chatster-lmg-reset')?.addEventListener('click', () => {
