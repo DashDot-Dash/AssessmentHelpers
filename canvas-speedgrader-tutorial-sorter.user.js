@@ -1455,6 +1455,7 @@ function addStyles() {
     const currentStudentName = getCurrentStudentDisplayName();
     const menuCache = loadCanvasMenuCache();
     const minimized = getMinimized();
+    const exportNameMode = getExportNameMode();
 
     let currentIndexInGroup = -1;
     if (activeGroup && currentStudentName) {
@@ -1555,14 +1556,8 @@ function addStyles() {
       </select>
     </div>
 
-    <div class="chatster-ui-row chatster-ui-row--left chatster-ui-section-lg">
-      <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas Group list</button>
-    </div>
-
     <div class="chatster-ui-stats-grid">
-      ${stat('Classes loaded', groups.length || '—')}
       ${stat('Students in group', activeGroup ? activeGroup.students.length : '—')}
-      ${stat('Menu cache', Object.keys(menuCache).length || '—')}
       ${stat('Position', activeGroup && currentIndexInGroup >= 0 ? `${currentIndexInGroup + 1}/${matchInfo.matches.length}` : '—')}
     </div>
 
