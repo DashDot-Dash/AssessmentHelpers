@@ -847,7 +847,7 @@ function fieldLabel(text) {
       return;
     }
 
-    const csv = buildAllCanvasGroupsCsv(groups);
+    const csv = buildAllCanvasGroupsCsv(groups, getExportNameMode());
     const filename = `canvas_group_list_course_${getCourseKey()}.csv`;
     downloadTextFile(filename, csv, 'text/csv;charset=utf-8');
   }
