@@ -66,17 +66,122 @@
     return Array.from(root.querySelectorAll(sel));
   }
 
-  function loadGroups() {
-    try {
-      const data = JSON.parse(localStorage.getItem(GROUPS_KEY));
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
+  function getCurrentCourseCode() {
+    const textCandidates = [
+      document.title,
+      getElement('h1')?.textContent || '',
+      getElement('[aria-label*="breadcrumb"]')?.textContent || '',
+      getElement('#breadcrumbs')?.textContent || '',
+      getElement('[data-testid*="course"]')?.textContent || '',
+      document.body?.innerText?.slice(0, 12000) || ''
+    ];
+
+    for (const text of textCandidates) {
+      const match = String(text || '').match(/\b([A-Z]{4}\d{4})\b/);
+      if (match) return match[1];
     }
+
+    return 'unknown_course';
   }
 
-  function saveGroups(groups) {
-    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+  function normalizeCourseCode(value) {
+    const match = String(value || '').toUpperCase().match(/\b([A-Z]{4}\d{4})\b/);
+    return match ? match[1] : getCurrentCourseCode();
+  }
+
+  function loadStoredTutorialSorterData() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(GROUPS_KEY));
+      if (raw?.courses && typeof raw.courses === 'object') return raw;
+      if (Array.isArray(raw)) return migrateLegacyGroups(raw);
+    } catch {
+      return { courses: {} };
+    }
+    return { courses: {} };
+  }
+
+  function saveStoredTutorialSorterData(data) {
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(data && data.courses ? data : { courses: {} }));
+  }
+
+  function migrateLegacyGroups(groups) {
+    const data = { courses: {} };
+    groups.forEach(group => {
+      const metadata = group.metadata || {};
+      const courseCode = normalizeCourseCode(metadata.courseCode || metadata.course_code || metadata.course_code_blob || '');
+      const bucket = ensureCourseBucket(data, courseCode);
+      const parsedHeader = normalizeClassMetadata(metadata);
+      const classKey = group.classKey || buildClassKey(parsedHeader) || group.id;
+      bucket.classes[classKey] = {
+        ...group,
+        id: classKey,
+        classKey,
+        label: group.label || buildClassLabel(parsedHeader) || group.name,
+        name: group.name || group.label || buildClassLabel(parsedHeader),
+        courseCode,
+        day: parsedHeader.day || '',
+        time: parsedHeader.time || '',
+        location: parsedHeader.location || '',
+        importedAt: group.importedAt || group.created_at || currentTimestamp(),
+        rawHeader: group.rawHeader || metadata.rawHeader || '',
+        modeCode: parsedHeader.modeCode || metadata.tutorial_code || '',
+        metadata: {
+          ...metadata,
+          courseCode,
+          classKey,
+          label: group.label || buildClassLabel(parsedHeader) || group.name,
+          modeCode: parsedHeader.modeCode || metadata.tutorial_code || ''
+        }
+      };
+      if (!bucket.activeClassKey) bucket.activeClassKey = classKey;
+    });
+    return data;
+  }
+
+  function ensureCourseBucket(data, courseCode) {
+    const key = normalizeCourseCode(courseCode);
+    if (!data.courses) data.courses = {};
+    if (!data.courses[key]) data.courses[key] = { activeClassKey: '', classes: {} };
+    if (!data.courses[key].classes) data.courses[key].classes = {};
+    return data.courses[key];
+  }
+
+  function getCourseClasses(courseCode = getCurrentCourseCode()) {
+    const data = loadStoredTutorialSorterData();
+    const bucket = data.courses?.[normalizeCourseCode(courseCode)];
+    return Object.values(bucket?.classes || {}).sort((a, b) => {
+      return String(a.label || a.name || '').localeCompare(String(b.label || b.name || ''));
+    });
+  }
+
+  function loadGroups(courseCode = getCurrentCourseCode()) {
+    return getCourseClasses(courseCode);
+  }
+
+  function saveGroups(groups, courseCode = getCurrentCourseCode()) {
+    const data = loadStoredTutorialSorterData();
+    const bucket = ensureCourseBucket(data, courseCode);
+    bucket.classes = {};
+    groups.forEach(group => {
+      const classKey = group.classKey || group.id;
+      bucket.classes[classKey] = { ...group, id: classKey, classKey };
+    });
+    saveStoredTutorialSorterData(data);
+  }
+
+  function getActiveGroupId(courseCode = getCurrentCourseCode()) {
+    const data = loadStoredTutorialSorterData();
+    const bucket = data.courses?.[normalizeCourseCode(courseCode)];
+    return bucket?.activeClassKey || localStorage.getItem(ACTIVE_GROUP_KEY) || '';
+  }
+
+  function updateActiveGroupId(id, courseCode = getCurrentCourseCode()) {
+    const data = loadStoredTutorialSorterData();
+    const bucket = ensureCourseBucket(data, courseCode);
+    bucket.activeClassKey = id || '';
+    saveStoredTutorialSorterData(data);
+    if (id) localStorage.setItem(ACTIVE_GROUP_KEY, id);
+    else localStorage.removeItem(ACTIVE_GROUP_KEY);
   }
 
   function clearSavedData() {
@@ -85,15 +190,6 @@
     localStorage.removeItem(PANEL_POS_KEY);
     localStorage.removeItem(PANEL_UI_KEY);
     localStorage.removeItem(CONTEXT_KEY);
-  }
-
-  function getActiveGroupId() {
-    return localStorage.getItem(ACTIVE_GROUP_KEY) || '';
-  }
-
-  function updateActiveGroupId(id) {
-    if (id) localStorage.setItem(ACTIVE_GROUP_KEY, id);
-    else localStorage.removeItem(ACTIVE_GROUP_KEY);
   }
 
   function getPanelPosition() {
@@ -417,35 +513,71 @@ function fieldLabel(text) {
       course_code_blob: '',
       course_name: '',
       tutorial_code: '',
+      courseCode: '',
+      courseTitle: '',
+      modeCode: '',
       day: '',
       time: '',
       duration: '',
+      durationMinutes: '',
       location: '',
       staff: '',
+      term: '',
+      year: '',
+      campus: '',
+      delivery: '',
+      rawHeader: '',
       suggested_name: ''
     };
 
     const nonEmpty = lines.filter(line => line.trim());
+    meta.rawHeader = nonEmpty.slice(0, Math.max(0, findHeaderRow(lines))).join('\n');
 
     if (nonEmpty[0]) {
       const parts = splitFlexibleLine(nonEmpty[0]);
       meta.course_code_blob = parts[0] || '';
       meta.course_name = parts[1] || '';
+      meta.courseTitle = meta.course_name;
+
+      const courseMatch = nonEmpty[0].match(/\b([A-Z]{4}\d{4})\b/);
+      if (courseMatch) meta.courseCode = courseMatch[1];
+
+      const blobParts = String(meta.course_code_blob || '').split('_').filter(Boolean);
+      meta.term = blobParts.find(p => /^SEM\d+$/i.test(p)) || '';
+      meta.year = blobParts.find(p => /^\d{4}$/.test(p)) || '';
+      meta.delivery = blobParts[blobParts.length - 1] || '';
+      meta.campus = blobParts.slice(3, -1).filter(p => p !== '-').join('_');
     }
 
     if (nonEmpty[1]) {
       const parts = splitFlexibleLine(nonEmpty[1]);
       meta.tutorial_code = parts[0] || '';
+      meta.modeCode = meta.tutorial_code;
 
       const schedule = parts[1] || '';
       const schedParts = schedule.split(',').map(s => s.trim());
       meta.day = schedParts[0] || '';
       meta.time = schedParts[1] || '';
       meta.duration = schedParts[2] || '';
+      const durationMatch = meta.duration.match(/(\d+)/);
+      meta.durationMinutes = durationMatch ? durationMatch[1] : '';
     }
 
     lines.forEach(line => {
       const trimmed = line.trim();
+
+      const courseMatch = trimmed.match(/\b([A-Z]{4}\d{4})\b/);
+      if (courseMatch && !meta.courseCode) meta.courseCode = courseMatch[1];
+
+      const classMatch = trimmed.match(/^([A-Z]{3}\d{2}-\d{2})\s+([A-Za-z]{3}),\s*([0-9]{1,2}:[0-9]{2}),\s*(\d+)\s*minutes/i);
+      if (classMatch) {
+        meta.tutorial_code = meta.tutorial_code || classMatch[1];
+        meta.modeCode = meta.modeCode || classMatch[1];
+        meta.day = meta.day || classMatch[2];
+        meta.time = meta.time || classMatch[3];
+        meta.durationMinutes = meta.durationMinutes || classMatch[4];
+        meta.duration = meta.duration || `${classMatch[4]} minutes`;
+      }
 
       const locMatch = trimmed.match(/^Location:\s*(.+)$/i);
       if (locMatch) meta.location = locMatch[1].trim();
@@ -454,13 +586,38 @@ function fieldLabel(text) {
       if (staffMatch) meta.staff = staffMatch[1].trim();
     });
 
-    const bits = [
-      [meta.day, meta.time].filter(Boolean).join(' '),
-      meta.staff
-    ].filter(Boolean);
+    meta.courseCode = normalizeCourseCode(meta.courseCode || meta.course_code_blob);
 
-    meta.suggested_name = bits.join(' - ') || meta.tutorial_code || meta.course_name || 'Imported group';
+    meta.suggested_name = buildClassLabel(meta) || meta.tutorial_code || meta.course_name || 'Imported group';
     return meta;
+  }
+
+  function normalizeClassMetadata(metadata = {}) {
+    const courseCode = normalizeCourseCode(metadata.courseCode || metadata.course_code || metadata.course_code_blob || '');
+    return {
+      ...metadata,
+      courseCode,
+      day: metadata.day || '',
+      time: metadata.time || '',
+      location: metadata.location || '',
+      modeCode: metadata.modeCode || metadata.tutorial_code || '',
+      rawHeader: metadata.rawHeader || ''
+    };
+  }
+
+  function buildClassKey(parsedHeader = {}) {
+    const courseCode = normalizeCourseCode(parsedHeader.courseCode || parsedHeader.course_code_blob || '');
+    const day = String(parsedHeader.day || 'unknown_day').trim().replace(/\s+/g, '_');
+    const time = String(parsedHeader.time || 'unknown_time').trim().replace(/\s+/g, '');
+    const location = String(parsedHeader.location || 'unknown_location').trim().replace(/\s+/g, '_');
+    return `${courseCode}__${day}__${time}__${location}`;
+  }
+
+  function buildClassLabel(parsedHeader = {}) {
+    const courseCode = normalizeCourseCode(parsedHeader.courseCode || parsedHeader.course_code_blob || '');
+    const dayTime = [parsedHeader.day, parsedHeader.time].filter(Boolean).join(' ');
+    const location = parsedHeader.location || 'Unknown location';
+    return `${courseCode} · ${dayTime || 'Unknown time'} · ${location}`;
   }
 
   function buildStudentsFromTimetabling(records, metadata = {}) {
@@ -512,22 +669,42 @@ function fieldLabel(text) {
   }
 
   function makeGroup(name, students, sourceFile, metadata = {}) {
+    const classMetadata = normalizeClassMetadata(metadata);
+    const classKey = buildClassKey(classMetadata);
+    const label = buildClassLabel(classMetadata);
+
     return {
-      id: `group_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name,
+      id: classKey,
+      classKey,
+      label,
+      name: label || name,
+      courseCode: classMetadata.courseCode,
+      day: classMetadata.day || '',
+      time: classMetadata.time || '',
+      location: classMetadata.location || '',
+      importedAt: currentTimestamp(),
+      rawHeader: classMetadata.rawHeader || '',
+      modeCode: classMetadata.modeCode || '',
       source_file: sourceFile || '',
       created_at: currentTimestamp(),
       course_key: getCourseKey(),
       metadata: {
+        ...metadata,
+        courseCode: classMetadata.courseCode,
+        classKey,
+        label,
         course_code_blob: metadata.course_code_blob || '',
         course_name: metadata.course_name || '',
-        tutorial_code: metadata.tutorial_code || '',
-        day: metadata.day || '',
-        time: metadata.time || '',
+        tutorial_code: metadata.tutorial_code || classMetadata.modeCode || '',
+        modeCode: classMetadata.modeCode || '',
+        day: classMetadata.day || '',
+        time: classMetadata.time || '',
         duration: metadata.duration || '',
-        location: metadata.location || '',
+        durationMinutes: metadata.durationMinutes || '',
+        location: classMetadata.location || '',
         staff: metadata.staff || '',
-        sheet_name: metadata.sheet_name || ''
+        sheet_name: metadata.sheet_name || '',
+        rawHeader: classMetadata.rawHeader || ''
       },
       students
     };
@@ -580,7 +757,7 @@ function fieldLabel(text) {
     const ab = await file.arrayBuffer();
     const workbook = XLSX.read(ab, { type: 'array' });
 
-    const groups = loadGroups();
+    const data = loadStoredTutorialSorterData();
     const imported = [];
 
     workbook.SheetNames.forEach(sheetName => {
@@ -599,7 +776,9 @@ function fieldLabel(text) {
         { ...parsed.metadata, sheet_name: sheetName }
       );
 
-      groups.push(group);
+      const bucket = ensureCourseBucket(data, group.courseCode);
+      bucket.classes[group.classKey] = group;
+      bucket.activeClassKey = group.classKey;
       imported.push(group);
     });
 
@@ -608,8 +787,10 @@ function fieldLabel(text) {
       return;
     }
 
-    saveGroups(groups);
-    updateActiveGroupId(imported[0].id);
+    saveStoredTutorialSorterData(data);
+    const currentCourseCode = getCurrentCourseCode();
+    const activeImport = imported.find(group => group.courseCode === currentCourseCode) || imported[0];
+    updateActiveGroupId(activeImport.id, activeImport.courseCode);
 
     state.lastImportSummary = `Imported ${imported.length} group${imported.length === 1 ? '' : 's'} from ${file.name}`;
     renderPanel(true);
@@ -633,11 +814,13 @@ function fieldLabel(text) {
       return;
     }
 
-    const groups = loadGroups();
     const group = makeGroup(parsed.suggestedName, parsed.students, file.name, parsed.metadata);
-    groups.push(group);
-    saveGroups(groups);
-    updateActiveGroupId(group.id);
+    const data = loadStoredTutorialSorterData();
+    const bucket = ensureCourseBucket(data, group.courseCode);
+    bucket.classes[group.classKey] = group;
+    bucket.activeClassKey = group.classKey;
+    saveStoredTutorialSorterData(data);
+    updateActiveGroupId(group.id, group.courseCode);
 
     state.lastImportSummary = `Imported 1 group from ${file.name}`;
     renderPanel(true);
@@ -1260,8 +1443,13 @@ function addStyles() {
 
   function renderPanel(force = false) {
     const panel = ensurePanel();
-    const groups = loadGroups();
-    const activeGroupId = getActiveGroupId();
+    const currentCourseCode = getCurrentCourseCode();
+    const groups = loadGroups(currentCourseCode);
+    let activeGroupId = getActiveGroupId(currentCourseCode);
+    if ((!activeGroupId || !groups.some(g => g.id === activeGroupId)) && groups.length) {
+      activeGroupId = groups[0].id;
+      updateActiveGroupId(activeGroupId, currentCourseCode);
+    }
     const activeGroup = groups.find(g => g.id === activeGroupId) || null;
     const matchInfo = matchGroupToCurrentCanvas(activeGroup);
     const currentStudentName = getCurrentStudentDisplayName();
@@ -1287,6 +1475,7 @@ function addStyles() {
 
     const sig = JSON.stringify({
       groupsCount: groups.length,
+      currentCourseCode,
       activeGroupId,
       currentStudentName,
       matchedCount: matchInfo.matches.length,
@@ -1304,6 +1493,7 @@ function addStyles() {
       version: 11,
       updated_at: currentTimestamp(),
       course_key: getCourseKey(),
+      course_code: currentCourseCode,
       active_group_id: activeGroup ? activeGroup.id : '',
       active_group_name: activeGroup ? activeGroup.name : '',
       current_student_name: currentStudentName,
@@ -1354,12 +1544,12 @@ function addStyles() {
     ` : ''}
 
     <div class="chatster-ui-section">
-      ${fieldLabel('Active group')}
+      ${fieldLabel('Active class')}
       <select id="chatster-lmg-select" class="chatster-ui-select">
-        <option value="">— no local group selected —</option>
+        <option value="">— no local class selected —</option>
         ${groups.map(g => `
           <option value="${escapeHtml(g.id)}" ${g.id === activeGroupId ? 'selected' : ''}>
-            ${escapeHtml(g.name)}
+            ${escapeHtml(g.label || g.name)}
           </option>
         `).join('')}
       </select>
@@ -1370,7 +1560,7 @@ function addStyles() {
     </div>
 
     <div class="chatster-ui-stats-grid">
-      ${stat('Groups loaded', groups.length || '—')}
+      ${stat('Classes loaded', groups.length || '—')}
       ${stat('Students in group', activeGroup ? activeGroup.students.length : '—')}
       ${stat('Menu cache', Object.keys(menuCache).length || '—')}
       ${stat('Position', activeGroup && currentIndexInGroup >= 0 ? `${currentIndexInGroup + 1}/${matchInfo.matches.length}` : '—')}
@@ -1439,7 +1629,7 @@ function addStyles() {
     if (minimized) return;
 
     panel.querySelector('#chatster-lmg-select')?.addEventListener('change', (e) => {
-      updateActiveGroupId(e.target.value);
+      updateActiveGroupId(e.target.value, currentCourseCode);
       renderPanel(true);
     });
 
