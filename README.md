@@ -1,12 +1,15 @@
 # AssessmentHelpers
 
-Assessment Helpers are a suite of Tampermonkey scripts for Canvas to help with assessment, groups and setting up rubrics.  
+Assessment Helpers are a suite of Tampermonkey userscripts for Canvas to help with assessment, groups and setting up rubrics.  Userscripts appear only on pages they are coded for and add functionality 
 
 ## Installation Instructions
-Install Tampermonkey in your browser.  It's an extension for all major browsers and you should be able to install it (even on managaged machines) via your browser extension manager or store.  
+Install Tampermonkey in your browser.  It's an extension for all major browsers and you should be able to install it (even on managaged machines) via your browser extension manager or store.  Make sure you use preferences to activate it, install in your toolbar and allow userscripts.  
+
+Click on the toolbar widget to open the Dashboard.  Go to the Utilities tab and scroll down to "Import from URL".  Paste the URL from each of the helpers below and when the page refreshes, you will be at the Tampermonkey install page. Press install.   Once installed you should see the green button toggled on in the Dashboard.  If you don't want the userscript to function you can toggle the green button off.  If you want to delete the userscript you can do so from the dashboard page.  
 
 ## Rubric Chooser
 VisComm rubric template as a clickable resource.  Assemble your rubric, assign a weight and export in the format Canvas is expecting for bulk import.  Never construct each criterion one at a time again! 
+
 
 ## Speedgrader Tutorial Sorter 
 Drag and drop the roster from Allocate + to immediately create informal tutorial groups in Canvas.   You can click on student names in the list to go directly to that student in Canvas.  No more hunting through the entire list! Mark in tutorial groups like nature intended! You can also export a .csv file that will create student groups in the canvas group system via bulk import.  
@@ -22,4 +25,5 @@ Timer and logging panel that tells you how long it will take to finish your tuto
 
 ## Rubric slider
 If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category. 
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
 
