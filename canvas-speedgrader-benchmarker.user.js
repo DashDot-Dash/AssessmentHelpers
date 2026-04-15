@@ -86,6 +86,61 @@
     );
   }
 
+  function getAssignmentName() {
+    const selectorList = [
+      '[data-testid="assignment-name"]',
+      '[data-testid="assignment-select-trigger"]',
+      '[data-testid="assignment_select"]',
+      '#assignment_url',
+      '#assignment_select',
+      '#assignment_select option:checked',
+      'select[name="assignment_id"]',
+      'select[name="assignment_id"] option:checked',
+      'a[href*="/assignments/"][aria-current="page"]',
+      'a[href*="assignment_id="][aria-current="page"]'
+    ];
+
+    for (const selector of selectorList) {
+      const text = getAssignmentTextFromElement(getElement(selector));
+      if (text) return cleanAssignmentName(text);
+    }
+
+    const pageTextName = getAssignmentNameFromPageText();
+    if (pageTextName) return pageTextName;
+
+    const title = cleanText(document.title || '').replace(/\s*\|\s*SpeedGrader.*$/i, '');
+    if (title && !/^SpeedGrader$/i.test(title)) return cleanAssignmentName(title);
+
+    return `Assignment ${getAssignmentId()}`;
+  }
+
+  function getAssignmentTextFromElement(el) {
+    if (!el) return '';
+    if (el.selectedOptions?.length) return cleanText(el.selectedOptions[0].textContent || '');
+    return cleanText(el.textContent || el.value || el.getAttribute?.('aria-label') || '');
+  }
+
+  function cleanAssignmentName(value) {
+    return cleanText(value)
+      .replace(/^Assignment:\s*/i, '')
+      .replace(/\s+[A-Z]{4}\d{4}\b.*$/, '')
+      .replace(/,?\s*SpeedGrader,?\s*$/i, '')
+      .replace(/[,\s]+$/, '')
+      .trim();
+  }
+
+  function getAssignmentNameFromPageText() {
+    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    for (const line of lines) {
+      const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
+      if (match) {
+        const cleaned = cleanAssignmentName(match[1]);
+        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+      }
+    }
+    return '';
+  }
+
   function getStudentId() {
     const url = getUrl();
     return (
@@ -868,6 +923,16 @@ async function navigateInFilter(direction) {
       flex: 1 1 auto;
       font-weight: 600;
     }
+
+    #${PANEL_ID} .sg-btn-danger {
+      background: #8b1e2d;
+      color: #fff2f4;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    #${PANEL_ID} .sg-btn-danger:hover {
+      background: #a32437;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -991,7 +1056,7 @@ const head = createElement('div', {
     studentSection.appendChild(
       createElement('div', {
         class: 'sg-small',
-        text: `Assignment: ${getAssignmentId()} | Student ID: ${studentId || 'unknown'}`
+        text: `Assignment: ${getAssignmentName()} | Student ID: ${studentId || 'unknown'}`
       })
     );
     body.appendChild(studentSection);
@@ -1072,18 +1137,14 @@ body.appendChild(bucketButtons);
     });
 
     countsSection.appendChild(
-   createElement('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px;' }, [
+   createElement('div', { class: 'sg-row sg-grid sg-grid-2', style: 'margin-top:10px;' }, [
+
         createElement('button', {
-          class: activeFilter === 'all' ? 'active' : '',
-          text: 'Show All',
-          onclick: () => updateActiveFilter('all')
-        }),
-        createElement('button', {
-          text: '◀ Prev in group',
+          text: '◀ Prev',
           onclick: () => navigateInFilter(-1)
         }),
         createElement('button', {
-          text: 'Next in group ▶',
+          text: 'Next  ▶',
           onclick: () => navigateInFilter(1)
         })
       ])
@@ -1105,14 +1166,15 @@ body.appendChild(bucketButtons);
     body.appendChild(
       createElement('div', { class: 'sg-row sg-grid sg-grid-3' }, [
         createElement('button', {
-          text: 'Export JSON',
+          text: 'Export',
           onclick: handleExportData
         }),
         createElement('button', {
-          text: 'Import JSON',
+          text: 'Import',
           onclick: () => body.querySelector('input[type="file"]')?.click()
         }),
         createElement('button', {
+          class: 'sg-btn-danger',
           text: 'Reset',
           onclick: resetCurrentAssignmentData
         })
@@ -1166,6 +1228,8 @@ body.appendChild(bucketButtons);
 
     tryRender();
     document.addEventListener('keydown', handleKeydown, true);
+    setTimeout(renderPanel, 1500);
+    setTimeout(renderPanel, 3500);
 
     setInterval(() => {
       if (location.href !== state.lastHref) {

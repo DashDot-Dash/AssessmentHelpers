@@ -55,6 +55,66 @@
     return `${courseId}_${assignmentId}`;
   }
 
+  function getAssignmentId() {
+    const url = new URL(window.location.href);
+    return url.searchParams.get('assignment_id') || url.searchParams.get('assignment') || 'unknown_assignment';
+  }
+
+  function getAssignmentName() {
+    const selectorList = [
+      '[data-testid="assignment-name"]',
+      '[data-testid="assignment-select-trigger"]',
+      '[data-testid="assignment_select"]',
+      '#assignment_url',
+      '#assignment_select',
+      '#assignment_select option:checked',
+      'select[name="assignment_id"]',
+      'select[name="assignment_id"] option:checked',
+      'a[href*="/assignments/"][aria-current="page"]',
+      'a[href*="assignment_id="][aria-current="page"]'
+    ];
+
+    for (const selector of selectorList) {
+      const text = getAssignmentTextFromElement(document.querySelector(selector));
+      if (text) return cleanAssignmentName(text);
+    }
+
+    const pageTextName = getAssignmentNameFromPageText();
+    if (pageTextName) return pageTextName;
+
+    const title = cleanText(document.title || '').replace(/\s*\|\s*SpeedGrader.*$/i, '');
+    if (title && !/^SpeedGrader$/i.test(title)) return cleanAssignmentName(title);
+
+    return `Assignment ${getAssignmentId()}`;
+  }
+
+  function getAssignmentTextFromElement(el) {
+    if (!el) return '';
+    if (el.selectedOptions?.length) return cleanText(el.selectedOptions[0].textContent || '');
+    return cleanText(el.textContent || el.value || el.getAttribute?.('aria-label') || '');
+  }
+
+  function cleanAssignmentName(value) {
+    return cleanText(value)
+      .replace(/^Assignment:\s*/i, '')
+      .replace(/\s+[A-Z]{4}\d{4}\b.*$/, '')
+      .replace(/,?\s*SpeedGrader,?\s*$/i, '')
+      .replace(/[,\s]+$/, '')
+      .trim();
+  }
+
+  function getAssignmentNameFromPageText() {
+    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    for (const line of lines) {
+      const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
+      if (match) {
+        const cleaned = cleanAssignmentName(match[1]);
+        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+      }
+    }
+    return '';
+  }
+
   function getStorageKey(prefix = STORAGE_PREFIX) {
     return `${prefix}:${getAssignmentKey()}`;
   }
@@ -670,10 +730,6 @@ const contextMeta =
   <div class="wwie-drag-handle wwie-header wwie-header--border">
     <div>
       <div class="wwie-title">When will it end?</div>
-      <div class="wwie-muted" style="margin-top:2px;">
-
-        
-      </div>
     </div>
     <div style="display:flex;gap:6px;">
       <button id="wwie-toggle" class="${getQuietButtonCss()}">Minimise</button>
@@ -681,6 +737,9 @@ const contextMeta =
   </div>
 
   <div class="wwie-body">
+  <div class="wwie-muted" style="margin-bottom:8px;">
+    ${escapeHtml(getAssignmentName())}
+  </div>
   <div style="margin-top:8px;font-size:10px;color:#aeb6c2;padding:6px;">
   ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
     <div class="wwie-stats-grid">

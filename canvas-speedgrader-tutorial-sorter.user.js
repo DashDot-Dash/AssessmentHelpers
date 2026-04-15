@@ -1278,10 +1278,14 @@ function addStyles() {
 
     .chatster-ui-student-list {
       margin-top: 8px;
+      padding: 6px;
       max-height: 220px;
       overflow: auto;
       font-size: 12px;
       color: #c7ced8;
+      background: #11151a;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
     }
 
     .chatster-ui-student-item {
@@ -1644,9 +1648,9 @@ function addStyles() {
       </details>
     ` : ''}
 
-    <div class="chatster-ui-section-lg">
-      ${fieldLabel('Canvas group export names')}
-      <div class="chatster-ui-muted" style="margin-bottom:6px;">Choose how Canvas group names are generated in the exported CSV.</div>
+    <div class="chatster-ui-section-lg" style="margin-top:20px;">
+      ${fieldLabel('Create a file to import groups into Canvas')}
+      <div class="chatster-ui-muted" style="margin-bottom:0px;margin-top:14px;">Choose a name for your Canvas groups</div>
       <div class="chatster-ui-row chatster-ui-row--left">
         <select id="chatster-lmg-export-name-mode" class="chatster-ui-select">
           <option value="class_label" ${exportNameMode === 'class_label' ? 'selected' : ''}>Course - day/time - room</option>
@@ -1657,7 +1661,7 @@ function addStyles() {
           <option value="day_time_staff" ${exportNameMode === 'day_time_staff' ? 'selected' : ''}>Day/time - staff</option>
           <option value="room_staff" ${exportNameMode === 'room_staff' ? 'selected' : ''}>Room - staff</option>
         </select>
-        <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas Group list</button>
+        <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas CSV</button>
       </div>
     </div>
 

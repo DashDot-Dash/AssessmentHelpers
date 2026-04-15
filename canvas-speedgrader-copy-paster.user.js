@@ -93,6 +93,61 @@
     );
   }
 
+  function getAssignmentName() {
+    const selectorList = [
+      '[data-testid="assignment-name"]',
+      '[data-testid="assignment-select-trigger"]',
+      '[data-testid="assignment_select"]',
+      '#assignment_url',
+      '#assignment_select',
+      '#assignment_select option:checked',
+      'select[name="assignment_id"]',
+      'select[name="assignment_id"] option:checked',
+      'a[href*="/assignments/"][aria-current="page"]',
+      'a[href*="assignment_id="][aria-current="page"]'
+    ];
+
+    for (const selector of selectorList) {
+      const text = getAssignmentTextFromElement(getElement(selector));
+      if (text) return cleanAssignmentName(text);
+    }
+
+    const pageTextName = getAssignmentNameFromPageText();
+    if (pageTextName) return pageTextName;
+
+    const title = cleanText(document.title || '').replace(/\s*\|\s*SpeedGrader.*$/i, '');
+    if (title && !/^SpeedGrader$/i.test(title)) return cleanAssignmentName(title);
+
+    return `Assignment ${getAssignmentId()}`;
+  }
+
+  function getAssignmentTextFromElement(el) {
+    if (!el) return '';
+    if (el.selectedOptions?.length) return cleanText(el.selectedOptions[0].textContent || '');
+    return cleanText(el.textContent || el.value || el.getAttribute?.('aria-label') || '');
+  }
+
+  function cleanAssignmentName(value) {
+    return cleanText(value)
+      .replace(/^Assignment:\s*/i, '')
+      .replace(/\s+[A-Z]{4}\d{4}\b.*$/, '')
+      .replace(/,?\s*SpeedGrader,?\s*$/i, '')
+      .replace(/[,\s]+$/, '')
+      .trim();
+  }
+
+  function getAssignmentNameFromPageText() {
+    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    for (const line of lines) {
+      const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
+      if (match) {
+        const cleaned = cleanAssignmentName(match[1]);
+        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+      }
+    }
+    return '';
+  }
+
   function getStorageKey(prefix = STORAGE_PREFIX) {
     return `${prefix}:${getCourseId()}:${getAssignmentId()}`;
   }
@@ -597,7 +652,8 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-small {
-      font-size: 11px;
+     
+      font-size:11px;
       color: #9aa3af;
     }
 
@@ -623,11 +679,11 @@ function handleImportData(file) {
     #${PANEL_ID} button {
   appearance: none;
   -webkit-appearance: none;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 4px 8px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 11px;
+  
   background: #11151a;
   color: #f3f4f6;
   border: 1px solid rgba(255,255,255,0.08);
@@ -688,12 +744,12 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-item-title {
-      font-weight: 700;
+      font-size:11px;
       color: #fff;
     }
 
     #${PANEL_ID} .cp-item-text {
-      font-size: 12px;
+      font-size: 11px;
       color: #c7ced8;
       white-space: pre-wrap;
       margin-bottom: 8px;
@@ -724,10 +780,11 @@ function handleImportData(file) {
     }
 
 #${PANEL_ID} .cp-btn-primary {
+padding: 4px 8px;
   background: #2f7d32;
   color: #ffffff;
-  font-weight: 600;
-  min-width: 72px;
+  font-size: 11pt;
+ 
   border: 1px solid rgba(255,255,255,0.08);
 }
 
@@ -883,7 +940,7 @@ body.appendChild(
     class: 'cp-row cp-small',
     style: 'background:#161a20;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
   }, [
-    `Assignment: ${getAssignmentId()}`
+    `Assignment: ${getAssignmentName()}`
   ])
 );
 
@@ -901,18 +958,6 @@ body.appendChild(
         })
       ])
     );
-
-body.appendChild(
-  createElement('div', { class: 'cp-row', style: 'display:flex;justify-content:flex-start;' }, [
-    createElement('button', {
-      text: 'Keep typing',
-      onclick: () => {
-        const ok = focusEditorAtEndWithNewLine();
-        if (!ok) alert('Could not find the comment editor.');
-      }
-    })
-  ])
-);
 
 const list = createElement('div', { class: 'cp-row cp-list' });
 
@@ -965,13 +1010,26 @@ if (!snippets.length) {
   createElement('div', { class: 'cp-row' }, [
     createElement('button', {
       class: 'cp-btn-primary cp-btn-wide',
-      text: 'Add snippet',
+      text: 'Add new snippet',
       onclick: () => openSnippetEditor()
     })
   ])
 );
 
     body.appendChild(list);
+
+body.appendChild(
+  createElement('div', { class: 'cp-row' }, [
+    createElement('button', {
+      class: 'cp-btn-primary cp-btn-wide',
+      text: 'Keep typing',
+      onclick: () => {
+        const ok = focusEditorAtEndWithNewLine();
+        if (!ok) alert('Could not find the comment editor.');
+      }
+    })
+  ])
+);
 
     const fileInput = createElement('input', {
       type: 'file',
@@ -986,15 +1044,16 @@ if (!snippets.length) {
     body.appendChild(
       createElement('div', { class: 'cp-row cp-grid-3' }, [
         createElement('button', {
-          text: 'Export JSON',
+          text: 'Export',
           onclick: handleExportData
         }),
         createElement('button', {
-          text: 'Import JSON',
+          text: 'Import',
           onclick: () => body.querySelector('input[type="file"]')?.click()
         }),
         createElement('button', {
-          text: 'Reset assignment',
+          class: 'cp-btn-danger',
+          text: 'Reset',
           onclick: resetAssignmentSnippets
         })
       ])
@@ -1002,7 +1061,7 @@ if (!snippets.length) {
 
     body.appendChild(
       createElement('div', { class: 'cp-small' }, [
-        'Insert writes into the SpeedGrader comment editor. Append mode adds below existing text. Replace mode overwrites it.'
+        'Append mode adds below existing text. Replace mode overwrites it. Use keep typing to add individual comments'
       ])
     );
 
@@ -1019,6 +1078,8 @@ if (!snippets.length) {
     };
 
     tryRender();
+    setTimeout(renderPanel, 1500);
+    setTimeout(renderPanel, 3500);
 
     setInterval(() => {
       if (location.href !== state.lastHref) {
