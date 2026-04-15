@@ -231,6 +231,24 @@
     return { x: ui.posX, y: ui.posY };
   }
 
+  function clampPanelToViewport(panel, persist = false) {
+    if (!panel) return;
+    const margin = 8;
+    const rect = panel.getBoundingClientRect();
+    const width = rect.width || 340;
+    const height = rect.height || 80;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const left = Math.min(Math.max(margin, rect.left), maxLeft);
+    const top = Math.min(Math.max(margin, rect.top), maxTop);
+
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = 'auto';
+
+    if (persist) updatePanelPosition(left, top);
+  }
+
   function getSnippets() {
     return loadStore().snippets || [];
   }
@@ -868,6 +886,11 @@ padding: 4px 8px;
       const rect = panel.getBoundingClientRect();
       updatePanelPosition(rect.left, rect.top);
     });
+
+    if (panel.dataset.resizeClampBound !== '1') {
+      window.addEventListener('resize', () => clampPanelToViewport(panel, true));
+      panel.dataset.resizeClampBound = '1';
+    }
   }
 
   function openSnippetEditor(existing = null) {
@@ -927,6 +950,7 @@ padding: 4px 8px;
       panel.style.left = `${pos.x}px`;
       panel.style.top = `${pos.y}px`;
       panel.style.right = 'auto';
+      clampPanelToViewport(panel, true);
     }
 
     bindDragging(panel, head);

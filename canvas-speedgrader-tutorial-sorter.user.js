@@ -1356,6 +1356,7 @@ function addStyles() {
   bindDropHandlers(panel);
   elements.panel = panel;
   bringPanelToFront(panel);
+  clampPanelToViewport(panel);
   if (panel.dataset.frontBound !== '1') {
     panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
     panel.dataset.frontBound = '1';

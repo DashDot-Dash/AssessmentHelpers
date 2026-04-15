@@ -161,6 +161,24 @@
     localStorage.setItem(POSITION_KEY, JSON.stringify({ left, top }));
   }
 
+  function clampPanelToViewport(panel, persist = false) {
+    if (!panel) return;
+    const margin = 8;
+    const rect = panel.getBoundingClientRect();
+    const width = rect.width || PANEL_WIDTH;
+    const height = rect.height || 80;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const left = Math.min(Math.max(margin, rect.left), maxLeft);
+    const top = Math.min(Math.max(margin, rect.top), maxTop);
+
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = 'auto';
+
+    if (persist) savePanelPosition(left, top);
+  }
+
   function escapeHtml(str) {
     return String(str ?? '')
       .replace(/&/g, '&amp;')
@@ -527,7 +545,7 @@ function stat(label, value) {
       border-radius:8px;
       padding:4px 8px;
       cursor:pointer;
-      font-size:12px;
+      font-size:11px;
       font-weight:400;
     }
 
@@ -556,7 +574,7 @@ function stat(label, value) {
   border-radius:8px;
   padding:4px 8px;
   cursor:pointer;
-  font-size:12px;
+  font-size:11px;
   font-weight:400;
   background:#8b1e2d;
   color:#fff2f4;
@@ -605,6 +623,7 @@ function ensurePanel() {
   addStyles();
   elements.panel = panel;
   bringPanelToFront(panel);
+  clampPanelToViewport(panel, true);
   if (panel.dataset.frontBound !== '1') {
     panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
     panel.dataset.frontBound = '1';
@@ -654,6 +673,11 @@ function ensurePanel() {
       state.drag = null;
       document.body.style.cursor = '';
     });
+
+    if (panel.dataset.resizeClampBound !== '1') {
+      window.addEventListener('resize', () => clampPanelToViewport(panel, true));
+      panel.dataset.resizeClampBound = '1';
+    }
   }
 
 function renderPanel(force = false) {
@@ -753,7 +777,7 @@ const contextMeta =
 
     ${buildJogger(progressRatio)}
 
-    <div style="margin-top:8px;font-size:12px;color:#aeb6c2;">
+    <div style="margin-top:8px;font-size:11px;color:#aeb6c2;">
       pace: <strong style="color:#fff;">${escapeHtml(paceLabel)}</strong>
     </div>
 
@@ -766,7 +790,6 @@ const contextMeta =
     <div class="wwie-button-row">
       <button id="wwie-log" class="${getButtonCss()}">Log now</button>
       <button id="wwie-export-csv" class="${getButtonCss()}">Export CSV</button>
-      <button id="wwie-save-json" class="${getButtonCss()}">Save JSON</button>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
@@ -778,7 +801,6 @@ const contextMeta =
   panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
   panel.querySelector('#wwie-log')?.addEventListener('click', handleLogNow);
   panel.querySelector('#wwie-export-csv')?.addEventListener('click', handleExportCsv);
-  panel.querySelector('#wwie-save-json')?.addEventListener('click', handleSaveJson);
 }
 
   function handleToggleMinimize() {
@@ -868,15 +890,6 @@ const contextMeta =
 
     const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
     downloadFile(csv, `marking-log-${getAssignmentKey()}.csv`, 'text/csv;charset=utf-8;');
-  }
-
-  function handleSaveJson() {
-    const data = loadData();
-    downloadFile(
-      JSON.stringify(data, null, 2),
-      `marking-log-${getAssignmentKey()}.json`,
-      'application/json;charset=utf-8;'
-    );
   }
 
   function downloadFile(content, filename, mimeType) {

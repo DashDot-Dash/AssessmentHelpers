@@ -242,6 +242,24 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     panel.style.zIndex = String(next);
   }
 
+  function clampLauncherToViewport(el, persist = false) {
+    if (!el) return;
+    const margin = 8;
+    const rect = el.getBoundingClientRect();
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+    const left = Math.min(Math.max(margin, rect.left), maxLeft);
+    const top = Math.min(Math.max(margin, rect.top), maxTop);
+
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+
+    if (persist) {
+      saveStoredValue('launcher_left', el.style.left);
+      saveStoredValue('launcher_top', el.style.top);
+    }
+  }
+
 function createLauncherButton() {
   if (document.querySelector(selectors.launcher)) return;
 
@@ -282,6 +300,7 @@ function createLauncherButton() {
   document.body.appendChild(btn);
   elements.launcher = btn;
   bringPanelToFront(btn);
+  clampLauncherToViewport(btn, true);
 }
     function bindDragging(el) {
   let isDragging = false;
@@ -335,6 +354,11 @@ function createLauncherButton() {
       el.dataset.dragged = 'true';
     }
   });
+
+  if (el.dataset.resizeClampBound !== '1') {
+    window.addEventListener('resize', () => clampLauncherToViewport(el, true));
+    el.dataset.resizeClampBound = '1';
+  }
 }
   function renderModal() {
     handleCloseModal();
