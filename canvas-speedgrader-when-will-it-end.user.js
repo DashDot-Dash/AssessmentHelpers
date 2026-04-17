@@ -391,14 +391,6 @@ function getLocalGroupContext() {
     return str;
   }
 
-  function getPaceLabel(secondsPerStudent) {
-    if (!secondsPerStudent) return 'warming up';
-    if (secondsPerStudent < 120) return 'jogging';
-    if (secondsPerStudent < 300) return 'steady';
-    if (secondsPerStudent < 480) return 'digging deep';
-    return 'running through mud';
-  }
-
 function getButtonCss() {
   return 'wwie-btn';
 }
@@ -699,7 +691,6 @@ function renderPanel(force = false) {
 
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
   const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
-  const paceLabel = getPaceLabel(estimator);
 
   const contextLabel =
     info.source === 'local_group'
@@ -776,10 +767,6 @@ const contextMeta =
     </div>
 
     ${buildJogger(progressRatio)}
-
-    <div style="margin-top:8px;font-size:11px;color:#aeb6c2;">
-      pace: <strong style="color:#fff;">${escapeHtml(paceLabel)}</strong>
-    </div>
 
     <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
       Current student: ${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}<br>

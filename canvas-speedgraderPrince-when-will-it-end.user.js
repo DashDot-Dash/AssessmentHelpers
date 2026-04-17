@@ -5,8 +5,8 @@
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgraderPrince-when-will-it-end.user.js
-// @resource     princeFacingLeft file:///Users/jbs939/Desktop/AssessmentHelpers/Assets/PrinceFacingLeft.png
-// @resource     princeFacingRight file:///Users/jbs939/Desktop/AssessmentHelpers/Assets/PrinceFacingRight.png
+// @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png
+// @resource     princeFacingLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png
 // @grant        GM_getResourceURL
 // ==/UserScript==
 
@@ -45,6 +45,7 @@
     navInterval: null,
     drag: null,
     princeWidget: null,
+    lastProgressRatio: 0,
   };
 
   // elements
@@ -347,6 +348,26 @@ function getLocalGroupContext() {
     };
   }
 
+  function getProgressInfo(info, data) {
+    const total = Number.isFinite(info.total) ? info.total : null;
+    const contextualDone =
+      info.source === 'local_group' && info.currentIndex != null
+        ? info.currentIndex + 1
+        : info.done;
+    const loggedDone = data.entries.length;
+    const done =
+      total != null
+        ? Math.min(total, Math.max(contextualDone ?? 0, loggedDone))
+        : loggedDone;
+
+    return {
+      total,
+      done,
+      visibleDone: contextualDone ?? loggedDone,
+      ratio: total ? Math.min(1, done / total) : 0
+    };
+  }
+
   function average(arr) {
     if (!arr.length) return null;
     return arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -394,14 +415,6 @@ function getLocalGroupContext() {
     return str;
   }
 
-  function getPaceLabel(secondsPerStudent) {
-    if (!secondsPerStudent) return 'warming up';
-    if (secondsPerStudent < 120) return 'jogging';
-    if (secondsPerStudent < 300) return 'steady';
-    if (secondsPerStudent < 480) return 'digging deep';
-    return 'running through mud';
-  }
-
 function getButtonCss() {
   return 'wwie-btn';
 }
@@ -423,12 +436,28 @@ function stat(label, value) {
   `;
 }
 
-const PRINCE_RIGHT_URL = typeof GM_getResourceURL === 'function'
-  ? GM_getResourceURL('princeFacingRight')
-  : 'file:///Users/jbs939/Desktop/AssessmentHelpers/Assets/PrinceFacingRight.png';
-const PRINCE_LEFT_URL = typeof GM_getResourceURL === 'function'
-  ? GM_getResourceURL('princeFacingLeft')
-  : 'file:///Users/jbs939/Desktop/AssessmentHelpers/Assets/PrinceFacingLeft.png';
+function updateCurrentElapsedDisplay() {
+  const elapsedEl = document.querySelector(`#${PANEL_ID} #wwie-current-elapsed`);
+  if (!elapsedEl) return;
+  elapsedEl.textContent = state.currentStartTime
+    ? formatDuration((Date.now() - state.currentStartTime) / 1000)
+    : '—';
+}
+
+const PRINCE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png';
+const PRINCE_LEFT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png';
+
+function getResourceUrl(name, fallbackUrl) {
+  try {
+    if (typeof GM_getResourceURL === 'function') {
+      return GM_getResourceURL(name) || fallbackUrl;
+    }
+  } catch {}
+  return fallbackUrl;
+}
+
+const PRINCE_RIGHT_URL = getResourceUrl('princeFacingRight', PRINCE_RIGHT_FALLBACK_URL);
+const PRINCE_LEFT_URL = getResourceUrl('princeFacingLeft', PRINCE_LEFT_FALLBACK_URL);
 
 function createPrinceProgressWidget() {
   const FRAME_W = 40;
@@ -466,7 +495,7 @@ function createPrinceProgressWidget() {
     ],
 
     runLeft: [
-      "left:r1c4", "left:r1c5", "left:r1c6", "left:r1c7",
+      "left:r1c5", "left:r1c6", "left:r1c7",
       "left:r2c1", "left:r2c2", "left:r2c3", "left:r2c4"
     ],
 
@@ -497,10 +526,10 @@ function createPrinceProgressWidget() {
   };
 
   const config = {
-    scale: 1.55,
+    scale: 1,
     width: PANEL_WIDTH - 24,
     barHeight: 10,
-    markerSize: 18,
+    markerSize: 0,
     paddingX: 12,
     paddingTop: 10,
     paddingBottom: 10,
@@ -575,7 +604,7 @@ function createPrinceProgressWidget() {
     pointer-events: none;
   `;
 
-  fill.appendChild(marker);
+  //fill.appendChild(marker);
   bar.appendChild(fill);
   widget.appendChild(bar);
   widget.appendChild(sprite);
@@ -751,52 +780,53 @@ function createPrinceProgressWidget() {
     }
   }
 
-  async function celebrateTo(newProgress) {
-    newProgress = Math.max(0, Math.min(1, newProgress));
+async function celebrateTo(newProgress) {
+  newProgress = Math.max(0, Math.min(1, newProgress));
 
-    if (busy) return;
+  if (busy) return;
 
-    if (!hasSpriteSheets()) {
-      setBarProgress(newProgress);
-      currentProgress = newProgress;
-      return;
-    }
-
-    busy = true;
-
-    const oldX = progressToX(currentProgress);
-    const markerX = progressToX(newProgress);
-    const runRightEndX = barEndX - config.turnTravel;
-    const runLeftTurnStartX = barStartX + config.turnTravel;
-    const beforeMarkerX = markerX + config.jumpOffset;
-    const afterMarkerX = markerX - config.jumpOffset;
-    const restX = markerX + config.restOffset;
-    const preRestX = restX - config.preRestOffset;
-
-    setSpriteX(oldX);
-    setSpriteY(spriteBaseY);
-
-    await playClip(clips.drink, 95, 1);
-    await runClip(clips.runRight, oldX, runRightEndX, 900, 100);
-    await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 80, 1);
-
+  if (!hasSpriteSheets()) {
     setBarProgress(newProgress);
-
-    await runClip(clips.runLeft, barEndX, beforeMarkerX, 900, 65);
-    await jumpClip(clips.jumpMarker, beforeMarkerX, afterMarkerX, 900, 52, 100);
-    await runClip(clips.runLeft, afterMarkerX, runLeftTurnStartX, 900, 65);
-    await playMovingThenStaticClip(clips.turnRightAtStart, runLeftTurnStartX, barStartX, 80, 1);
-    await runClip(clips.runRightShort, barStartX, preRestX, 900, 60);
-    await runClip(clips.slideToStop, preRestX, restX, 500, 100);
-    await playClip(clips.settleIdle, 120, 1);
-
     currentProgress = newProgress;
-    setSpriteX(restX);
-    setSpriteY(spriteBaseY);
-    setFrame(clips.idle[0]);
-
-    busy = false;
+    return;
   }
+
+  busy = true;
+
+  const oldX = progressToX(currentProgress);
+  const markerX = progressToX(newProgress);
+
+  // rightward run stops a bit before the end so the turn clip can slide into place
+  const runRightEndX = barEndX - config.turnTravel;
+
+  // final resting position near the marker
+ const finalStopX = markerX;
+
+  // stop the leftward run short so the final turn can slide into the stop
+  const runLeftEndX = finalStopX + config.turnTravel;
+
+  setSpriteX(oldX);
+  setSpriteY(spriteBaseY);
+
+  await playClip(clips.drink, 95, 1);
+
+  await runClip(clips.runRight, oldX, runRightEndX, 900, 100);
+  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 80, 1);
+
+  setBarProgress(newProgress);
+
+  await runClip(clips.runLeft, barEndX, runLeftEndX, 700, 65);
+  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 80, 1);
+
+  await playClip(clips.settleIdle, 120, 1);
+
+  currentProgress = newProgress;
+  setSpriteX(finalStopX);
+  setSpriteY(spriteBaseY);
+  setFrame(clips.idle[0]);
+
+  busy = false;
+}
 
   placeAtProgress(0);
 
@@ -1029,12 +1059,13 @@ function ensurePanel() {
     }
   }
 
-function renderPanel(force = false) {
+function renderPanel(force = false, options = {}) {
   const panel = ensurePanel();
   attachDragging(panel);
 
   const data = loadData();
   const info = getStudentListInfo();
+  const progressInfo = getProgressInfo(info, data);
 
   const avg = average(data.timings);
   const med = median(data.timings);
@@ -1042,14 +1073,12 @@ function renderPanel(force = false) {
   const estimator = rolling || med || avg;
 
   const remaining = info.remaining;
-  const total = info.total;
-  const done = info.done != null ? info.done : data.timings.length;
-  const progressRatio = total ? Math.min(1, done / total) : 0;
+  const total = progressInfo.total;
+  const progressRatio = progressInfo.ratio;
  
 
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
   const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
-  const paceLabel = getPaceLabel(estimator);
 
   const contextLabel =
     info.source === 'local_group'
@@ -1066,10 +1095,7 @@ const contextMeta =
       ].filter(Boolean).join(' | ')
     : '';
 
-  const visibleDone =
-    info.source === 'local_group' && info.currentIndex != null
-      ? info.currentIndex + 1
-      : data.timings.length;
+  const visibleDone = progressInfo.visibleDone;
 
   const signature = JSON.stringify({
     minimized: data.minimized,
@@ -1079,14 +1105,16 @@ const contextMeta =
     med: Math.round(med || 0),
     remaining,
     eta: Math.round(etaSeconds || 0),
-    elapsed: state.currentStartTime ? Math.round((Date.now() - state.currentStartTime) / 1000) : 0,
     source: info.source,
     groupName: info.groupName,
     total,
     done: visibleDone
   });
 
-  if (!force && signature === state.lastRenderedSignature) return;
+  if (!force && signature === state.lastRenderedSignature) {
+    updateCurrentElapsedDisplay();
+    return;
+  }
   state.lastRenderedSignature = signature;
 
   if (data.minimized) {
@@ -1117,7 +1145,7 @@ const contextMeta =
   <div style="margin-top:8px;font-size:10px;color:#aeb6c2;padding:6px;">
   ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
     <div class="wwie-stats-grid">
-      ${stat('Done', visibleDone)}
+      ${stat('Completed', visibleDone)}
       ${stat('Remaining to mark', remaining ?? '—')}
       ${stat('Recent avg', formatDuration(rolling))}
       ${stat('Median', formatDuration(med))}
@@ -1127,12 +1155,8 @@ const contextMeta =
 
     <div id="wwie-prince-slot"></div>
 
-    <div style="margin-top:8px;font-size:11px;color:#aeb6c2;">
-      pace: <strong style="color:#fff;">${escapeHtml(paceLabel)}</strong>
-    </div>
-
     <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
-      Current student: ${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}<br>
+      Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
       Logged entries: ${data.entries.length}<br>
       Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
     </div>
@@ -1152,7 +1176,11 @@ const princeSlot = panel.querySelector('#wwie-prince-slot');
 if (princeSlot) {
   state.princeWidget = createPrinceProgressWidget();
   princeSlot.appendChild(state.princeWidget.el);
-  state.princeWidget.setProgress(progressRatio);
+  state.princeWidget.setProgress(options.previousProgress ?? progressRatio);
+  if (options.animateToProgress != null && options.animateToProgress > (options.previousProgress ?? progressRatio)) {
+    state.princeWidget.celebrateTo(options.animateToProgress);
+  }
+  state.lastProgressRatio = options.animateToProgress ?? progressRatio;
 }
   panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
   panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
@@ -1213,10 +1241,15 @@ if (princeSlot) {
 
   function handleLogNow() {
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
+    const previousProgress = state.lastProgressRatio;
     const ok = addEntry(elapsed, 'manual');
     if (ok) {
       state.currentStartTime = Date.now();
-      renderPanel(true);
+      const progressInfo = getProgressInfo(getStudentListInfo(), loadData());
+      renderPanel(true, {
+        previousProgress,
+        animateToProgress: progressInfo.ratio
+      });
     }
   }
 
@@ -1263,17 +1296,15 @@ if (princeSlot) {
 
  function detectStudentChange() {
   const previousInfo = getStudentListInfo();
-  const previousDone =
-    previousInfo.source === 'local_group' && previousInfo.currentIndex != null
-      ? previousInfo.currentIndex + 1
-      : (previousInfo.done != null ? previousInfo.done : loadData().timings.length);
+  const previousProgressInfo = getProgressInfo(previousInfo, loadData());
+  const previousProgress = state.lastProgressRatio ?? previousProgressInfo.ratio;
 
   const newKey = getCurrentStudentKey();
 
   if (!state.currentStudentKey) {
     state.currentStudentKey = newKey;
     state.currentStartTime = Date.now();
-    return;
+    return false;
   }
 
   if (newKey !== state.currentStudentKey) {
@@ -1282,22 +1313,16 @@ if (princeSlot) {
     state.currentStartTime = Date.now();
 
     const newInfo = getStudentListInfo();
-    const newDone =
-      newInfo.source === 'local_group' && newInfo.currentIndex != null
-        ? newInfo.currentIndex + 1
-        : (newInfo.done != null ? newInfo.done : loadData().timings.length);
+    const newProgressInfo = getProgressInfo(newInfo, loadData());
+    const newProgress = newProgressInfo.ratio;
 
-    const total = newInfo.total || previousInfo.total || null;
-    const previousProgress = total ? Math.min(1, previousDone / total) : null;
-    const newProgress = total ? Math.min(1, newDone / total) : null;
-
-    renderPanel(true);
-
-    if (logged && state.princeWidget && previousProgress != null && newProgress != null && newProgress > previousProgress) {
-      state.princeWidget.setProgress(previousProgress);
-      state.princeWidget.celebrateTo(newProgress);
-    }
+    renderPanel(true, logged || newProgress > previousProgress
+      ? { previousProgress, animateToProgress: newProgress }
+      : {});
+    return true;
   }
+
+  return false;
 }
 
   function startLoops() {
@@ -1308,8 +1333,8 @@ if (princeSlot) {
       if (location.href !== state.lastSeenUrl) {
         state.lastSeenUrl = location.href;
         setTimeout(() => {
-          detectStudentChange();
-          renderPanel(true);
+          const rendered = detectStudentChange();
+          if (!rendered) renderPanel(true);
         }, 350);
       } else {
         detectStudentChange();
