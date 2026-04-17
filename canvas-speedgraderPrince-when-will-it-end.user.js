@@ -7,6 +7,9 @@
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgraderPrince-when-will-it-end.user.js
 // @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png
 // @resource     princeFacingLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png
+// @resource     princeDieLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png
+// @resource     princeDieRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieRight.png
+
 // @grant        GM_getResourceURL
 // ==/UserScript==
 
@@ -446,6 +449,8 @@ function updateCurrentElapsedDisplay() {
 
 const PRINCE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png';
 const PRINCE_LEFT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png';
+const PRINCE_DIE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieRight.png';
+const PRINCE_DIE_LEFT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png';
 
 function getResourceUrl(name, fallbackUrl) {
   try {
@@ -458,18 +463,24 @@ function getResourceUrl(name, fallbackUrl) {
 
 const PRINCE_RIGHT_URL = getResourceUrl('princeFacingRight', PRINCE_RIGHT_FALLBACK_URL);
 const PRINCE_LEFT_URL = getResourceUrl('princeFacingLeft', PRINCE_LEFT_FALLBACK_URL);
+const PRINCE_DIE_RIGHT_URL = getResourceUrl('princeDieRight', PRINCE_DIE_RIGHT_FALLBACK_URL);
+const PRINCE_DIE_LEFT_URL = getResourceUrl('princeDieLeft', PRINCE_DIE_LEFT_FALLBACK_URL);
 
 function createPrinceProgressWidget() {
   const FRAME_W = 40;
   const FRAME_H = 47;
+  const DIE_FRAME_W = 29;
+  const DIE_FRAME_H = 43;
 
   const SHEETS = {
-    right: PRINCE_RIGHT_URL,
-    left: PRINCE_LEFT_URL
+    right: { url: PRINCE_RIGHT_URL, frameW: FRAME_W, frameH: FRAME_H, cols: 7, rows: 7 },
+    left: { url: PRINCE_LEFT_URL, frameW: FRAME_W, frameH: FRAME_H, cols: 7, rows: 7 },
+    dieRight: { url: PRINCE_DIE_RIGHT_URL, frameW: DIE_FRAME_W, frameH: DIE_FRAME_H, cols: 6, rows: 1 },
+    dieLeft: { url: PRINCE_DIE_LEFT_URL, frameW: DIE_FRAME_W, frameH: DIE_FRAME_H, cols: 6, rows: 1 }
   };
 
   function hasSpriteSheets() {
-    return Boolean(SHEETS.right && SHEETS.left);
+    return Boolean(SHEETS.right.url && SHEETS.left.url);
   }
 
   const clips = {
@@ -522,6 +533,14 @@ function createPrinceProgressWidget() {
 
     settleIdle: [
       "right:r1c1"
+    ],
+    collapse: [
+      "dieRight:r1c1",
+      "dieRight:r1c2",
+      "dieRight:r1c3",
+      "dieRight:r1c4",
+      "dieRight:r1c5",
+      "dieRight:r1c6"
     ]
   };
 
@@ -537,7 +556,8 @@ function createPrinceProgressWidget() {
     turnTravel: 34,
     jumpOffset: 60,
     restOffset: 18,
-    preRestOffset: 56
+    preRestOffset: 56,
+    collapseOffsetX: -29
   };
 
   const DISPLAY_W = FRAME_W * config.scale;
@@ -614,10 +634,11 @@ function createPrinceProgressWidget() {
   const barStartX = barLeft;
   const barEndX = barLeft + barWidth;
   const spriteBaseY = Math.ceil(DISPLAY_H * 0.15);
-  const spriteAnchorX = DISPLAY_W * config.anchorRatio;
+  let activeDisplayW = DISPLAY_W;
 
-  let currentProgress = 0;
-  let busy = false;
+let currentProgress = 0;
+let busy = false;
+let isCollapsed = false;
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -628,7 +649,7 @@ function createPrinceProgressWidget() {
   }
 
   function parseFrameLabel(label) {
-    const match = label.match(/^(right|left):r(\d+)c(\d+)$/);
+    const match = label.match(/^(right|left|dieRight|dieLeft):r(\d+)c(\d+)$/);
     if (!match) throw new Error(`Bad frame label: ${label}`);
     return {
       sheet: match[1],
@@ -639,15 +660,21 @@ function createPrinceProgressWidget() {
 
   function setFrame(label) {
     const { sheet, row, col } = parseFrameLabel(label);
-    const bgX = -((col - 1) * DISPLAY_W);
-    const bgY = -((row - 1) * DISPLAY_H);
-    sprite.style.backgroundImage = `url("${SHEETS[sheet]}")`;
-    sprite.style.backgroundSize = `${DISPLAY_W * 7}px ${DISPLAY_H * 7}px`;
+    const sheetConfig = SHEETS[sheet];
+    const displayW = sheetConfig.frameW * config.scale;
+    const displayH = sheetConfig.frameH * config.scale;
+    const bgX = -((col - 1) * displayW);
+    const bgY = -((row - 1) * displayH);
+    activeDisplayW = displayW;
+    sprite.style.width = `${displayW}px`;
+    sprite.style.height = `${displayH}px`;
+    sprite.style.backgroundImage = `url("${sheetConfig.url}")`;
+    sprite.style.backgroundSize = `${displayW * sheetConfig.cols}px ${displayH * sheetConfig.rows}px`;
     sprite.style.backgroundPosition = `${bgX}px ${bgY}px`;
   }
 
   function setSpriteX(x) {
-    sprite.style.left = `${Math.round(x - spriteAnchorX)}px`;
+    sprite.style.left = `${Math.round(x - (activeDisplayW * config.anchorRatio))}px`;
   }
 
   function setSpriteY(y) {
@@ -727,6 +754,21 @@ function createPrinceProgressWidget() {
     setFrame(frames[i]);
   }
 
+  async function collapseAtCurrentPosition() {
+    if (busy || isCollapsed) return;
+
+    isCollapsed = true;
+    const collapseX = progressToX(currentProgress) + config.restOffset + config.collapseOffsetX;
+
+    setFrame(clips.collapse[0]);
+    setSpriteX(collapseX);
+    setSpriteY(spriteBaseY);
+
+    await playClip(clips.collapse, 120, 1);
+
+    setFrame(clips.collapse[clips.collapse.length - 1]);
+  }
+
   async function playMovingThenStaticClip(frames, fromX, toX, frameMs = 100, moveFraction = 0.25) {
     const moveFrameCount = Math.max(1, Math.round(frames.length * moveFraction));
 
@@ -771,14 +813,28 @@ function createPrinceProgressWidget() {
   }
 
   function placeAtProgress(progress) {
-    currentProgress = Math.max(0, Math.min(1, progress));
-    setBarProgress(currentProgress);
-    setSpriteX(progressToX(currentProgress));
-    setSpriteY(spriteBaseY);
-    if (hasSpriteSheets()) {
-      setFrame(clips.idle[0]);
-    }
+  currentProgress = Math.max(0, Math.min(1, progress));
+  setBarProgress(currentProgress);
+
+  if (isCollapsed) {
+    return;
   }
+
+  setSpriteX(progressToX(currentProgress));
+  setSpriteY(spriteBaseY);
+
+  if (SHEETS.right.url) {
+    setFrame(clips.idle[0]);
+  }
+}
+
+  function reviveIfCollapsed() {
+  if (!isCollapsed) return;
+
+  isCollapsed = false;
+  setSpriteY(spriteBaseY);
+  setFrame(clips.idle[0]);
+}
 
 async function celebrateTo(newProgress) {
   newProgress = Math.max(0, Math.min(1, newProgress));
@@ -792,6 +848,7 @@ async function celebrateTo(newProgress) {
   }
 
   busy = true;
+  reviveIfCollapsed();
 
   const oldX = progressToX(currentProgress);
   const markerX = progressToX(newProgress);
@@ -830,13 +887,29 @@ async function celebrateTo(newProgress) {
 
   placeAtProgress(0);
 
-  return {
-    el: widget,
-    setProgress(progress) {
-      placeAtProgress(progress);
-    },
-    celebrateTo
-  };
+ return {
+  el: widget,
+  setProgress(progress) {
+    placeAtProgress(progress);
+  },
+  celebrateTo,
+  maybeCollapse(elapsedSeconds, medianSeconds) {
+    if (
+      busy ||
+      isCollapsed ||
+      elapsedSeconds == null ||
+      !medianSeconds ||
+      !isFinite(medianSeconds) ||
+      medianSeconds <= 0
+    ) {
+      return;
+    }
+
+    if (elapsedSeconds >= medianSeconds) {
+      collapseAtCurrentPosition();
+    }
+  }
+};
 }
 
     function addStyles() {
@@ -1113,8 +1186,16 @@ const contextMeta =
 
   if (!force && signature === state.lastRenderedSignature) {
     updateCurrentElapsedDisplay();
+    if (state.princeWidget) {
+      state.princeWidget.setProgress(progressRatio);
+      const currentElapsedSeconds = state.currentStartTime
+        ? Math.round((Date.now() - state.currentStartTime) / 1000)
+        : null;
+      state.princeWidget.maybeCollapse(currentElapsedSeconds, med);
+    }
     return;
   }
+
   state.lastRenderedSignature = signature;
 
   if (data.minimized) {
