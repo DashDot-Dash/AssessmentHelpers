@@ -4,8 +4,13 @@
 // @version      0.5
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgrader-when-will-it-end.user.js
-// @grant        none
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/canvas-speedgraderPrince-when-will-it-end.user.js
+// @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png
+// @resource     princeFacingLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png
+// @resource     princeDieLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png
+// @resource     princeDieRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieRight.png
+
+// @grant        GM_getResourceURL
 // ==/UserScript==
 
 (function () {
@@ -14,7 +19,7 @@
   // Estimates SpeedGrader marking time and logs local session timing data.
 
   // constants/config
-  const PANEL_ID = 'wwie-panel';
+  const PANEL_ID = 'wwie-prince-panel';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_when_will_it_end_v1';
   const LEGACY_STORAGE_PREFIX = 'wwie_';
@@ -23,7 +28,7 @@
   const MAX_VALID_SECONDS = 20 * 60;
   const MIN_VALID_SECONDS = 15;
   const ROLLING_COUNT = 5;
-  const STYLE_ID = 'wwie-style';
+  const STYLE_ID = 'wwie-prince-style';
   const PANEL_WIDTH = 340;
 
   // selectors
@@ -41,7 +46,9 @@
     lastRenderedSignature: '',
     tickInterval: null,
     navInterval: null,
-    drag: null
+    drag: null,
+    princeWidget: null,
+    lastProgressRatio: 0,
   };
 
   // elements
@@ -344,6 +351,26 @@ function getLocalGroupContext() {
     };
   }
 
+  function getProgressInfo(info, data) {
+    const total = Number.isFinite(info.total) ? info.total : null;
+    const contextualDone =
+      info.source === 'local_group' && info.currentIndex != null
+        ? info.currentIndex + 1
+        : info.done;
+    const loggedDone = data.entries.length;
+    const done =
+      total != null
+        ? Math.min(total, Math.max(contextualDone ?? 0, loggedDone))
+        : loggedDone;
+
+    return {
+      total,
+      done,
+      visibleDone: contextualDone ?? loggedDone,
+      ratio: total ? Math.min(1, done / total) : 0
+    };
+  }
+
   function average(arr) {
     if (!arr.length) return null;
     return arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -412,45 +439,478 @@ function stat(label, value) {
   `;
 }
 
-  function buildJogger(progressRatio) {
-    const pct = Math.max(0, Math.min(100, Math.round(progressRatio * 100)));
-    return `
-      <div style="margin:10px 0 6px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div style="font-size:11px;color:#aeb6c2;">progress</div>
-          <div style="font-size:11px;color:#aeb6c2;">${pct}%</div>
-        </div>
-        <div style="
-          position:relative;
-          height:34px;
-          background:#11151a;
-          border-radius:999px;
-          border:1px solid rgba(255,255,255,0.06);
-          overflow:hidden;
-        ">
-          <div style="
-            position:absolute;
-            left:10px;
-            right:10px;
-            top:50%;
-            height:2px;
-            transform:translateY(-50%);
-            background:rgba(255,255,255,0.14);
-          "></div>
+function updateCurrentElapsedDisplay() {
+  const elapsedEl = document.querySelector(`#${PANEL_ID} #wwie-current-elapsed`);
+  if (!elapsedEl) return;
+  elapsedEl.textContent = state.currentStartTime
+    ? formatDuration((Date.now() - state.currentStartTime) / 1000)
+    : '—';
+}
 
-          <div style="
-            position:absolute;
-            left:calc(${pct}% - 11px);
-            top:50%;
-            transform:translateY(-50%);
-            font-size:18px;
-            line-height:1;
-            filter:drop-shadow(0 0 4px rgba(255,255,255,0.15));
-          ">🏃</div>
-        </div>
-      </div>
-    `;
+const PRINCE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png';
+const PRINCE_LEFT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png';
+const PRINCE_DIE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieRight.png';
+const PRINCE_DIE_LEFT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png';
+
+function getResourceUrl(name, fallbackUrl) {
+  try {
+    if (typeof GM_getResourceURL === 'function') {
+      return GM_getResourceURL(name) || fallbackUrl;
+    }
+  } catch {}
+  return fallbackUrl;
+}
+
+const PRINCE_RIGHT_URL = getResourceUrl('princeFacingRight', PRINCE_RIGHT_FALLBACK_URL);
+const PRINCE_LEFT_URL = getResourceUrl('princeFacingLeft', PRINCE_LEFT_FALLBACK_URL);
+const PRINCE_DIE_RIGHT_URL = getResourceUrl('princeDieRight', PRINCE_DIE_RIGHT_FALLBACK_URL);
+const PRINCE_DIE_LEFT_URL = getResourceUrl('princeDieLeft', PRINCE_DIE_LEFT_FALLBACK_URL);
+
+function createPrinceProgressWidget() {
+  const FRAME_W = 40;
+  const FRAME_H = 47;
+  const DIE_FRAME_W = 29;
+  const DIE_FRAME_H = 43;
+
+  const SHEETS = {
+    right: { url: PRINCE_RIGHT_URL, frameW: FRAME_W, frameH: FRAME_H, cols: 7, rows: 7 },
+    left: { url: PRINCE_LEFT_URL, frameW: FRAME_W, frameH: FRAME_H, cols: 7, rows: 7 },
+    dieRight: { url: PRINCE_DIE_RIGHT_URL, frameW: DIE_FRAME_W, frameH: DIE_FRAME_H, cols: 6, rows: 1 },
+    dieLeft: { url: PRINCE_DIE_LEFT_URL, frameW: DIE_FRAME_W, frameH: DIE_FRAME_H, cols: 6, rows: 1 }
+  };
+
+  function hasSpriteSheets() {
+    return Boolean(SHEETS.right.url && SHEETS.left.url);
   }
+
+  const clips = {
+    idle: [
+      "right:r1c1"
+    ],
+
+    drink: [
+      "right:r5c7",
+      "right:r6c1", "right:r6c2", "right:r6c3", "right:r6c4", "right:r6c5", "right:r6c6", "right:r6c7",
+      "right:r7c1", "right:r7c2", "right:r7c3", "right:r7c4", "right:r7c5"
+    ],
+
+    runRight: [
+      "right:r1c5", "right:r1c6", "right:r1c7",
+      "right:r2c1", "right:r2c2", "right:r2c3", "right:r2c4"
+    ],
+
+    turnLeftAtEnd: [
+      "right:r2c5", "right:r2c6", "right:r2c7",
+      "right:r3c1", "right:r3c2", "right:r3c3", "right:r3c4", "right:r3c5", "right:r3c6", "right:r3c7",
+      "right:r4c1", "right:r4c2", "right:r4c3"
+    ],
+
+    runLeft: [
+      "left:r1c5", "left:r1c6", "left:r1c7",
+      "left:r2c1", "left:r2c2", "left:r2c3", "left:r2c4"
+    ],
+
+    jumpMarker: [
+      "left:r4c6", "left:r4c7",
+      "left:r5c1", "left:r5c2", "left:r5c3", "left:r5c4", "left:r5c5"
+    ],
+
+    turnRightAtStart: [
+      "left:r2c5", "left:r2c6", "left:r2c7",
+      "left:r3c1", "left:r3c2", "left:r3c3", "left:r3c4", "left:r3c5", "left:r3c6", "left:r3c7",
+      "left:r4c1", "left:r4c2", "left:r4c3"
+    ],
+
+    runRightShort: [
+      "right:r1c6", "right:r1c7",
+      "right:r2c1", "right:r2c2", "right:r2c3", "right:r2c4", "right:r1c5"
+    ],
+
+    slideToStop: [
+      "right:r2c6", "right:r2c7",
+      "right:r3c1", "right:r3c2", "right:r3c3", "right:r3c4"
+    ],
+
+    settleIdle: [
+      "right:r1c1"
+    ],
+    collapse: [
+      "dieRight:r1c1",
+      "dieRight:r1c2",
+      "dieRight:r1c3",
+      "dieRight:r1c4",
+      "dieRight:r1c5",
+      "dieRight:r1c6"
+    ]
+  };
+
+  const config = {
+    scale: 1,
+    width: PANEL_WIDTH - 24,
+    barHeight: 10,
+    markerSize: 0,
+    paddingX: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+    anchorRatio: 0.5,
+    turnTravel: 34,
+    jumpOffset: 60,
+    restOffset: 18,
+    preRestOffset: 56,
+    collapseOffsetX: -29
+  };
+
+  const DISPLAY_W = FRAME_W * config.scale;
+  const DISPLAY_H = FRAME_H * config.scale;
+
+  const widget = document.createElement('div');
+  widget.style.cssText = `
+    position: relative;
+    width: ${config.width}px;
+    height: ${Math.ceil(DISPLAY_H + config.paddingTop + config.paddingBottom + 8)}px;
+    overflow: visible;
+    user-select: none;
+    margin: 10px 0 8px 0;
+  `;
+
+  const bar = document.createElement('div');
+  bar.style.cssText = `
+    position: absolute;
+    left: ${config.paddingX}px;
+    right: ${config.paddingX}px;
+    bottom: ${config.paddingBottom}px;
+    height: ${config.barHeight}px;
+    background: #11151a;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  `;
+
+  const fill = document.createElement('div');
+  fill.style.cssText = `
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(to right, #a8d07d, #d7f08e);
+    border-radius: 999px;
+    transition: width 0.18s linear;
+  `;
+
+  const marker = document.createElement('div');
+  marker.style.cssText = `
+    position: absolute;
+    top: 50%;
+    width: ${config.markerSize}px;
+    height: ${config.markerSize}px;
+    margin-top: -${config.markerSize / 2}px;
+    border-radius: 50%;
+    background: #f3d36c;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.15);
+  `;
+
+  const sprite = document.createElement('div');
+  sprite.style.cssText = `
+    position: absolute;
+    width: ${DISPLAY_W}px;
+    height: ${DISPLAY_H}px;
+    left: 0;
+    top: 0;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    pointer-events: none;
+  `;
+
+  //fill.appendChild(marker);
+  bar.appendChild(fill);
+  widget.appendChild(bar);
+  widget.appendChild(sprite);
+
+  const barLeft = config.paddingX;
+  const barWidth = config.width - (config.paddingX * 2);
+  const barStartX = barLeft;
+  const barEndX = barLeft + barWidth;
+  const spriteBaseY = Math.ceil(DISPLAY_H * 0.15);
+  let activeDisplayW = DISPLAY_W;
+
+let currentProgress = 0;
+let busy = false;
+let isCollapsed = false;
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function progressToX(progress) {
+    return barLeft + (barWidth * progress);
+  }
+
+  function parseFrameLabel(label) {
+    const match = label.match(/^(right|left|dieRight|dieLeft):r(\d+)c(\d+)$/);
+    if (!match) throw new Error(`Bad frame label: ${label}`);
+    return {
+      sheet: match[1],
+      row: Number(match[2]),
+      col: Number(match[3])
+    };
+  }
+
+  function setFrame(label) {
+    const { sheet, row, col } = parseFrameLabel(label);
+    const sheetConfig = SHEETS[sheet];
+    const displayW = sheetConfig.frameW * config.scale;
+    const displayH = sheetConfig.frameH * config.scale;
+    const bgX = -((col - 1) * displayW);
+    const bgY = -((row - 1) * displayH);
+    activeDisplayW = displayW;
+    sprite.style.width = `${displayW}px`;
+    sprite.style.height = `${displayH}px`;
+    sprite.style.backgroundImage = `url("${sheetConfig.url}")`;
+    sprite.style.backgroundSize = `${displayW * sheetConfig.cols}px ${displayH * sheetConfig.rows}px`;
+    sprite.style.backgroundPosition = `${bgX}px ${bgY}px`;
+  }
+
+  function setSpriteX(x) {
+    sprite.style.left = `${Math.round(x - (activeDisplayW * config.anchorRatio))}px`;
+  }
+
+  function setSpriteY(y) {
+    sprite.style.top = `${Math.round(y)}px`;
+  }
+
+  function setBarProgress(progress) {
+    const p = Math.max(0, Math.min(1, progress));
+    fill.style.width = `${p * 100}%`;
+    marker.style.left = `${p * 100}%`;
+  }
+
+  async function playClip(frames, frameMs = 100, loop = 1) {
+    for (let l = 0; l < loop; l++) {
+      for (const frame of frames) {
+        setFrame(frame);
+        await sleep(frameMs);
+      }
+    }
+  }
+
+  async function moveLinear(fromX, toX, durationMs, onUpdate) {
+    return new Promise(resolve => {
+      const startTime = performance.now();
+
+      function tick(now) {
+        const t = Math.min(1, (now - startTime) / durationMs);
+        const x = fromX + ((toX - fromX) * t);
+        onUpdate(t, x);
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          resolve();
+        }
+      }
+
+      requestAnimationFrame(tick);
+    });
+  }
+
+  async function runClip(frames, fromX, toX, durationMs, frameMs = 80) {
+    let i = 0;
+    setFrame(frames[0]);
+
+    const frameTimer = setInterval(() => {
+      i = (i + 1) % frames.length;
+      setFrame(frames[i]);
+    }, frameMs);
+
+    await moveLinear(fromX, toX, durationMs, (_t, x) => {
+      setSpriteX(x);
+      setSpriteY(spriteBaseY);
+    });
+
+    clearInterval(frameTimer);
+    setFrame(frames[i]);
+  }
+
+  async function jumpClip(frames, fromX, toX, durationMs, jumpHeight = 20, frameMs = 60) {
+    let i = 0;
+    setFrame(frames[0]);
+
+    const frameTimer = setInterval(() => {
+      i = (i + 1) % frames.length;
+      setFrame(frames[i]);
+    }, frameMs);
+
+    await moveLinear(fromX, toX, durationMs, (t, x) => {
+      const arc = 4 * jumpHeight * t * (1 - t);
+      setSpriteX(x);
+      setSpriteY(spriteBaseY - arc);
+    });
+
+    clearInterval(frameTimer);
+    setSpriteY(spriteBaseY);
+    setFrame(frames[i]);
+  }
+
+  async function collapseAtCurrentPosition() {
+    if (busy || isCollapsed) return;
+
+    isCollapsed = true;
+    const collapseX = progressToX(currentProgress) + config.restOffset + config.collapseOffsetX;
+
+    setFrame(clips.collapse[0]);
+    setSpriteX(collapseX);
+    setSpriteY(spriteBaseY);
+
+    await playClip(clips.collapse, 120, 1);
+
+    setFrame(clips.collapse[clips.collapse.length - 1]);
+  }
+
+  async function playMovingThenStaticClip(frames, fromX, toX, frameMs = 100, moveFraction = 0.25) {
+    const moveFrameCount = Math.max(1, Math.round(frames.length * moveFraction));
+
+    await new Promise(resolve => {
+      const startTime = performance.now();
+      const durationMs = moveFrameCount * frameMs;
+      let frameIndex = 0;
+
+      setFrame(frames[0]);
+
+      const timer = setInterval(() => {
+        if (frameIndex < moveFrameCount) {
+          setFrame(frames[frameIndex]);
+          frameIndex++;
+        }
+      }, frameMs);
+
+      function tick(now) {
+        const t = Math.min(1, (now - startTime) / durationMs);
+        const x = fromX + ((toX - fromX) * t);
+        setSpriteX(x);
+        setSpriteY(spriteBaseY);
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          clearInterval(timer);
+          resolve();
+        }
+      }
+
+      requestAnimationFrame(tick);
+    });
+
+    for (let i = moveFrameCount; i < frames.length; i++) {
+      setFrame(frames[i]);
+      await sleep(frameMs);
+    }
+
+    setSpriteX(toX);
+    setSpriteY(spriteBaseY);
+  }
+
+  function placeAtProgress(progress) {
+  currentProgress = Math.max(0, Math.min(1, progress));
+  setBarProgress(currentProgress);
+
+  if (isCollapsed) {
+    return;
+  }
+
+  setSpriteX(progressToX(currentProgress));
+  setSpriteY(spriteBaseY);
+
+  if (SHEETS.right.url) {
+    setFrame(clips.idle[0]);
+  }
+}
+
+  function reviveIfCollapsed() {
+  if (!isCollapsed) return;
+
+  isCollapsed = false;
+  setSpriteY(spriteBaseY);
+  setFrame(clips.idle[0]);
+}
+
+async function celebrateTo(newProgress) {
+  newProgress = Math.max(0, Math.min(1, newProgress));
+
+  if (busy) return;
+
+  if (!hasSpriteSheets()) {
+    setBarProgress(newProgress);
+    currentProgress = newProgress;
+    return;
+  }
+
+  busy = true;
+  reviveIfCollapsed();
+
+  const oldX = progressToX(currentProgress);
+  const markerX = progressToX(newProgress);
+
+  // rightward run stops a bit before the end so the turn clip can slide into place
+  const runRightEndX = barEndX - config.turnTravel;
+
+  // final resting position near the marker
+ const finalStopX = markerX;
+
+  // stop the leftward run short so the final turn can slide into the stop
+  const runLeftEndX = finalStopX + config.turnTravel;
+
+  setSpriteX(oldX);
+  setSpriteY(spriteBaseY);
+
+  await playClip(clips.drink, 95, 1);
+
+  await runClip(clips.runRight, oldX, runRightEndX, 900, 100);
+  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 80, 1);
+
+  setBarProgress(newProgress);
+
+  await runClip(clips.runLeft, barEndX, runLeftEndX, 700, 65);
+  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 80, 1);
+
+  await playClip(clips.settleIdle, 120, 1);
+
+  currentProgress = newProgress;
+  setSpriteX(finalStopX);
+  setSpriteY(spriteBaseY);
+  setFrame(clips.idle[0]);
+
+  busy = false;
+}
+
+  placeAtProgress(0);
+
+ return {
+  el: widget,
+  setProgress(progress) {
+    placeAtProgress(progress);
+  },
+  celebrateTo,
+  maybeCollapse(elapsedSeconds, medianSeconds) {
+    if (
+      busy ||
+      isCollapsed ||
+      elapsedSeconds == null ||
+      !medianSeconds ||
+      !isFinite(medianSeconds) ||
+      medianSeconds <= 0
+    ) {
+      return;
+    }
+
+    if (elapsedSeconds >= medianSeconds) {
+      collapseAtCurrentPosition();
+    }
+  }
+};
+}
 
     function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
@@ -672,12 +1132,13 @@ function ensurePanel() {
     }
   }
 
-function renderPanel(force = false) {
+function renderPanel(force = false, options = {}) {
   const panel = ensurePanel();
   attachDragging(panel);
 
   const data = loadData();
   const info = getStudentListInfo();
+  const progressInfo = getProgressInfo(info, data);
 
   const avg = average(data.timings);
   const med = median(data.timings);
@@ -685,9 +1146,9 @@ function renderPanel(force = false) {
   const estimator = rolling || med || avg;
 
   const remaining = info.remaining;
-  const total = info.total;
-  const done = info.done != null ? info.done : data.timings.length;
-  const progressRatio = total ? Math.min(1, done / total) : 0;
+  const total = progressInfo.total;
+  const progressRatio = progressInfo.ratio;
+ 
 
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
   const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
@@ -707,10 +1168,7 @@ const contextMeta =
       ].filter(Boolean).join(' | ')
     : '';
 
-  const visibleDone =
-    info.source === 'local_group' && info.currentIndex != null
-      ? info.currentIndex + 1
-      : data.timings.length;
+  const visibleDone = progressInfo.visibleDone;
 
   const signature = JSON.stringify({
     minimized: data.minimized,
@@ -720,14 +1178,24 @@ const contextMeta =
     med: Math.round(med || 0),
     remaining,
     eta: Math.round(etaSeconds || 0),
-    elapsed: state.currentStartTime ? Math.round((Date.now() - state.currentStartTime) / 1000) : 0,
     source: info.source,
     groupName: info.groupName,
     total,
     done: visibleDone
   });
 
-  if (!force && signature === state.lastRenderedSignature) return;
+  if (!force && signature === state.lastRenderedSignature) {
+    updateCurrentElapsedDisplay();
+    if (state.princeWidget) {
+      state.princeWidget.setProgress(progressRatio);
+      const currentElapsedSeconds = state.currentStartTime
+        ? Math.round((Date.now() - state.currentStartTime) / 1000)
+        : null;
+      state.princeWidget.maybeCollapse(currentElapsedSeconds, med);
+    }
+    return;
+  }
+
   state.lastRenderedSignature = signature;
 
   if (data.minimized) {
@@ -758,7 +1226,7 @@ const contextMeta =
   <div style="margin-top:8px;font-size:10px;color:#aeb6c2;padding:6px;">
   ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
     <div class="wwie-stats-grid">
-      ${stat('Done', visibleDone)}
+      ${stat('Completed', visibleDone)}
       ${stat('Remaining to mark', remaining ?? '—')}
       ${stat('Recent avg', formatDuration(rolling))}
       ${stat('Median', formatDuration(med))}
@@ -766,10 +1234,10 @@ const contextMeta =
       ${stat('ETA', formatClock(finishAt))}
     </div>
 
-    ${buildJogger(progressRatio)}
+    <div id="wwie-prince-slot"></div>
 
     <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
-      Current student: ${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}<br>
+      Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
       Logged entries: ${data.entries.length}<br>
       Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
     </div>
@@ -784,6 +1252,17 @@ const contextMeta =
     </div>
   </div>
 `;
+
+const princeSlot = panel.querySelector('#wwie-prince-slot');
+if (princeSlot) {
+  state.princeWidget = createPrinceProgressWidget();
+  princeSlot.appendChild(state.princeWidget.el);
+  state.princeWidget.setProgress(options.previousProgress ?? progressRatio);
+  if (options.animateToProgress != null && options.animateToProgress > (options.previousProgress ?? progressRatio)) {
+    state.princeWidget.celebrateTo(options.animateToProgress);
+  }
+  state.lastProgressRatio = options.animateToProgress ?? progressRatio;
+}
   panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
   panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
   panel.querySelector('#wwie-log')?.addEventListener('click', handleLogNow);
@@ -843,10 +1322,15 @@ const contextMeta =
 
   function handleLogNow() {
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
+    const previousProgress = state.lastProgressRatio;
     const ok = addEntry(elapsed, 'manual');
     if (ok) {
       state.currentStartTime = Date.now();
-      renderPanel(true);
+      const progressInfo = getProgressInfo(getStudentListInfo(), loadData());
+      renderPanel(true, {
+        previousProgress,
+        animateToProgress: progressInfo.ratio
+      });
     }
   }
 
@@ -891,22 +1375,36 @@ const contextMeta =
     URL.revokeObjectURL(url);
   }
 
-  function detectStudentChange() {
-    const newKey = getCurrentStudentKey();
+ function detectStudentChange() {
+  const previousInfo = getStudentListInfo();
+  const previousProgressInfo = getProgressInfo(previousInfo, loadData());
+  const previousProgress = state.lastProgressRatio ?? previousProgressInfo.ratio;
 
-    if (!state.currentStudentKey) {
-      state.currentStudentKey = newKey;
-      state.currentStartTime = Date.now();
-      return;
-    }
+  const newKey = getCurrentStudentKey();
 
-    if (newKey !== state.currentStudentKey) {
-      logCurrentStudentIfValid();
-      state.currentStudentKey = newKey;
-      state.currentStartTime = Date.now();
-      renderPanel(true);
-    }
+  if (!state.currentStudentKey) {
+    state.currentStudentKey = newKey;
+    state.currentStartTime = Date.now();
+    return false;
   }
+
+  if (newKey !== state.currentStudentKey) {
+    const logged = logCurrentStudentIfValid();
+    state.currentStudentKey = newKey;
+    state.currentStartTime = Date.now();
+
+    const newInfo = getStudentListInfo();
+    const newProgressInfo = getProgressInfo(newInfo, loadData());
+    const newProgress = newProgressInfo.ratio;
+
+    renderPanel(true, logged || newProgress > previousProgress
+      ? { previousProgress, animateToProgress: newProgress }
+      : {});
+    return true;
+  }
+
+  return false;
+}
 
   function startLoops() {
     if (state.navInterval) clearInterval(state.navInterval);
@@ -916,8 +1414,8 @@ const contextMeta =
       if (location.href !== state.lastSeenUrl) {
         state.lastSeenUrl = location.href;
         setTimeout(() => {
-          detectStudentChange();
-          renderPanel(true);
+          const rendered = detectStudentChange();
+          if (!rendered) renderPanel(true);
         }, 350);
       } else {
         detectStudentChange();
