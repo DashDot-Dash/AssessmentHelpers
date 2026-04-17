@@ -1,13 +1,12 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader Benchmarker
+// @name         DEV Canvas SpeedGrader Benchmarker
 // @version      1.0.0
 // @namespace    VisComm@UON
 // @description  Local benchmarking overlay for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-benchmarker.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-benchmarker.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-benchmarker.user.js
 // @grant        none
 // ==/UserScript==
 

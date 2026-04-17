@@ -1,12 +1,11 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader Tutorial Sorter
+// @name         DEV Canvas SpeedGrader Tutorial Sorter
 // @namespace    VisComm@UON
 // @version      1.0.0
 // @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-tutorial-sorter.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-tutorial-sorter.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-tutorial-sorter.user.js
 // @require      https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js
 // ==/UserScript==
 

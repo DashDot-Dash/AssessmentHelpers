@@ -1,11 +1,10 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader When Will It End
+// @name         DEV Canvas SpeedGrader When Will It End
 // @namespace    VisComm@UON
 // @version      1.0.0
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-when-will-it-end.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-when-will-it-end.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-when-will-it-end.user.js
 // @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png
 // @resource     princeFacingLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png
 // @resource     princeDieLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png

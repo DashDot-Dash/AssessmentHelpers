@@ -1,13 +1,12 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader Copy Paster
+// @name         DEV Canvas SpeedGrader Copy Paster
 // @namespace    VisComm@UON
 // @version      1.0.0
 // @description  Floating assignment-specific comment snippet panel for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-copy-paster.user.js
 // @grant        none
 // ==/UserScript==
 

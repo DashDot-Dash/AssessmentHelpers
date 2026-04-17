@@ -1,11 +1,10 @@
 // ==UserScript==
-// @name         Canvas Rubric Library Chooser
+// @name         DEV Canvas Rubric Library Chooser
 // @namespace    VisComm@UON
 // @version      1.0.0
 // @description  Choose rubric criteria from a library and download Canvas import CSV
 // @match        https://*/courses/*/rubrics*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-library-chooser.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-library-chooser.user.js
+// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-rubric-library-chooser.user.js
 // @grant        none
 // ==/UserScript==
 
