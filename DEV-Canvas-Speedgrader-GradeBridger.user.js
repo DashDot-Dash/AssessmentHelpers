@@ -861,6 +861,8 @@ function renderPanel() {
   `;
 
   document.body.appendChild(panel);
+  applySavedPanelPosition(panel);
+  makePanelFloating(panel);
 
   panel.querySelector('[data-vc-gradebridge-action="jump"]')?.addEventListener('click', () => {
     goToPair(pair, currentInfo);
@@ -920,6 +922,18 @@ function renderPanel() {
         font-weight: 700;
         margin-left: 8px;
         margin-bottom: 2px;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+      }
+
+      #vc-gradebridge-panel.vc-gradebridge-dragging {
+        transition: none;
+        opacity: 0.94;
+      }
+
+      #vc-gradebridge-panel.vc-gradebridge-dragging .vc-gradebridge-title {
+        cursor: grabbing;
       }
 
       .vc-gradebridge-subtitle {
