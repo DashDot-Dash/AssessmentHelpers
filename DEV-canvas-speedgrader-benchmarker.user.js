@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         DEV Canvas SpeedGrader Benchmarker
-// @version      1.0.0
+// @version      1.0.1
 // @namespace    VisComm@UON
 // @description  Local benchmarking overlay for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -24,11 +24,11 @@
 
   const BUCKETS = [
     { id: 'hd', label: 'HD', key: '1', color: '#2e7d32' },
-    { id: 'distinction', label: 'Distinction', key: '2', color: '#558b2f' },
-    { id: 'credit', label: 'Credit', key: '3', color: '#f9a825' },
+    { id: 'distinction', label: 'Distinction', key: '2', color: '#1b5ee4' },
+    { id: 'credit', label: 'Credit', key: '3', color: '#fdbf5b' },
     { id: 'pass', label: 'Pass', key: '4', color: '#ef6c00' },
     { id: 'fail', label: 'Fail', key: '5', color: '#c62828' },
-    { id: 'no_submission', label: 'No Submission', key: '6', color: '#616161' }
+    { id: 'no_submission', label: 'No Submission', key: '6', color: '#8a8a8a' }
   ];
 
   // selectors
@@ -349,6 +349,8 @@ function clickStudentInOpenMenuByName(targetName) {
       ui: {
         activeFilter: 'all',
         collapsed: false,
+          bucketsOpen: false,
+        studentListOpen: false,
         posX: null,
         posY: null
       }
@@ -443,6 +445,30 @@ function clickStudentInOpenMenuByName(targetName) {
   function getCollapsed() {
     return !!loadStore().ui?.collapsed;
   }
+
+  function getSectionOpen(sectionName) {
+  const ui = loadStore().ui || {};
+  if (sectionName === 'buckets') return !!ui.bucketsOpen;
+  if (sectionName === 'studentList') return !!ui.studentListOpen;
+  return false;
+}
+
+function updateSectionOpen(sectionName, open) {
+  const store = loadStore();
+
+  if (!store.ui) store.ui = {};
+
+  if (sectionName === 'buckets') {
+    store.ui.bucketsOpen = open;
+  }
+
+  if (sectionName === 'studentList') {
+    store.ui.studentListOpen = open;
+  }
+
+  saveStore(store);
+  renderPanel();
+}
 
   function updatePanelPosition(x, y) {
     const store = loadStore();
@@ -752,6 +778,56 @@ async function navigateInFilter(direction) {
       border: 1px solid rgba(255,255,255,0.05);
     }
 
+    #${PANEL_ID} .sg-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  margin: -2px 0 8px 0;
+  border-radius: 8px;
+  background: #11151a;
+  color: #d8dee8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#${PANEL_ID} .sg-section-toggle:hover {
+  background: #1b2027;
+}
+
+#${PANEL_ID} .sg-section-toggle-label {
+  color: #9aa3af;
+}
+
+#${PANEL_ID} .sg-section-toggle-icon {
+  color: #d6a21d;
+  font-size: 12px;
+}
+      #${PANEL_ID} .sg-details {
+      margin-top: 12px;
+      background: #161a20;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    #${PANEL_ID} .sg-details summary {
+      cursor: pointer;
+      color: #9aa3af;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    #${PANEL_ID} .sg-details[open] summary {
+      margin-bottom: 10px;
+    }
+
     #${PANEL_ID} .sg-section-title {
       font-size: 11px;
       font-weight: 700;
@@ -847,7 +923,7 @@ async function navigateInFilter(direction) {
       border-radius: 8px;
       background: #1b2027;
       border: 1px solid rgba(255,255,255,0.05);
-      border-left: 6px solid transparent;
+      border-left: 9px solid transparent;
       cursor: pointer;
     }
 
@@ -877,7 +953,7 @@ async function navigateInFilter(direction) {
       padding: 7px 8px;
       border-radius: 6px;
       cursor: pointer;
-      border-left: 6px solid transparent;
+      border-left: 9px solid transparent;
       color: #c7ced8;
     }
 
@@ -907,31 +983,34 @@ async function navigateInFilter(direction) {
       display: none;
     }
 
-    #${PANEL_ID} .sg-grade-btn {
-      display: flex;
-      align-items: stretch;
-      padding: 0;
-      overflow: hidden;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
+#${PANEL_ID} .sg-grade-btn {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 9px solid transparent;
+  background: #242c37;
+}
+
 
     #${PANEL_ID} .sg-grade-btn:hover {
       filter: brightness(1.05);
     }
 
-    #${PANEL_ID} .sg-grade-key {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 28px;
-      padding: 8px 6px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(255,255,255,0.14);
-      border-right: 1px solid rgba(255,255,255,0.12);
-      flex: 0 0 auto;
-    }
+   #${PANEL_ID} .sg-grade-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.06);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  flex: 0 0 auto;
+}
 
     #${PANEL_ID} .sg-grade-label {
       display: inline-flex;
@@ -962,8 +1041,8 @@ async function navigateInFilter(direction) {
     let origX = 0;
     let origY = 0;
 
-    handle.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button')) return;
+handle.addEventListener('mousedown', (e) => {
+  if (e.target.closest('button, input, select, textarea, summary, details, label, a')) return;
 
       bringPanelToFront(panel);
       dragging = true;
@@ -1086,131 +1165,177 @@ const head = createElement('div', {
     body.appendChild(studentSection);
 
     // Bucket assignment buttons
+// Bucket assignment buttons
 const bucketButtons = createElement('div', { class: 'sg-row sg-grid' });
+
 for (const b of BUCKETS) {
-  bucketButtons.appendChild(
-    createElement('button', {
-      class: `sg-grade-btn ${currentBucket === b.id ? 'active' : ''}`,
-      onclick: () => updateStudentBucket(b.id)
+  const gradeButton = createElement('button', {
+    class: `sg-grade-btn ${currentBucket === b.id ? 'active' : ''}`,
+    onclick: () => updateStudentBucket(b.id)
+  }, [
+    createElement('span', { class: 'sg-grade-key', text: b.key }),
+    createElement('span', { class: 'sg-grade-label', text: b.label })
+  ]);
+
+gradeButton.style.borderLeftColor = b.color;
+gradeButton.querySelector('.sg-grade-key').style.background = 'rgba(255,255,255,0.06)';
+gradeButton.querySelector('.sg-grade-key').style.color = '#d8dee8';
+
+  bucketButtons.appendChild(gradeButton);
+}
+
+body.appendChild(bucketButtons);
+
+  
+
+
+    const bucketsOpen = getSectionOpen('buckets');
+const studentListOpen = getSectionOpen('studentList');
+
+// Clickable bucket list
+const countsSection = createElement('div', { class: 'sg-section' });
+
+countsSection.appendChild(
+  createElement('button', {
+    class: 'sg-section-toggle',
+    onclick: () => updateSectionOpen('buckets', !bucketsOpen)
+  }, [
+    createElement('span', { class: 'sg-section-toggle-label', text: 'Buckets' }),
+    createElement('span', {
+      class: 'sg-section-toggle-icon',
+      text: bucketsOpen ? '▾' : '▸'
+    })
+  ])
+);
+
+if (bucketsOpen) {
+  [
+    { id: 'all', label: 'All', value: counts.all, bucket: null },
+    { id: 'hd', label: 'HD', value: counts.hd, bucket: 'hd' },
+    { id: 'distinction', label: 'Distinction', value: counts.distinction, bucket: 'distinction' },
+    { id: 'credit', label: 'Credit', value: counts.credit, bucket: 'credit' },
+    { id: 'pass', label: 'Pass', value: counts.pass, bucket: 'pass' },
+    { id: 'fail', label: 'Fail', value: counts.fail, bucket: 'fail' },
+    { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
+  ].forEach(item => {
+    const chip = createElement('div', {
+      class: `sg-count-chip ${activeFilter === item.id ? 'active' : ''}`,
+      onclick: () => updateActiveFilter(item.id)
     }, [
-      createElement('span', { class: 'sg-grade-key', text: b.key }),
-      createElement('span', { class: 'sg-grade-label', text: b.label })
+      createElement('div', { text: item.label }),
+      createElement('div', { text: String(item.value) })
+    ]);
+
+    chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : '#455a64';
+    countsSection.appendChild(chip);
+  });
+
+  countsSection.appendChild(
+    createElement('div', { class: 'sg-row sg-grid sg-grid-2', style: 'margin-top:10px; margin-bottom:0;' }, [
+      createElement('button', {
+        text: '◀ Prev',
+        onclick: () => navigateInFilter(-1)
+      }),
+      createElement('button', {
+        text: 'Next ▶',
+        onclick: () => navigateInFilter(1)
+      })
     ])
   );
 }
-body.appendChild(bucketButtons);
 
-    // Student list
-    const filteredList = getFilteredStudents(activeFilter).slice(0, 80);
-    const listSection = createElement('div', { class: 'sg-section' }, [
-      createElement('div', { class: 'sg-section-title', text: 'Student List' }),
-      createElement('div', {
-        class: 'sg-small',
-        text: `Students in "${activeFilter}" queue`
-      })
-    ]);
+body.appendChild(countsSection);
 
-    const list = createElement('div', { class: 'sg-list' });
+// Student list
+const filteredList = getFilteredStudents(activeFilter).slice(0, 80);
 
-    if (!filteredList.length) {
-      list.appendChild(createElement('div', { class: 'sg-item' }, [
-        createElement('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
-      ]));
-    } else {
-      filteredList.forEach(s => {
-        const item = createElement('div', {
-          class: `sg-item ${s.id === studentId ? 'current' : ''}`,
-          onclick: async () => { await navigateToStudent(s.id); }
-        }, [
-          createElement('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
-          createElement('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
-        ]);
+const listSection = createElement('div', { class: 'sg-section' });
 
-        item.style.borderLeftColor = bucketColor(s.bucket);
-        list.appendChild(item);
-      });
-    }
+listSection.appendChild(
+  createElement('button', {
+    class: 'sg-section-toggle',
+    onclick: () => updateSectionOpen('studentList', !studentListOpen)
+  }, [
+    createElement('span', { class: 'sg-section-toggle-label', text: 'Student List' }),
+    createElement('span', {
+      class: 'sg-section-toggle-icon',
+      text: studentListOpen ? '▾' : '▸'
+    })
+  ])
+);
 
-    listSection.appendChild(list);
-    body.appendChild(listSection);
+if (studentListOpen) {
+  listSection.appendChild(
+    createElement('div', {
+      class: 'sg-small',
+      text: `Students in "${activeFilter}" queue`
+    })
+  );
 
-    // Clickable bucket list
-    const countsSection = createElement('div', { class: 'sg-section' }, [
-      createElement('div', { class: 'sg-section-title', text: 'Buckets' })
-    ]);
+  const list = createElement('div', { class: 'sg-list' });
 
-    [
-      { id: 'all', label: 'All', value: counts.all, bucket: null },
-      { id: 'hd', label: 'HD', value: counts.hd, bucket: 'hd' },
-      { id: 'distinction', label: 'Distinction', value: counts.distinction, bucket: 'distinction' },
-      { id: 'credit', label: 'Credit', value: counts.credit, bucket: 'credit' },
-      { id: 'pass', label: 'Pass', value: counts.pass, bucket: 'pass' },
-      { id: 'fail', label: 'Fail', value: counts.fail, bucket: 'fail' },
-      { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
-    ].forEach(item => {
-      const chip = createElement('div', {
-        class: `sg-count-chip ${activeFilter === item.id ? 'active' : ''}`,
-        onclick: () => updateActiveFilter(item.id)
+  if (!filteredList.length) {
+    list.appendChild(createElement('div', { class: 'sg-item' }, [
+      createElement('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
+    ]));
+  } else {
+    filteredList.forEach(s => {
+      const item = createElement('div', {
+        class: `sg-item ${s.id === studentId ? 'current' : ''}`,
+        onclick: async () => { await navigateToStudent(s.id); }
       }, [
-        createElement('div', { text: item.label }),
-        createElement('div', { text: String(item.value) })
+        createElement('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
+        createElement('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
       ]);
 
-      chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : '#455a64';
-      countsSection.appendChild(chip);
+      item.style.borderLeftColor = bucketColor(s.bucket);
+      list.appendChild(item);
     });
+  }
 
-    countsSection.appendChild(
-   createElement('div', { class: 'sg-row sg-grid sg-grid-2', style: 'margin-top:10px;' }, [
+  listSection.appendChild(list);
+}
 
-        createElement('button', {
-          text: '◀ Prev',
-          onclick: () => navigateInFilter(-1)
-        }),
-        createElement('button', {
-          text: 'Next  ▶',
-          onclick: () => navigateInFilter(1)
-        })
-      ])
-    );
+body.appendChild(listSection);
 
-    body.appendChild(countsSection);
+const fileInput = createElement('input', {
+  type: 'file',
+  accept: 'application/json'
+});
 
-    const fileInput = createElement('input', {
-      type: 'file',
-      accept: 'application/json'
-    });
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (file) handleImportData(file);
+  e.target.value = '';
+});
 
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) handleImportData(file);
-    });
-    body.appendChild(fileInput);
+body.appendChild(fileInput);
 
-    body.appendChild(
-      createElement('div', { class: 'sg-row sg-grid sg-grid-3' }, [
-        createElement('button', {
-          text: 'Export',
-          onclick: handleExportData
-        }),
-        createElement('button', {
-          text: 'Import',
-          onclick: () => body.querySelector('input[type="file"]')?.click()
-        }),
-        createElement('button', {
-          class: 'sg-btn-danger',
-          text: 'Reset',
-          onclick: resetCurrentAssignmentData
-        })
-      ])
-    );
+const importExportDetails = createElement('details', { class: 'sg-details' }, [
+  createElement('summary', { text: 'Import / Export' })
+]);
 
-    body.appendChild(
-      createElement('div', { class: 'sg-small' }, [
-        'Hotkeys: 1–6 assign categories, [ and ] move through the selected queue. Queue items are clickable.'
-      ])
-    );
+importExportDetails.appendChild(
+  createElement('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px; margin-bottom:0;' }, [
+    createElement('button', {
+      text: 'Export',
+      onclick: handleExportData
+    }),
+    createElement('button', {
+      text: 'Import',
+      onclick: () => fileInput.click()
+    }),
+    createElement('button', {
+      class: 'sg-btn-danger',
+      text: 'Reset',
+      onclick: resetCurrentAssignmentData
+    })
+  ])
+);
 
+body.appendChild(importExportDetails);
+
+   
     panel.appendChild(body);
   }
 

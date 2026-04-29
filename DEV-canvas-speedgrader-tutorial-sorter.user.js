@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DEV Canvas SpeedGrader Tutorial Sorter
 // @namespace    VisComm@UON
-// @version      1.0.0
+// @version      1.0.1
 // @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
@@ -1146,6 +1146,26 @@ function addStyles() {
       padding: 12px;
     }
 
+        .chatster-ui-details {
+      background: #161a20;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .chatster-ui-details summary {
+      cursor: pointer;
+      color: #9aa3af;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .chatster-ui-details[open] summary {
+      margin-bottom: 10px;
+    }
+
     .chatster-ui-btn,
     .chatster-ui-btn-quiet,
     .chatster-ui-btn-danger {
@@ -1256,6 +1276,10 @@ function addStyles() {
     .chatster-ui-row--right {
       justify-content: flex-end;
     }
+
+    .chatster-ui-row--center {
+  justify-content: center;
+}
 
     .chatster-ui-stats-grid {
       display: grid;
@@ -1370,8 +1394,9 @@ function addStyles() {
 
     panel.addEventListener('mousedown', (e) => {
       const handle = e.target.closest('.chatster-lmg-drag');
-      const clickable = e.target.closest('button, select, input, option, label, summary, details');
-      if (!handle || clickable) return;
+const clickable = e.target.closest('button, select, input, option, label, summary, details, textarea, a');
+
+if (!handle || !panel.contains(handle) || clickable) return;
 
       bringPanelToFront(panel);
       const rect = panel.getBoundingClientRect();
@@ -1553,36 +1578,6 @@ function addStyles() {
 
   ${minimized ? '' : `
   <div class="chatster-ui-body">
-    <div
-      id="chatster-lmg-dropzone"
-      class="chatster-ui-dropzone"
-      style="
-        border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-        background:${state.isDropActive ? '#2b313a' : '#161a20'};
-        color:${state.isDropActive ? '#fff' : '#c7ced8'};
-      "
-    >
-      <div style="font-weight:700;">Drop class file here</div>
-      <div class="chatster-ui-muted" style="margin-top:4px;">
-        Use Allocate+ roster export file
-      </div>
-    </div>
-
-    <div class="chatster-ui-wrap chatster-ui-section-lg">
-      <button id="chatster-lmg-import" class="chatster-ui-btn">Import class file</button>
-      <input
-        id="chatster-lmg-file"
-        type="file"
-        accept=".xlsx,.xls,.xlsm,.csv,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        style="display:none;"
-      >
-    </div>
-
-    ${state.lastImportSummary ? `
-      <div class="chatster-ui-summary chatster-ui-muted">
-        ${escapeHtml(state.lastImportSummary)}
-      </div>
-    ` : ''}
 
     <div class="chatster-ui-section">
       ${fieldLabel('Active class')}
@@ -1597,37 +1592,37 @@ function addStyles() {
     </div>
 
     <div class="chatster-ui-stats-grid">
-      ${stat('Students in group', activeGroup ? activeGroup.students.length : '—')}
+      ${stat('Students in class', activeGroup ? activeGroup.students.length : '—')}
       ${stat('Position', activeGroup && currentIndexInGroup >= 0 ? `${currentIndexInGroup + 1}/${matchInfo.matches.length}` : '—')}
     </div>
 
-<div class="chatster-ui-card chatster-ui-section-lg">
-<div class="chatster-ui-muted" style="margin-bottom:4px;">Current student</div>
-  <div style="font-weight:700;color:#fff;margin-bottom:4px;">
-    ${activeGroup
-      ? currentMatch
-        ? `${escapeHtml(currentMatch.student.name || currentStudentName)}`
-        : 'Not in active group'
-      : 'No active group selected'}
-  </div>
-  ${activeGroup?.metadata ? `
-    <div class="chatster-ui-muted" style="line-height:1.4;">
-      ${escapeHtml([
-        [activeGroup.metadata.day, activeGroup.metadata.time].filter(Boolean).join(' '),
-        activeGroup.metadata.location
-      ].filter(Boolean).join(' | ')) || '—'}
+    <div class="chatster-ui-card chatster-ui-section-lg">
+      <div class="chatster-ui-muted" style="margin-bottom:4px;">Current student</div>
+      <div style="font-weight:700;color:#fff;margin-bottom:4px;">
+        ${activeGroup
+          ? currentMatch
+            ? `${escapeHtml(currentMatch.student.name || currentStudentName)}`
+            : 'Not in active class'
+          : 'No active class selected'}
+      </div>
+      ${activeGroup?.metadata ? `
+        <div class="chatster-ui-muted" style="line-height:1.4;">
+          ${escapeHtml([
+            [activeGroup.metadata.day, activeGroup.metadata.time].filter(Boolean).join(' '),
+            activeGroup.metadata.location
+          ].filter(Boolean).join(' | ')) || '—'}
+        </div>
+      ` : ''}
     </div>
-  ` : ''}
+
+   <div class="chatster-ui-row chatster-ui-row--center chatster-ui-section">
+  <button id="chatster-lmg-prev" class="chatster-ui-btn">◀ Prev</button>
+  <button id="chatster-lmg-next" class="chatster-ui-btn">Next ▶</button>
 </div>
 
-    <div class="chatster-ui-row chatster-ui-section">
-      <button id="chatster-lmg-prev" class="chatster-ui-btn">◀ Prev in group</button>
-      <button id="chatster-lmg-next" class="chatster-ui-btn">Next in group ▶</button>
-    </div>
-
     ${activeGroup ? `
-      <details style="margin-top:10px;" open>
-        <summary style="cursor:pointer;color:#9aa3af;">Show group students</summary>
+      <details class="chatster-ui-details chatster-ui-section-lg">
+        <summary>Student List</summary>
         <div class="chatster-ui-student-list">
           ${activeGroup.students.map((s, idx) => {
             const userRef = canonicalStudentId(s.user_id || s.student_number || s.login_id || '');
@@ -1649,26 +1644,65 @@ function addStyles() {
       </details>
     ` : ''}
 
-    <div class="chatster-ui-section-lg" style="margin-top:20px;">
-      ${fieldLabel('Create a file to import groups into Canvas')}
-      <div class="chatster-ui-muted" style="margin-bottom:0px;margin-top:14px;">Choose a name for your Canvas groups</div>
-      <div class="chatster-ui-row chatster-ui-row--left">
-        <select id="chatster-lmg-export-name-mode" class="chatster-ui-select">
-          <option value="class_label" ${exportNameMode === 'class_label' ? 'selected' : ''}>Course - day/time - room</option>
-          <option value="day_time" ${exportNameMode === 'day_time' ? 'selected' : ''}>Day/time only</option>
-          <option value="room" ${exportNameMode === 'room' ? 'selected' : ''}>Room only</option>
-          <option value="staff" ${exportNameMode === 'staff' ? 'selected' : ''}>Staff only</option>
-          <option value="day_time_room" ${exportNameMode === 'day_time_room' ? 'selected' : ''}>Day/time - room</option>
-          <option value="day_time_staff" ${exportNameMode === 'day_time_staff' ? 'selected' : ''}>Day/time - staff</option>
-          <option value="room_staff" ${exportNameMode === 'room_staff' ? 'selected' : ''}>Room - staff</option>
-        </select>
-        <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas CSV</button>
-      </div>
-    </div>
+    <details class="chatster-ui-details" style="margin-top:14px;">
+      <summary>Import / Export</summary>
 
-    <div class="chatster-ui-row chatster-ui-row--right" style="margin-top:8px;">
-      <button id="chatster-lmg-reset" class="chatster-ui-btn-danger">Reset</button>
-    </div>
+      <div
+        id="chatster-lmg-dropzone"
+        class="chatster-ui-dropzone"
+        style="
+          border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
+          background:${state.isDropActive ? '#2b313a' : '#161a20'};
+          color:${state.isDropActive ? '#fff' : '#c7ced8'};
+        "
+      >
+        <div style="font-weight:700;">Drop class file here</div>
+        <div class="chatster-ui-muted" style="margin-top:4px;">
+          Use Allocate+ roster export file
+        </div>
+      </div>
+
+      <div class="chatster-ui-wrap chatster-ui-section-lg">
+        <button id="chatster-lmg-import" class="chatster-ui-btn">Import class file</button>
+        <input
+          id="chatster-lmg-file"
+          type="file"
+          accept=".xlsx,.xls,.xlsm,.csv,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          style="display:none;"
+        >
+      </div>
+
+      ${state.lastImportSummary ? `
+        <div class="chatster-ui-summary chatster-ui-muted">
+          ${escapeHtml(state.lastImportSummary)}
+        </div>
+      ` : ''}
+
+      <div class="chatster-ui-section-lg" style="margin-top:14px;">
+        ${fieldLabel('Create a file to import groups into Canvas')}
+        <div class="chatster-ui-muted" style="margin-bottom:6px;">
+          Choose a name for your Canvas groups
+        </div>
+
+        <div class="chatster-ui-row chatster-ui-row--left">
+          <select id="chatster-lmg-export-name-mode" class="chatster-ui-select">
+            <option value="class_label" ${exportNameMode === 'class_label' ? 'selected' : ''}>Course - day/time - room</option>
+            <option value="day_time" ${exportNameMode === 'day_time' ? 'selected' : ''}>Day/time only</option>
+            <option value="room" ${exportNameMode === 'room' ? 'selected' : ''}>Room only</option>
+            <option value="staff" ${exportNameMode === 'staff' ? 'selected' : ''}>Staff only</option>
+            <option value="day_time_room" ${exportNameMode === 'day_time_room' ? 'selected' : ''}>Day/time - room</option>
+            <option value="day_time_staff" ${exportNameMode === 'day_time_staff' ? 'selected' : ''}>Day/time - staff</option>
+            <option value="room_staff" ${exportNameMode === 'room_staff' ? 'selected' : ''}>Room - staff</option>
+          </select>
+          <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas CSV</button>
+        </div>
+      </div>
+
+      <div class="chatster-ui-row chatster-ui-row--right" style="margin-top:8px;">
+        <button id="chatster-lmg-reset" class="chatster-ui-btn-danger">Reset</button>
+      </div>
+    </details>
+
   </div>
   `}
 `;

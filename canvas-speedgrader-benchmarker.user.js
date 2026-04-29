@@ -875,7 +875,7 @@ async function navigateInFilter(direction) {
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      padding: 7px 8px;
+      padding: 1px 8px;
       border-radius: 6px;
       cursor: pointer;
       border-left: 6px solid transparent;
