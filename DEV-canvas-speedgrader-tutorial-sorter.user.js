@@ -30,13 +30,31 @@
   const DEFAULT_PANEL_POS = { top: 80, right: 18 };
   const PANEL_MARGIN = 8;
 
-  // selectors
-  const selectors = {
-    panel: `#${PANEL_ID}`,
-    selectedStudent: '[data-testid="selected-student"]',
-    studentSelectTrigger: '[data-testid="student-select-trigger"]',
-    studentMenuItem: 'span[data-testid^="student-option-"][role="menuitem"]'
-  };
+const selectors = {
+  panel: `#${PANEL_ID}`,
+  selectedStudent: '[data-testid="selected-student"]',
+
+  studentSelectTrigger: [
+    '[data-testid="student-select-trigger"]',
+    'button[aria-haspopup="listbox"]',
+    'button[aria-haspopup="menu"]',
+    '[role="button"][aria-haspopup="listbox"]',
+    '[role="button"][aria-haspopup="menu"]',
+    '[role="combobox"]'
+  ].join(','),
+
+  studentMenuItem: [
+    'span[data-testid^="student-option-"][role="menuitem"]',
+    '[data-testid^="student-option-"]',
+    '[id^="student-option-"]',
+    '[role="menuitem"][aria-labelledby]',
+    '[role="option"][aria-labelledby]',
+    '[role="menuitem"]',
+    '[role="option"]',
+    '[role="listbox"] [role="option"]',
+    '[role="menu"] [role="menuitem"]'
+  ].join(',')
+};
 
   // state
   const state = {
@@ -906,38 +924,69 @@ function fieldLabel(text) {
     return '';
   }
 
-  function getStudentMenuItems() {
-    return getElements(selectors.studentMenuItem).map(el => {
+function getStudentMenuItems() {
+  return getElements(selectors.studentMenuItem)
+    .map(el => {
       const labelId = el.getAttribute('aria-labelledby');
       const labelEl = labelId ? document.getElementById(labelId) : null;
-      const labelText = (labelEl?.textContent || el.textContent || '').trim();
+
+      const labelText = cleanText(
+        labelEl?.textContent ||
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.textContent ||
+        ''
+      );
 
       const idAttr = el.getAttribute('id') || '';
+      const testId = el.getAttribute('data-testid') || '';
+
       const anonymousId = idAttr.startsWith('student-option-')
         ? idAttr.replace(/^student-option-/, '')
-        : '';
+        : testId.startsWith('student-option-')
+          ? testId.replace(/^student-option-/, '')
+          : '';
 
       return {
         el,
         idAttr,
+        testId,
         anonymous_id: anonymousId,
         name: labelText,
         normalized_name: normalizeName(labelText)
       };
-    }).filter(item => item.name);
-  }
+    })
+    .filter(item => {
+      if (!item.name) return false;
+
+      // Avoid accidentally treating the trigger/button itself as a student.
+      const lower = item.name.toLowerCase();
+      if (lower === 'select student') return false;
+      if (lower === 'student') return false;
+
+      return true;
+    });
+}
 
   function isStudentMenuOpen() {
     return getStudentMenuItems().length > 0;
   }
 
-  function openStudentDrilldown() {
-    if (isStudentMenuOpen()) return true;
-    const trigger = getElement(selectors.studentSelectTrigger);
-    if (!trigger) return false;
-    trigger.click();
-    return true;
+ function openStudentDrilldown() {
+  if (isStudentMenuOpen()) return true;
+
+  const trigger = getElement(selectors.studentSelectTrigger);
+  if (!trigger) {
+    console.warn('Tutorial Sorter: student dropdown trigger not found');
+    return false;
   }
+
+  trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  trigger.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+  trigger.click();
+
+  return true;
+}
 
   function closeStudentDrilldown() {
     if (!isStudentMenuOpen()) return;
@@ -1570,13 +1619,20 @@ if (!handle || !panel.contains(handle) || clickable) return;
       metadata: activeGroup?.metadata || {}
     });
 
-   panel.innerHTML = `
+ panel.innerHTML = `
   <div class="chatster-lmg-drag chatster-ui-header ${minimized ? '' : 'chatster-ui-header--border'}">
     <div class="chatster-ui-title">Tutorial Sorter</div>
     <button id="chatster-lmg-minimize" class="chatster-ui-btn-quiet">${minimized ? 'Expand' : 'Minimise'}</button>
   </div>
 
-  ${minimized ? '' : `
+  ${minimized ? `
+    <div class="chatster-ui-body" style="padding-top:10px;">
+      <div class="chatster-ui-row chatster-ui-row--center">
+        <button id="chatster-lmg-prev" class="chatster-ui-btn">◀ Prev</button>
+        <button id="chatster-lmg-next" class="chatster-ui-btn">Next ▶</button>
+      </div>
+    </div>
+  ` : `
   <div class="chatster-ui-body">
 
     <div class="chatster-ui-section">
@@ -1712,7 +1768,34 @@ if (!handle || !panel.contains(handle) || clickable) return;
       renderPanel(true);
     });
 
-    if (minimized) return;
+if (minimized) {
+  panel.querySelector('#chatster-lmg-prev')?.addEventListener('click', async () => {
+    if (!activeGroup || !activeGroup.students.length) return;
+
+    if (currentIndexInGroup < 0) {
+      await goToGroupStudentAtIndex(activeGroup, 0);
+      return;
+    }
+
+    await goToGroupStudentAtIndex(activeGroup, Math.max(0, currentIndexInGroup - 1));
+  });
+
+  panel.querySelector('#chatster-lmg-next')?.addEventListener('click', async () => {
+    if (!activeGroup || !activeGroup.students.length) return;
+
+    if (currentIndexInGroup < 0) {
+      await goToGroupStudentAtIndex(activeGroup, 0);
+      return;
+    }
+
+    await goToGroupStudentAtIndex(
+      activeGroup,
+      Math.min(activeGroup.students.length - 1, currentIndexInGroup + 1)
+    );
+  });
+
+  return;
+}
 
     panel.querySelector('#chatster-lmg-select')?.addEventListener('change', (e) => {
       updateActiveGroupId(e.target.value, currentCourseCode);
