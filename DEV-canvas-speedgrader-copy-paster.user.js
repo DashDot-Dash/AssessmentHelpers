@@ -21,22 +21,36 @@
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_copy_paster_v1';
   const LEGACY_STORAGE_PREFIX = 'sgCopyPaster_v01';
+  const GRADE_BANDS = ['HD', 'D', 'C', 'P', 'F', 'No submission', 'Uncategorised'];
+  const DEFAULT_GRADE_BAND = 'Uncategorised';
+  const DEFAULT_CATEGORY = 'General';
+  const DEFAULT_COMMENT_LIST_HEIGHT = 260;
+  const MIN_COMMENT_LIST_HEIGHT = 160;
 
   const DEFAULT_SNIPPETS = [
     {
       id: crypto.randomUUID(),
-      label: 'Strong concept',
-      text: 'This is a strong concept with a clear direction and a well-developed visual language.'
+      title: 'Strong concept',
+      body: 'This is a strong concept with a clear direction and a well-developed visual language.',
+      gradeBand: DEFAULT_GRADE_BAND,
+      category: DEFAULT_CATEGORY,
+      isStarter: false
     },
     {
       id: crypto.randomUUID(),
-      label: 'Needs development',
-      text: 'There is a clear starting point here, but the work would benefit from further development and refinement.'
+      title: 'Needs development',
+      body: 'There is a clear starting point here, but the work would benefit from further development and refinement.',
+      gradeBand: DEFAULT_GRADE_BAND,
+      category: DEFAULT_CATEGORY,
+      isStarter: false
     },
     {
       id: crypto.randomUUID(),
-      label: 'Technical refinement',
-      text: 'The project would benefit from greater technical refinement, particularly in the consistency and finish of the outcome.'
+      title: 'Technical refinement',
+      body: 'The project would benefit from greater technical refinement, particularly in the consistency and finish of the outcome.',
+      gradeBand: DEFAULT_GRADE_BAND,
+      category: DEFAULT_CATEGORY,
+      isStarter: false
     }
   ];
 
@@ -48,7 +62,9 @@
 
   // state
   const state = {
-    lastHref: location.href
+    lastHref: location.href,
+    editingSnippet: null,
+    importMessage: ''
   };
 
   // elements
@@ -73,6 +89,85 @@
 
   function cleanText(s) {
     return (s || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function cleanField(value) {
+    return String(value ?? '').trim();
+  }
+
+  function normalizeGradeBand(value) {
+    const cleaned = cleanText(value);
+    if (!cleaned) return DEFAULT_GRADE_BAND;
+    const aliases = {
+      'high distinction': 'HD',
+      distinction: 'D',
+      credit: 'C',
+      pass: 'P',
+      fail: 'F',
+      'no submission': 'No submission'
+    };
+    if (aliases[cleaned.toLowerCase()]) return aliases[cleaned.toLowerCase()];
+    const match = GRADE_BANDS.find(band => band.toLowerCase() === cleaned.toLowerCase());
+    return match || cleaned;
+  }
+
+  function normalizeCategory(value) {
+    return cleanText(value) || DEFAULT_CATEGORY;
+  }
+
+  function normalizeStarter(value) {
+    if (typeof value === 'boolean') return value;
+    return ['yes', 'true', '1', 'starter'].includes(cleanText(value).toLowerCase());
+  }
+
+  function makeSnippetTitle(body) {
+    const cleaned = cleanText(body);
+    if (!cleaned) return 'Untitled';
+    if (cleaned.length <= 60) return cleaned;
+    const slice = cleaned.slice(0, 57).replace(/\s+\S*$/, '').trim();
+    return `${slice || cleaned.slice(0, 57)}...`;
+  }
+
+  function normalizeSnippet(snippet = {}) {
+    const body = cleanField(snippet.body ?? snippet.text ?? snippet.comment);
+    const title = cleanText(snippet.title ?? snippet.label) || makeSnippetTitle(body);
+
+    return {
+      ...snippet,
+      id: snippet.id || crypto.randomUUID(),
+      title,
+      body,
+      gradeBand: normalizeGradeBand(snippet.gradeBand ?? snippet.grade_band),
+      category: normalizeCategory(snippet.category),
+      isStarter: normalizeStarter(snippet.isStarter ?? snippet.starter),
+      label: title,
+      text: body
+    };
+  }
+
+  function normalizeSnippets(snippets) {
+    return (Array.isArray(snippets) ? snippets : DEFAULT_SNIPPETS).map(normalizeSnippet);
+  }
+
+  function getSnippetTitle(snippet) {
+    return cleanText(snippet?.title ?? snippet?.label) || 'Untitled';
+  }
+
+  function getSnippetBody(snippet) {
+    return cleanField(snippet?.body ?? snippet?.text);
+  }
+
+  function getCategoryOptions(snippets) {
+    const categories = snippets.map(snippet => normalizeCategory(snippet.category));
+    return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
+  }
+
+  function createSelectOptions(values, selectedValue) {
+    return values.map(value => createElement('option', {
+      value,
+      text: value,
+      selected: value === selectedValue ? 'selected' : null
+    }));
   }
 
   function getUrl() {
@@ -168,7 +263,11 @@
         collapsed: false,
         posX: null,
         posY: null,
-        mode: 'append' // append | replace
+        mode: 'append', // append | replace
+        gradeBandFilter: 'All',
+        categoryFilter: 'All categories',
+        importExportOpen: false,
+        commentListHeight: DEFAULT_COMMENT_LIST_HEIGHT
       }
     };
   }
@@ -177,9 +276,16 @@
     try {
       const parsed = JSON.parse(getStoredJson());
       if (!parsed) return defaultStore();
-      parsed.snippets = Array.isArray(parsed.snippets) ? parsed.snippets : DEFAULT_SNIPPETS;
-      parsed.ui = parsed.ui || { collapsed: false, posX: null, posY: null, mode: 'append' };
+      parsed.snippets = normalizeSnippets(parsed.snippets);
+      parsed.ui = parsed.ui || {};
+      if (parsed.ui.collapsed == null) parsed.ui.collapsed = false;
+      if (parsed.ui.posX == null) parsed.ui.posX = null;
+      if (parsed.ui.posY == null) parsed.ui.posY = null;
       if (!parsed.ui.mode) parsed.ui.mode = 'append';
+      if (!parsed.ui.gradeBandFilter) parsed.ui.gradeBandFilter = 'All';
+      if (!parsed.ui.categoryFilter) parsed.ui.categoryFilter = 'All categories';
+      if (parsed.ui.importExportOpen == null) parsed.ui.importExportOpen = false;
+      if (!parsed.ui.commentListHeight) parsed.ui.commentListHeight = DEFAULT_COMMENT_LIST_HEIGHT;
       return parsed;
     } catch {
       return defaultStore();
@@ -212,6 +318,49 @@
     return loadStore().ui?.mode || 'append';
   }
 
+  function updateGradeBandFilter(gradeBand) {
+    const store = loadStore();
+    store.ui.gradeBandFilter = gradeBand || 'All';
+    saveStore(store);
+    renderPanel();
+  }
+
+  function getGradeBandFilter() {
+    return loadStore().ui?.gradeBandFilter || 'All';
+  }
+
+  function updateCategoryFilter(category) {
+    const store = loadStore();
+    store.ui.categoryFilter = category || 'All categories';
+    saveStore(store);
+    renderPanel();
+  }
+
+  function getCategoryFilter() {
+    return loadStore().ui?.categoryFilter || 'All categories';
+  }
+
+  function updateImportExportOpen(open) {
+    const store = loadStore();
+    store.ui.importExportOpen = open;
+    saveStore(store);
+  }
+
+  function getImportExportOpen() {
+    return !!loadStore().ui?.importExportOpen;
+  }
+
+  function updateCommentListHeight(height) {
+    const store = loadStore();
+    store.ui.commentListHeight = height;
+    saveStore(store);
+  }
+
+  function getCommentListHeight() {
+    const storedHeight = Number(loadStore().ui?.commentListHeight);
+    return storedHeight > 0 ? storedHeight : DEFAULT_COMMENT_LIST_HEIGHT;
+  }
+
   function updatePanelPosition(x, y) {
     const store = loadStore();
     store.ui.posX = x;
@@ -235,7 +384,7 @@
     if (!panel) return;
     const margin = 8;
     const rect = panel.getBoundingClientRect();
-    const width = rect.width || 340;
+    const width = rect.width || 510;
     const height = rect.height || 80;
     const maxLeft = Math.max(margin, window.innerWidth - width - margin);
     const maxTop = Math.max(margin, window.innerHeight - height - margin);
@@ -253,23 +402,25 @@
     return loadStore().snippets || [];
   }
 
-  function addSnippet(label, text) {
+  function addSnippet(snippet) {
     const store = loadStore();
-    store.snippets.push({
-      id: crypto.randomUUID(),
-      label: cleanText(label) || 'Untitled',
-      text: text || ''
-    });
+    store.snippets.push(normalizeSnippet({
+      ...snippet,
+      id: crypto.randomUUID()
+    }));
     saveStore(store);
     renderPanel();
   }
 
-  function updateSnippet(id, label, text) {
+  function updateSnippet(id, snippet) {
     const store = loadStore();
     const item = store.snippets.find(s => s.id === id);
     if (!item) return;
-    item.label = cleanText(label) || 'Untitled';
-    item.text = text || '';
+    Object.assign(item, normalizeSnippet({
+      ...item,
+      ...snippet,
+      id
+    }));
     saveStore(store);
     renderPanel();
   }
@@ -295,20 +446,115 @@
     renderPanel();
   }
 
-  function handleExportData() {
-    const payload = {
-      context: {
-        courseId: getCourseId(),
-        assignmentId: getAssignmentId(),
-        exportedAt: new Date().toISOString()
-      },
-      data: loadStore()
+  function csvEscape(value) {
+    const text = String(value ?? '');
+    if (/[",\r\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
+    return text;
+  }
+
+  function snippetsToCsv(snippets) {
+    const header = ['grade_band', 'category', 'title', 'comment', 'starter'];
+    const rows = snippets.map(snippet => [
+      normalizeGradeBand(snippet.gradeBand),
+      normalizeCategory(snippet.category),
+      getSnippetTitle(snippet),
+      getSnippetBody(snippet),
+      snippet.isStarter ? 'yes' : ''
+    ]);
+
+    return [header, ...rows]
+      .map(row => row.map(csvEscape).join(','))
+      .join('\r\n');
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && next === '"') {
+          field += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          field += char;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        row.push(field);
+        field = '';
+      } else if (char === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else if (char !== '\r') {
+        field += char;
+      }
+    }
+
+    row.push(field);
+    rows.push(row);
+    return rows;
+  }
+
+  function rowIsBlank(row) {
+    return row.every(value => cleanText(value) === '');
+  }
+
+  function csvRowsToSnippets(rows) {
+    const nonBlankRows = rows.filter(row => !rowIsBlank(row));
+    if (!nonBlankRows.length) return [];
+
+    const headers = nonBlankRows[0].map(header =>
+      cleanText(header).replace(/^\uFEFF/, '').toLowerCase()
+    );
+    const indexOf = name => headers.indexOf(name);
+    const indexes = {
+      gradeBand: indexOf('grade_band'),
+      category: indexOf('category'),
+      title: indexOf('title'),
+      body: indexOf('comment'),
+      starter: indexOf('starter')
     };
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    if (indexes.body === -1) throw new Error('Missing comment column');
+
+    return nonBlankRows.slice(1)
+      .map(row => {
+        const valueAt = index => (index >= 0 ? cleanField(row[index]) : '');
+        const body = valueAt(indexes.body);
+        if (!body) return null;
+
+        return normalizeSnippet({
+          id: crypto.randomUUID(),
+          title: valueAt(indexes.title) || makeSnippetTitle(body),
+          body,
+          gradeBand: valueAt(indexes.gradeBand) || DEFAULT_GRADE_BAND,
+          category: valueAt(indexes.category) || DEFAULT_CATEGORY,
+          isStarter: normalizeStarter(valueAt(indexes.starter))
+        });
+      })
+      .filter(Boolean);
+  }
+
+  function handleExportData() {
+    const csv = snippetsToCsv(getSnippets());
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `copypaster-course-${getCourseId()}-assignment-${getAssignmentId()}.json`;
+    a.download = `copypaster-course-${getCourseId()}-assignment-${getAssignmentId()}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -319,85 +565,35 @@ function handleImportData(file) {
 
   reader.onload = () => {
     try {
-      const parsed = JSON.parse(reader.result);
-      if (!parsed.data || !Array.isArray(parsed.data.snippets)) {
-        throw new Error('Bad format');
-      }
+      const raw = String(reader.result || '');
+      let importedSnippets = [];
 
-      const importedSnippets = parsed.data.snippets || [];
-      const currentStore = loadStore();
-
-      const mode = window.prompt(
-        'Import mode: type "merge" to add imported snippets to the current assignment, or "replace" to overwrite current snippets.',
-        'merge'
-      );
-
-      if (mode === null) return;
-
-      const normalizedMode = mode.trim().toLowerCase();
-
-      if (normalizedMode !== 'merge' && normalizedMode !== 'replace') {
-        alert('Import cancelled. Please type either "merge" or "replace".');
-        return;
-      }
-
-      if (normalizedMode === 'replace') {
-        const newStore = {
-          ...currentStore,
-          snippets: importedSnippets.map(snippet => ({
-            id: crypto.randomUUID(),
-            label: cleanText(snippet.label) || 'Untitled',
-            text: snippet.text || ''
-          }))
-        };
-
-        saveStore(newStore);
-        renderPanel();
-        alert(`Imported ${newStore.snippets.length} snippets using replace mode.`);
-        return;
-      }
-
-      // merge mode
-      const existingSnippets = currentStore.snippets || [];
-      const merged = [...existingSnippets];
-
-      let addedCount = 0;
-      let skippedCount = 0;
-
-      for (const snippet of importedSnippets) {
-        const label = cleanText(snippet.label) || 'Untitled';
-        const text = snippet.text || '';
-
-        const duplicate = existingSnippets.some(existing =>
-          cleanText(existing.label) === label && (existing.text || '') === text
-        ) || merged.some(existing =>
-          cleanText(existing.label) === label && (existing.text || '') === text
-        );
-
-        if (duplicate) {
-          skippedCount++;
-          continue;
+      if (/\.json$/i.test(file.name)) {
+        const parsed = JSON.parse(raw);
+        if (!parsed.data || !Array.isArray(parsed.data.snippets)) {
+          throw new Error('Bad format');
         }
-
-        merged.push({
-          id: crypto.randomUUID(),
-          label,
-          text
-        });
-        addedCount++;
+        importedSnippets = normalizeSnippets(parsed.data.snippets)
+          .filter(snippet => getSnippetBody(snippet));
+      } else {
+        importedSnippets = csvRowsToSnippets(parseCsv(raw));
       }
 
-      const newStore = {
-        ...currentStore,
-        snippets: merged
-      };
+      const currentStore = loadStore();
+      const importedWithFreshIds = importedSnippets.map(snippet => normalizeSnippet({
+        ...snippet,
+        id: crypto.randomUUID()
+      }));
 
-      saveStore(newStore);
+      saveStore({
+        ...currentStore,
+        snippets: [...(currentStore.snippets || []), ...importedWithFreshIds]
+      });
+      state.importMessage = `Imported ${importedWithFreshIds.length} snippets.`;
       renderPanel();
-      alert(`Merge complete. Added ${addedCount} snippets, skipped ${skippedCount} duplicates.`);
     } catch (err) {
       console.error(err);
-      alert('That file does not look like a valid Copy/Paster export.');
+      alert('That file does not look like a valid Copy/Paster CSV export.');
     }
   };
 
@@ -588,6 +784,7 @@ function handleImportData(file) {
   function createElement(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
+      if (v == null) continue;
       if (k === 'class') el.className = v;
       else if (k === 'text') el.textContent = v;
       else if (k === 'html') el.innerHTML = v;
@@ -604,6 +801,34 @@ function handleImportData(file) {
     return el;
   }
 
+  function iconSvg(name) {
+    const paths = {
+      insert: '<path d="M5 12h14"></path><path d="M13 6l6 6l-6 6"></path>',
+      plus: '<path d="M12 5v14"></path><path d="M5 12h14"></path>',
+      write: '<path d="M4 7h16"></path><path d="M4 12h10"></path><path d="M4 17h7"></path><path d="M16 16l2 2l4 -4"></path>',
+      copy: '<path d="M8 8m0 2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v7a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2z"></path><path d="M16 8v-1a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v7a2 2 0 0 0 2 2h1"></path>',
+      edit: '<path d="M4 20h4l10.5 -10.5a2.8 2.8 0 1 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path>',
+      delete: '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3h6v3"></path>'
+    };
+
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        ${paths[name] || ''}
+      </svg>
+    `;
+  }
+
+  function createIconButton({ icon, label, className = '', onclick }) {
+    return createElement('button', {
+      class: `cp-icon-btn ${className}`.trim(),
+      type: 'button',
+      title: label,
+      'aria-label': label,
+      html: iconSvg(icon),
+      onclick
+    });
+  }
+
  function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
@@ -614,7 +839,7 @@ function handleImportData(file) {
       position: fixed;
       top: 80px;
       left: 20px;
-      width: 340px;
+      width: 510px;
       z-index: ${Z_INDEX_BASE};
       background: #1f2329;
       color: #f3f4f6;
@@ -706,7 +931,6 @@ function handleImportData(file) {
   color: #f3f4f6;
   border: 1px solid rgba(255,255,255,0.08);
 }
-}
 
     #${PANEL_ID} button:hover {
       background: #171c22;
@@ -719,7 +943,8 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} input[type="text"],
-    #${PANEL_ID} textarea {
+    #${PANEL_ID} textarea,
+    #${PANEL_ID} select {
       width: 100%;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.08);
@@ -733,13 +958,101 @@ function handleImportData(file) {
       resize: vertical;
     }
 
+    #${PANEL_ID} label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: #9aa3af;
+    }
+
+    #${PANEL_ID} .cp-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: #d5d9df;
+    }
+
+    #${PANEL_ID} .cp-check input {
+      margin: 0;
+    }
+
     #${PANEL_ID} .cp-list {
-      max-height: 260px;
       overflow: auto;
       border-radius: 10px;
       background: #161a20;
       border: 1px solid rgba(255,255,255,0.05);
       padding: 6px;
+    }
+
+    #${PANEL_ID} .cp-resize-handle {
+      height: 14px;
+      margin: -6px 0 10px;
+      border-radius: 7px;
+      cursor: ns-resize;
+      position: relative;
+    }
+
+    #${PANEL_ID} .cp-resize-handle::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 5px;
+      width: 56px;
+      height: 4px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(214,162,29,0.75);
+    }
+
+    #${PANEL_ID} .cp-resize-handle:hover::before {
+      background: #d6a21d;
+    }
+
+    #${PANEL_ID} .cp-section {
+      margin-bottom: 10px;
+    }
+
+    #${PANEL_ID} .cp-section:last-child {
+      margin-bottom: 0;
+    }
+
+    #${PANEL_ID} .cp-section-title {
+      margin: 2px 0 8px;
+      padding: 5px 8px;
+      border-left: 4px solid #d6a21d;
+      border-radius: 6px;
+      background: rgba(214,162,29,0.12);
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffd36b;
+    }
+
+    #${PANEL_ID} .cp-band-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: -2px 0 8px;
+    }
+
+    #${PANEL_ID} .cp-band-button {
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      color: #d5d9df;
+      background: #11151a;
+      border: 1px solid rgba(214,162,29,0.25);
+    }
+
+    #${PANEL_ID} .cp-band-button:hover {
+      border-color: rgba(214,162,29,0.65);
+    }
+
+    #${PANEL_ID} .cp-band-button.active {
+      color: #1f2329;
+      background: #d6a21d;
+      border-color: #d6a21d;
+      outline: none;
     }
 
     #${PANEL_ID} .cp-item {
@@ -766,6 +1079,12 @@ function handleImportData(file) {
       color: #fff;
     }
 
+    #${PANEL_ID} .cp-item-meta {
+      margin-top: 2px;
+      font-size: 10px;
+      color: #9aa3af;
+    }
+
     #${PANEL_ID} .cp-item-text {
       font-size: 11px;
       color: #c7ced8;
@@ -777,7 +1096,7 @@ function handleImportData(file) {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: nowrap;
     }
 
@@ -795,6 +1114,94 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-item-actions-right {
       flex: 1 1 auto;
       justify-content: flex-end;
+    }
+
+    #${PANEL_ID} .cp-icon-btn {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: 7px;
+      color: #d5d9df;
+    }
+
+    #${PANEL_ID} .cp-icon-btn svg {
+      width: 17px;
+      height: 17px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #${PANEL_ID} .cp-icon-btn-primary {
+      width: 34px;
+      background: #2f7d32;
+      color: #ffffff;
+    }
+
+    #${PANEL_ID} .cp-icon-btn-primary:hover {
+      background: #38943c;
+    }
+
+    #${PANEL_ID} .cp-icon-btn-danger {
+      color: #ffccd4;
+      background: #4c1720;
+    }
+
+    #${PANEL_ID} .cp-icon-btn-danger:hover {
+      background: #8b1e2d;
+    }
+
+    #${PANEL_ID} .cp-action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #${PANEL_ID} .cp-action-btn {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #${PANEL_ID} .cp-action-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #${PANEL_ID} .cp-action-secondary {
+      color: #ffd36b;
+      background: #161a20;
+      border-color: rgba(214,162,29,0.32);
+    }
+
+    #${PANEL_ID} .cp-action-secondary:hover {
+      background: rgba(214,162,29,0.12);
+      border-color: rgba(214,162,29,0.65);
+    }
+
+    #${PANEL_ID} .cp-action-primary {
+      color: #95d59b;
+      background: #161a20;
+      border-color: rgba(47,125,50,0.42);
+    }
+
+    #${PANEL_ID} .cp-action-primary:hover {
+      background: rgba(47,125,50,0.16);
+      border-color: rgba(56,148,60,0.72);
     }
 
 #${PANEL_ID} .cp-btn-primary {
@@ -839,6 +1246,24 @@ padding: 4px 8px;
 
     #${PANEL_ID} input[type="file"] {
       display: none;
+    }
+
+    #${PANEL_ID} details.cp-import-export {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 10px;
+    }
+
+    #${PANEL_ID} details.cp-import-export summary {
+      cursor: pointer;
+      color: #d5d9df;
+      font-size: 12px;
+      list-style-position: inside;
+    }
+
+    #${PANEL_ID} .cp-message {
+      margin-top: 8px;
+      color: #95d59b;
+      font-size: 11px;
     }
   `;
   document.head.appendChild(style);
@@ -893,18 +1318,236 @@ padding: 4px 8px;
     }
   }
 
+  function getMaxCommentListHeight(panel, list) {
+    const margin = 24;
+    const panelRect = panel.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    const belowList = Math.max(0, panelRect.bottom - listRect.bottom);
+    const available = window.innerHeight - listRect.top - belowList - margin;
+    return Math.max(MIN_COMMENT_LIST_HEIGHT, available);
+  }
+
+  function bindCommentListResize(panel, list, handle) {
+    handle.addEventListener('mousedown', (event) => {
+      bringPanelToFront(panel);
+
+      const startY = event.clientY;
+      const startHeight = list.getBoundingClientRect().height;
+
+      const onMove = (moveEvent) => {
+        const maxHeight = getMaxCommentListHeight(panel, list);
+        const nextHeight = Math.min(
+          Math.max(MIN_COMMENT_LIST_HEIGHT, startHeight + moveEvent.clientY - startY),
+          maxHeight
+        );
+        list.style.maxHeight = `${nextHeight}px`;
+      };
+
+      const onUp = () => {
+        const currentHeight = Math.round(list.getBoundingClientRect().height);
+        updateCommentListHeight(currentHeight);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      event.preventDefault();
+    });
+  }
+
   function openSnippetEditor(existing = null) {
-    const label = window.prompt('Snippet label:', existing?.label || '');
-    if (label === null) return;
+    state.editingSnippet = existing ? normalizeSnippet(existing) : {
+      id: '',
+      title: '',
+      body: '',
+      gradeBand: getGradeBandFilter() === 'All' ? DEFAULT_GRADE_BAND : getGradeBandFilter(),
+      category: getCategoryFilter() === 'All categories' ? DEFAULT_CATEGORY : getCategoryFilter(),
+      isStarter: false
+    };
+    renderPanel();
+  }
 
-    const text = window.prompt('Snippet text:', existing?.text || '');
-    if (text === null) return;
+  function closeSnippetEditor() {
+    state.editingSnippet = null;
+    renderPanel();
+  }
 
-    if (existing) {
-      updateSnippet(existing.id, label, text);
-    } else {
-      addSnippet(label, text);
-    }
+  function getSnippetFormValues(form) {
+    const body = cleanField(form.querySelector('[name="body"]')?.value);
+    return {
+      title: cleanText(form.querySelector('[name="title"]')?.value) || makeSnippetTitle(body),
+      body,
+      gradeBand: normalizeGradeBand(form.querySelector('[name="gradeBand"]')?.value),
+      category: normalizeCategory(form.querySelector('[name="category"]')?.value),
+      isStarter: !!form.querySelector('[name="isStarter"]')?.checked
+    };
+  }
+
+  function renderSnippetEditor() {
+    if (!state.editingSnippet) return null;
+
+    const editing = state.editingSnippet;
+    const isExisting = !!editing.id;
+    const form = createElement('form', { class: 'cp-row' }, [
+      createElement('div', { class: 'cp-row' }, [
+        createElement('label', { for: 'cp-snippet-title', text: 'Title' }),
+        createElement('input', {
+          id: 'cp-snippet-title',
+          name: 'title',
+          type: 'text',
+          value: isExisting ? getSnippetTitle(editing) : cleanText(editing.title)
+        })
+      ]),
+      createElement('div', { class: 'cp-row' }, [
+        createElement('label', { for: 'cp-snippet-body', text: 'Comment' }),
+        createElement('textarea', {
+          id: 'cp-snippet-body',
+          name: 'body',
+          text: getSnippetBody(editing)
+        })
+      ]),
+      createElement('div', { class: 'cp-row cp-grid' }, [
+        createElement('div', {}, [
+          createElement('label', { for: 'cp-snippet-grade', text: 'Grade band' }),
+          createElement('select', {
+            id: 'cp-snippet-grade',
+            name: 'gradeBand'
+          }, createSelectOptions(GRADE_BANDS, normalizeGradeBand(editing.gradeBand)))
+        ]),
+        createElement('div', {}, [
+          createElement('label', { for: 'cp-snippet-category', text: 'Category' }),
+          createElement('input', {
+            id: 'cp-snippet-category',
+            name: 'category',
+            type: 'text',
+            value: normalizeCategory(editing.category)
+          })
+        ])
+      ]),
+      createElement('div', { class: 'cp-row' }, [
+        createElement('label', { class: 'cp-check' }, [
+          createElement('input', {
+            name: 'isStarter',
+            type: 'checkbox',
+            checked: editing.isStarter ? 'checked' : null
+          }),
+          'Starter comment'
+        ])
+      ]),
+      createElement('div', { class: 'cp-grid' }, [
+        createElement('button', {
+          class: 'cp-btn-primary',
+          type: 'submit',
+          text: isExisting ? 'Save snippet' : 'Add snippet'
+        }),
+        createElement('button', {
+          type: 'button',
+          text: 'Cancel',
+          onclick: closeSnippetEditor
+        })
+      ])
+    ]);
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const values = getSnippetFormValues(form);
+      if (!values.body) {
+        alert('Add comment text before saving this snippet.');
+        return;
+      }
+
+      state.editingSnippet = null;
+      if (isExisting) updateSnippet(editing.id, values);
+      else addSnippet(values);
+    });
+
+    return form;
+  }
+
+  function renderSnippetItem(snippet) {
+    const title = getSnippetTitle(snippet);
+    const body = getSnippetBody(snippet);
+
+    return createElement('div', { class: 'cp-item' }, [
+      createElement('div', { class: 'cp-item-head' }, [
+        createElement('div', {}, [
+          createElement('div', { class: 'cp-item-title', text: title }),
+          createElement('div', {
+            class: 'cp-item-meta',
+            text: `${normalizeGradeBand(snippet.gradeBand)} · ${normalizeCategory(snippet.category)}`
+          })
+        ])
+      ]),
+      createElement('div', { class: 'cp-item-text', text: body }),
+      createElement('div', { class: 'cp-item-actions' }, [
+        createElement('div', { class: 'cp-item-actions-left' }, [
+          createIconButton({
+            icon: 'insert',
+            label: 'Insert snippet',
+            className: 'cp-icon-btn-primary',
+            onclick: () => insertSnippet(body)
+          })
+        ]),
+        createElement('div', { class: 'cp-item-actions-right' }, [
+          createIconButton({
+            icon: 'copy',
+            label: 'Copy snippet',
+            onclick: () => copySnippetToClipboard(body)
+          }),
+          createIconButton({
+            icon: 'edit',
+            label: 'Edit snippet',
+            onclick: () => openSnippetEditor(snippet)
+          }),
+          createIconButton({
+            icon: 'delete',
+            label: 'Delete snippet',
+            className: 'cp-icon-btn-danger',
+            onclick: () => deleteSnippet(snippet.id)
+          })
+        ])
+      ])
+    ]);
+  }
+
+  function getBandOptionsForSnippets(snippets) {
+    return GRADE_BANDS.filter(band =>
+      snippets.some(snippet => normalizeGradeBand(snippet.gradeBand) === band)
+    );
+  }
+
+  function renderSupportingBandButtons(snippets, activeBand) {
+    const bandOptions = getBandOptionsForSnippets(snippets);
+    if (!bandOptions.length) return null;
+
+    return createElement('div', { class: 'cp-band-buttons' }, [
+      createElement('button', {
+        class: `cp-band-button ${activeBand === 'All' ? 'active' : ''}`,
+        type: 'button',
+        text: 'All',
+        title: 'Show all supporting comments',
+        onclick: () => updateGradeBandFilter('All')
+      }),
+      ...bandOptions.map(band =>
+        createElement('button', {
+          class: `cp-band-button ${activeBand === band ? 'active' : ''}`,
+          type: 'button',
+          text: band,
+          title: `Show ${band} supporting comments`,
+          onclick: () => updateGradeBandFilter(band)
+        })
+      )
+    ]);
+  }
+
+  function renderSnippetSection(title, snippets, extraChildren = []) {
+    if (!snippets.length) return null;
+    return createElement('div', { class: 'cp-section' }, [
+      createElement('div', { class: 'cp-section-title', text: title }),
+      ...extraChildren.filter(Boolean),
+      ...snippets.map(renderSnippetItem)
+    ]);
   }
 
   function renderPanel() {
@@ -927,6 +1570,26 @@ padding: 4px 8px;
     const collapsed = getCollapsed();
     const mode = getMode();
     const snippets = getSnippets();
+    const gradeBandFilter = getGradeBandFilter();
+    const categoryOptions = getCategoryOptions(snippets);
+    const categoryFilter = categoryOptions.includes(getCategoryFilter())
+      ? getCategoryFilter()
+      : 'All categories';
+    const filteredSnippets = snippets.filter(snippet => {
+      const gradeMatches =
+        gradeBandFilter === 'All' || normalizeGradeBand(snippet.gradeBand) === gradeBandFilter;
+      const categoryMatches =
+        categoryFilter === 'All categories' || normalizeCategory(snippet.category) === categoryFilter;
+      return gradeMatches && categoryMatches;
+    });
+    const categoryFilteredSupportingSnippets = snippets.filter(snippet => {
+      const categoryMatches =
+        categoryFilter === 'All categories' || normalizeCategory(snippet.category) === categoryFilter;
+      return !snippet.isStarter && categoryMatches;
+    });
+    const starterSnippets = filteredSnippets.filter(snippet => snippet.isStarter);
+    const supportingSnippets = filteredSnippets.filter(snippet => !snippet.isStarter);
+    const commentListHeight = getCommentListHeight();
 
     panel.innerHTML = '';
 
@@ -970,6 +1633,88 @@ body.appendChild(
 
     body.appendChild(
       createElement('div', { class: 'cp-row cp-grid' }, [
+        createElement('div', {}, [
+          createElement('label', { for: 'cp-grade-filter', text: 'Grade band' }),
+          createElement('select', {
+            id: 'cp-grade-filter',
+            onchange: (event) => updateGradeBandFilter(event.target.value)
+          }, createSelectOptions(['All', ...GRADE_BANDS], gradeBandFilter))
+        ]),
+        createElement('div', {}, [
+          createElement('label', { for: 'cp-category-filter', text: 'Category' }),
+          createElement('select', {
+            id: 'cp-category-filter',
+            onchange: (event) => updateCategoryFilter(event.target.value)
+          }, createSelectOptions(['All categories', ...categoryOptions], categoryFilter))
+        ])
+      ])
+    );
+
+    const editor = renderSnippetEditor();
+    if (editor) body.appendChild(editor);
+
+const list = createElement('div', {
+  class: 'cp-row cp-list',
+  style: `max-height:${commentListHeight}px;`
+});
+
+if (!snippets.length) {
+  list.appendChild(
+    createElement('div', { class: 'cp-item' }, [
+      createElement('div', { class: 'cp-item-text', text: 'No snippets yet.' })
+    ])
+  );
+} else if (!filteredSnippets.length) {
+  list.appendChild(
+    createElement('div', { class: 'cp-item' }, [
+      createElement('div', { class: 'cp-item-text', text: 'No snippets match these filters.' })
+    ])
+  );
+} else {
+  const starterSection = renderSnippetSection('Starter comments', starterSnippets);
+  const supportingSection = renderSnippetSection('Supporting comments', supportingSnippets, [
+    renderSupportingBandButtons(categoryFilteredSupportingSnippets, gradeBandFilter)
+  ]);
+  if (starterSection) list.appendChild(starterSection);
+  if (supportingSection) list.appendChild(supportingSection);
+}
+
+    body.appendChild(list);
+
+    const resizeHandle = createElement('div', {
+      class: 'cp-resize-handle',
+      title: 'Drag to resize comment list',
+      'aria-label': 'Drag to resize comment list'
+    });
+    bindCommentListResize(panel, list, resizeHandle);
+    body.appendChild(resizeHandle);
+
+body.appendChild(
+  createElement('div', { class: 'cp-row cp-action-row' }, [
+    createElement('button', {
+      class: 'cp-action-btn cp-action-primary',
+      html: `${iconSvg('plus')}<span>Add snippet</span>`,
+      onclick: () => openSnippetEditor()
+    }),
+    createElement('button', {
+      class: 'cp-action-btn cp-action-secondary',
+      html: `${iconSvg('write')}<span>Continue writing</span>`,
+      onclick: () => {
+        const ok = focusEditorAtEndWithNewLine();
+        if (!ok) alert('Could not find the comment editor.');
+      }
+    })
+  ])
+);
+
+    body.appendChild(
+      createElement('div', { class: 'cp-row cp-small' }, [
+        'Append mode adds below existing text. Replace mode overwrites it. Continue writing focuses the comment editor.'
+      ])
+    );
+
+    body.appendChild(
+      createElement('div', { class: 'cp-row cp-grid' }, [
         createElement('button', {
           class: mode === 'append' ? 'active' : '',
           text: 'Append mode',
@@ -983,111 +1728,49 @@ body.appendChild(
       ])
     );
 
-const list = createElement('div', { class: 'cp-row cp-list' });
-
-if (!snippets.length) {
-  list.appendChild(
-    createElement('div', { class: 'cp-item' }, [
-      createElement('div', { class: 'cp-item-text', text: 'No snippets yet.' })
-    ])
-  );
-} else {
-  snippets.forEach(snippet => {
-    list.appendChild(
-      createElement('div', { class: 'cp-item' }, [
-        createElement('div', { class: 'cp-item-head' }, [
-          createElement('div', { class: 'cp-item-title', text: snippet.label }),
-        ]),
-        createElement('div', { class: 'cp-item-text', text: snippet.text }),
-        createElement('div', { class: 'cp-item-actions' }, [
-          createElement('div', { class: 'cp-item-actions-left' }, [
-            createElement('button', {
-              class: 'cp-btn-primary',
-              text: 'Insert',
-              onclick: () => insertSnippet(snippet.text)
-            })
-          ]),
-          createElement('div', { class: 'cp-item-actions-right' }, [
-            createElement('button', {
-              class: 'cp-btn-small',
-              text: 'Copy',
-              onclick: () => copySnippetToClipboard(snippet.text)
-            }),
-            createElement('button', {
-              class: 'cp-btn-small',
-              text: 'Edit',
-              onclick: () => openSnippetEditor(snippet)
-            }),
-            createElement('button', {
-              class: 'cp-btn-small cp-btn-danger',
-              text: 'Delete',
-              onclick: () => deleteSnippet(snippet.id)
-            })
-          ])
-        ])
-      ])
-    );
-  });
-}
-
-  body.appendChild(
-  createElement('div', { class: 'cp-row' }, [
-    createElement('button', {
-      class: 'cp-btn-primary cp-btn-wide',
-      text: 'Add new snippet',
-      onclick: () => openSnippetEditor()
-    })
-  ])
-);
-
-    body.appendChild(list);
-
-body.appendChild(
-  createElement('div', { class: 'cp-row' }, [
-    createElement('button', {
-      class: 'cp-btn-primary cp-btn-wide',
-      text: 'Keep typing',
-      onclick: () => {
-        const ok = focusEditorAtEndWithNewLine();
-        if (!ok) alert('Could not find the comment editor.');
-      }
-    })
-  ])
-);
-
     const fileInput = createElement('input', {
       type: 'file',
-      accept: 'application/json'
+      accept: '.csv,text/csv,application/json'
     });
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (file) handleImportData(file);
+      e.target.value = '';
     });
-    body.appendChild(fileInput);
 
-    body.appendChild(
-      createElement('div', { class: 'cp-row cp-grid-3' }, [
+    const importExport = createElement('details', {
+      class: 'cp-row cp-import-export',
+      open: getImportExportOpen() ? 'open' : null
+    }, [
+      createElement('summary', { text: 'Import / Export' }),
+      fileInput,
+      createElement('div', {
+        class: 'cp-grid-3',
+        style: 'margin-top:10px;'
+      }, [
         createElement('button', {
-          text: 'Export',
+          type: 'button',
+          text: 'Export CSV',
           onclick: handleExportData
         }),
         createElement('button', {
-          text: 'Import',
-          onclick: () => body.querySelector('input[type="file"]')?.click()
+          type: 'button',
+          text: 'Import CSV',
+          onclick: () => fileInput.click()
         }),
         createElement('button', {
+          type: 'button',
           class: 'cp-btn-danger',
           text: 'Reset',
           onclick: resetAssignmentSnippets
         })
-      ])
-    );
-
-    body.appendChild(
-      createElement('div', { class: 'cp-small' }, [
-        'Append mode adds below existing text. Replace mode overwrites it. Use keep typing to add individual comments'
-      ])
-    );
+      ]),
+      state.importMessage
+        ? createElement('div', { class: 'cp-message', text: state.importMessage })
+        : null
+    ]);
+    importExport.addEventListener('toggle', () => updateImportExportOpen(importExport.open));
+    body.appendChild(importExport);
 
     panel.appendChild(body);
   }
