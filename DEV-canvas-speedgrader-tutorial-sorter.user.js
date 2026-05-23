@@ -1121,6 +1121,39 @@ function getStudentMenuItems() {
     return await goToStudentByGroupMatch({ student });
   }
 
+  function getActiveGroupNavigationContext() {
+    const currentCourseCode = getCurrentCourseCode();
+    const groups = loadGroups(currentCourseCode);
+    const activeGroupId = getActiveGroupId(currentCourseCode);
+    const activeGroup = groups.find(g => g.id === activeGroupId) || groups[0] || null;
+    const matchInfo = matchGroupToCurrentCanvas(activeGroup);
+    const currentStudentName = getCurrentStudentDisplayName();
+    const normalizedCurrent = normalizeName(currentStudentName);
+    const currentIndexInGroup = activeGroup && currentStudentName
+      ? matchInfo.matches.findIndex(m => (
+        normalizeName(m.student.name) === normalizedCurrent ||
+        normalizeName(m.student.canvas_name || '') === normalizedCurrent
+      ))
+      : -1;
+
+    return { activeGroup, currentIndexInGroup };
+  }
+
+  async function goToRelativeGroupStudent(delta) {
+    const { activeGroup, currentIndexInGroup } = getActiveGroupNavigationContext();
+    if (!activeGroup || !activeGroup.students.length) return false;
+
+    if (currentIndexInGroup < 0) {
+      return await goToGroupStudentAtIndex(activeGroup, 0);
+    }
+
+    const nextIndex = Math.min(
+      activeGroup.students.length - 1,
+      Math.max(0, currentIndexInGroup + delta)
+    );
+    return await goToGroupStudentAtIndex(activeGroup, nextIndex);
+  }
+
   function matchGroupToCurrentCanvas(group) {
     if (!group) return { matches: [], unmatched: [] };
 
@@ -1244,6 +1277,24 @@ function addStyles() {
 
     .chatster-ui-btn-quiet:hover {
       background: #1b2027;
+    }
+
+    .chatster-ui-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .chatster-ui-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .chatster-ui-btn-danger {
@@ -1485,6 +1536,13 @@ if (!handle || !panel.contains(handle) || clickable) return;
     });
   }
 
+  function panelToggleIcon(expand) {
+    const path = expand
+      ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
+      : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+  }
+
   function bindDropHandlers(panel) {
     if (panel.dataset.dropBound === '1') return;
     panel.dataset.dropBound = '1';
@@ -1622,7 +1680,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
  panel.innerHTML = `
   <div class="chatster-lmg-drag chatster-ui-header ${minimized ? '' : 'chatster-ui-header--border'}">
     <div class="chatster-ui-title">Tutorial Sorter</div>
-    <button id="chatster-lmg-minimize" class="chatster-ui-btn-quiet">${minimized ? 'Expand' : 'Minimise'}</button>
+    <button id="chatster-lmg-minimize" class="chatster-ui-btn-quiet chatster-ui-panel-toggle" title="${minimized ? 'Expand' : 'Minimise'}" aria-label="${minimized ? 'Expand Tutorial Sorter' : 'Minimise Tutorial Sorter'}">${panelToggleIcon(minimized)}</button>
   </div>
 
   ${minimized ? `
@@ -1874,12 +1932,68 @@ if (minimized) {
   }
 
   function init() {
-    if (document.getElementById(PANEL_ID)) return;
     renderPanel(true);
 
     if (state.tick) clearInterval(state.tick);
     state.tick = setInterval(() => renderPanel(false), 1000);
   }
 
+  function registerVisCommHelper() {
+    window.VisCommHelpers = window.VisCommHelpers || {
+      helpers: {},
+      register(helper) {
+        if (!helper?.id) return;
+        this.helpers[helper.id] = helper;
+        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+      }
+    };
+
+    window.VisCommHelpers.register({
+      id: 'tutorial-sorter',
+      name: 'Tutorial Sorter',
+      panelId: PANEL_ID,
+      show() {
+        init();
+        const panel = document.getElementById(PANEL_ID);
+        panel?.style.removeProperty('display');
+      },
+      hide() {
+        const panel = document.getElementById(PANEL_ID);
+        if (panel) panel.style.display = 'none';
+      },
+      toggle() {
+        if (this.isOpen()) this.hide();
+        else this.show();
+      },
+      isOpen() {
+        const panel = document.getElementById(PANEL_ID);
+        if (!panel) return false;
+        const style = window.getComputedStyle(panel);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      },
+      dockActions() {
+        const { activeGroup } = getActiveGroupNavigationContext();
+        const disabled = !activeGroup || !activeGroup.students.length;
+        return [
+          {
+            id: 'prev',
+            label: 'Prev',
+            icon: 'prev',
+            disabled,
+            run: () => goToRelativeGroupStudent(-1)
+          },
+          {
+            id: 'next',
+            label: 'Next',
+            icon: 'next',
+            disabled,
+            run: () => goToRelativeGroupStudent(1)
+          }
+        ];
+      }
+    });
+  }
+
+  registerVisCommHelper();
   setTimeout(init, 1800);
 })();

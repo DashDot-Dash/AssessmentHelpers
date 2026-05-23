@@ -1020,6 +1020,24 @@ async function celebrateTo(newProgress) {
     #${PANEL_ID} .wwie-btn-quiet:hover {
       background:#1b2027;
     }
+
+    #${PANEL_ID} .wwie-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .wwie-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     #${PANEL_ID} .wwie-btn-danger {
   appearance:none;
   -webkit-appearance:none;
@@ -1132,6 +1150,13 @@ function ensurePanel() {
     }
   }
 
+function panelToggleIcon(expand) {
+  const path = expand
+    ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
+    : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
 function renderPanel(force = false, options = {}) {
   const panel = ensurePanel();
   attachDragging(panel);
@@ -1202,7 +1227,7 @@ const contextMeta =
     panel.innerHTML = `
       <div class="wwie-drag-handle wwie-header" style="align-items:center;">
         <div class="wwie-title">When will it end?</div>
-        <button id="wwie-toggle" class="${getQuietButtonCss()}">Expand</button>
+        <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Expand" aria-label="Expand When will it end?">${panelToggleIcon(true)}</button>
       </div>
     `;
     panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
@@ -1215,7 +1240,7 @@ const contextMeta =
       <div class="wwie-title">When will it end?</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button id="wwie-toggle" class="${getQuietButtonCss()}">Minimise</button>
+      <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Minimise" aria-label="Minimise When will it end?">${panelToggleIcon(false)}</button>
     </div>
   </div>
 
@@ -1435,5 +1460,42 @@ if (princeSlot) {
     startLoops();
   }
 
+  function registerVisCommHelper() {
+    window.VisCommHelpers = window.VisCommHelpers || {
+      helpers: {},
+      register(helper) {
+        if (!helper?.id) return;
+        this.helpers[helper.id] = helper;
+        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+      }
+    };
+
+    window.VisCommHelpers.register({
+      id: 'wwie',
+      name: 'WWIE',
+      panelId: PANEL_ID,
+      show() {
+        renderPanel(true);
+        const panel = document.getElementById(PANEL_ID);
+        panel?.style.removeProperty('display');
+      },
+      hide() {
+        const panel = document.getElementById(PANEL_ID);
+        if (panel) panel.style.display = 'none';
+      },
+      toggle() {
+        if (this.isOpen()) this.hide();
+        else this.show();
+      },
+      isOpen() {
+        const panel = document.getElementById(PANEL_ID);
+        if (!panel) return false;
+        const style = window.getComputedStyle(panel);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      }
+    });
+  }
+
+  registerVisCommHelper();
   setTimeout(init, 1800);
 })();

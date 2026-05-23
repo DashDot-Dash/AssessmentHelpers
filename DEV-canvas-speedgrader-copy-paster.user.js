@@ -808,7 +808,9 @@ function handleImportData(file) {
       write: '<path d="M4 7h16"></path><path d="M4 12h10"></path><path d="M4 17h7"></path><path d="M16 16l2 2l4 -4"></path>',
       copy: '<path d="M8 8m0 2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v7a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2z"></path><path d="M16 8v-1a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v7a2 2 0 0 0 2 2h1"></path>',
       edit: '<path d="M4 20h4l10.5 -10.5a2.8 2.8 0 1 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path>',
-      delete: '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3h6v3"></path>'
+      delete: '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3h6v3"></path>',
+      minimize: '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>',
+      maximize: '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
     };
 
     return `
@@ -884,6 +886,19 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-head-buttons {
       display: flex;
       gap: 6px;
+    }
+
+    #${PANEL_ID} .cp-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .cp-panel-toggle svg {
+      width: 16px;
+      height: 16px;
     }
 
     #${PANEL_ID} .cp-body {
@@ -1600,7 +1615,11 @@ padding: 4px 8px;
       createElement('div', { text: 'Copy + Paster' }),
       createElement('div', { class: 'cp-head-buttons' }, [
         createElement('button', {
-          text: collapsed ? 'Expand' : 'Minimise',
+          class: 'cp-panel-toggle',
+          type: 'button',
+          title: collapsed ? 'Expand' : 'Minimise',
+          'aria-label': collapsed ? 'Expand Copy + Paster' : 'Minimise Copy + Paster',
+          html: iconSvg(collapsed ? 'maximize' : 'minimize'),
           onclick: () => updateCollapsed(!collapsed)
         })
       ])
@@ -1812,5 +1831,42 @@ body.appendChild(
     startObserver();
   }
 
+  function registerVisCommHelper() {
+    window.VisCommHelpers = window.VisCommHelpers || {
+      helpers: {},
+      register(helper) {
+        if (!helper?.id) return;
+        this.helpers[helper.id] = helper;
+        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+      }
+    };
+
+    window.VisCommHelpers.register({
+      id: 'copy-paster',
+      name: 'Copy/Paster',
+      panelId: PANEL_ID,
+      show() {
+        renderPanel();
+        const panel = document.getElementById(PANEL_ID);
+        panel?.style.removeProperty('display');
+      },
+      hide() {
+        const panel = document.getElementById(PANEL_ID);
+        if (panel) panel.style.display = 'none';
+      },
+      toggle() {
+        if (this.isOpen()) this.hide();
+        else this.show();
+      },
+      isOpen() {
+        const panel = document.getElementById(PANEL_ID);
+        if (!panel) return false;
+        const style = window.getComputedStyle(panel);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      }
+    });
+  }
+
+  registerVisCommHelper();
   init();
 })();

@@ -700,6 +700,13 @@ async function navigateInFilter(direction) {
     return el;
   }
 
+  function panelToggleIcon(expanded) {
+    const path = expanded
+      ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
+      : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+  }
+
   function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
@@ -756,6 +763,24 @@ async function navigateInFilter(direction) {
     #${PANEL_ID} .sg-head-buttons {
       display: flex;
       gap: 6px;
+    }
+
+    #${PANEL_ID} .sg-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .sg-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     #${PANEL_ID} .sg-head-title {
@@ -1118,7 +1143,11 @@ const head = createElement('div', {
   createElement('div', { class: 'sg-head-title', text: 'Benchmarker' }),
       createElement('div', { class: 'sg-head-buttons' }, [
         createElement('button', {
-          text: collapsed ? 'Expand' : 'Minimise',
+          class: 'sg-panel-toggle',
+          type: 'button',
+          title: collapsed ? 'Expand' : 'Minimise',
+          'aria-label': collapsed ? 'Expand Benchmarker' : 'Minimise Benchmarker',
+          html: panelToggleIcon(collapsed),
           onclick: () => updateCollapsed(!collapsed)
         })
       ])
@@ -1404,5 +1433,42 @@ body.appendChild(importExportDetails);
     startObserver();
   }
 
+  function registerVisCommHelper() {
+    window.VisCommHelpers = window.VisCommHelpers || {
+      helpers: {},
+      register(helper) {
+        if (!helper?.id) return;
+        this.helpers[helper.id] = helper;
+        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+      }
+    };
+
+    window.VisCommHelpers.register({
+      id: 'benchmarker',
+      name: 'Benchmarker',
+      panelId: PANEL_ID,
+      show() {
+        renderPanel();
+        const panel = document.getElementById(PANEL_ID);
+        panel?.style.removeProperty('display');
+      },
+      hide() {
+        const panel = document.getElementById(PANEL_ID);
+        if (panel) panel.style.display = 'none';
+      },
+      toggle() {
+        if (this.isOpen()) this.hide();
+        else this.show();
+      },
+      isOpen() {
+        const panel = document.getElementById(PANEL_ID);
+        if (!panel) return false;
+        const style = window.getComputedStyle(panel);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      }
+    });
+  }
+
+  registerVisCommHelper();
   init();
 })();

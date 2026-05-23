@@ -6,7 +6,7 @@
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-gradebridger.user.js
-// @grant        GM_getResourceURL
+// @grant        none
 // ==/UserScript==
 
 
@@ -19,6 +19,7 @@
     anchor: 'vcGradeBridge:anchor:v1',
     assignmentNames: 'vcGradeBridge:assignmentNames:v1',
     panelPosition: 'vcGradeBridge:panelPosition:v1',
+    panelUi: 'vcGradeBridge:panelUi:v1',
     targetStudentName: 'vcGradeBridge:targetStudentName:v1',
   };
 
@@ -273,6 +274,32 @@ function savePanelPosition(left, top) {
   localStorage.setItem(STORAGE_KEYS.panelPosition, JSON.stringify({ left, top }));
 }
 
+function loadPanelUi() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.panelUi) || '{}') || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function getPanelMinimized() {
+  return !!loadPanelUi().minimized;
+}
+
+function panelToggleIcon(expand) {
+  const path = expand
+    ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
+    : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
+function updatePanelMinimized(minimized) {
+  const ui = loadPanelUi();
+  ui.minimized = !!minimized;
+  localStorage.setItem(STORAGE_KEYS.panelUi, JSON.stringify(ui));
+  renderPanel();
+}
+
 function getClampedPanelPosition(panel, left, top) {
   const margin = 8;
   const rect = panel.getBoundingClientRect();
@@ -307,11 +334,12 @@ function applySavedPanelPosition(panel) {
 }
 
 function makePanelFloating(panel) {
-  const handle = panel.querySelector('.vc-gradebridge-title');
+  const handle = panel.querySelector('.vc-gradebridge-drag-handle');
   if (!handle) return;
 
   handle.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
+    if (event.target.closest('button')) return;
 
     const rect = panel.getBoundingClientRect();
     const offsetX = event.clientX - rect.left;
@@ -775,6 +803,7 @@ function renderPanel() {
       'Connected assignment'
     )
     : '';
+  const minimized = getPanelMinimized();
   let connectionControls = '';
 
   if (pair) {
@@ -822,33 +851,41 @@ function renderPanel() {
 
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
+  panel.classList.toggle('vc-gradebridge-panel-minimized', minimized);
 
   panel.innerHTML = `
-    <div class="vc-gradebridge-title">GradeBridge</div>
-    <div class="vc-gradebridge-subtitle">${escapeHtml(assignmentInfo.assignmentName)}</div>
+    <div class="vc-gradebridge-drag-handle vc-gradebridge-header ${minimized ? '' : 'vc-gradebridge-header--border'}">
+      <div class="vc-gradebridge-title">GradeBridge</div>
+      <button type="button" id="vc-gradebridge-minimize" class="vc-gradebridge-header-button" title="${minimized ? 'Expand' : 'Minimise'}" aria-label="${minimized ? 'Expand GradeBridge' : 'Minimise GradeBridge'}">
+        ${panelToggleIcon(minimized)}
+      </button>
+    </div>
+
+    ${minimized ? '' : `
+    <div class="vc-gradebridge-body">
     ${pair ? `
       <div class="vc-gradebridge-pair-block">
         <div class="vc-gradebridge-section-label">Connected assignments</div>
-        <button
-          type="button"
-          class="vc-gradebridge-assignment-card vc-gradebridge-assignment-card-current"
-          disabled
-        >
-          <span class="vc-gradebridge-assignment-tag">Current</span>
-          <span class="vc-gradebridge-assignment-name">
-            ${escapeHtml(assignmentInfo.assignmentName)}
-          </span>
-        </button>
-        <button
-          type="button"
-          class="vc-gradebridge-assignment-card vc-gradebridge-assignment-card-target"
-          data-vc-gradebridge-action="jump"
-        >
-          <span class="vc-gradebridge-assignment-tag vc-gradebridge-assignment-tag-go">Go to</span>
-          <span class="vc-gradebridge-assignment-name">
-            ${escapeHtml(connectedAssignmentName)}
-          </span>
-        </button>
+
+        <div class="vc-gradebridge-toggle-row">
+          <div class="vc-gradebridge-assignment-card vc-gradebridge-assignment-card-current">
+            <span class="vc-gradebridge-assignment-tag">Here</span>
+            <span class="vc-gradebridge-assignment-name">
+              ${escapeHtml(assignmentInfo.assignmentName)}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="vc-gradebridge-assignment-card vc-gradebridge-assignment-card-target"
+            data-vc-gradebridge-action="jump"
+          >
+            <span class="vc-gradebridge-assignment-tag vc-gradebridge-assignment-tag-go">Switch to</span>
+            <span class="vc-gradebridge-assignment-name">
+              ${escapeHtml(connectedAssignmentName)}
+            </span>
+          </button>
+        </div>
       </div>
     ` : `
       <div class="vc-gradebridge-empty">No connection yet.</div>
@@ -858,9 +895,15 @@ function renderPanel() {
       ${(!pair || anchor) ? `<div class="vc-gradebridge-anchor">${escapeHtml(firstAssignmentStatusText)}</div>` : ''}
       ${connectionControls}
     </details>
+    </div>
+    `}
   `;
 
   document.body.appendChild(panel);
+
+  panel.querySelector('#vc-gradebridge-minimize')?.addEventListener('click', () => {
+    updatePanelMinimized(!minimized);
+  });
 
   panel.querySelector('[data-vc-gradebridge-action="jump"]')?.addEventListener('click', () => {
     goToPair(pair, currentInfo);
@@ -894,39 +937,90 @@ function renderPanel() {
         right: 18px;
         bottom: 18px;
         z-index: 999999;
-        width: 240px;
-        padding: 12px;
+        width: 340px;
         border-radius: 14px;
         background: #11151a;
         color: #f4f4f4;
         box-shadow: 0 10px 30px rgba(0,0,0,0.35);
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         border: 1px solid rgba(255,255,255,0.12);
+        overflow: hidden;
       }
 
-      #vc-gradebridge-panel::before {
+      .vc-gradebridge-header {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px 10px 25px;
+        background: #252b33;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+      }
+
+      .vc-gradebridge-header::before {
         content: "";
         position: absolute;
         left: 0;
-        top: 12px;
-        bottom: 12px;
-        width: 5px;
-        border-radius: 0 4px 4px 0;
-        background: #f2c94c;
+        top: 0;
+        bottom: 0;
+        width: 12px;
+        border-radius: 0 2px 2px 0;
+        background: #d6a21d;
+      }
+
+      .vc-gradebridge-header--border {
+        border-bottom: 1px solid rgba(255,255,255,0.10);
       }
 
       .vc-gradebridge-title {
         font-size: 14px;
         font-weight: 700;
-        margin-left: 8px;
-        margin-bottom: 2px;
+        line-height: 1.2;
+        min-width: 0;
       }
 
-      .vc-gradebridge-subtitle {
-        font-size: 11px;
-        color: #aab2bd;
-        margin-left: 8px;
-        margin-bottom: 10px;
+      #vc-gradebridge-panel.vc-gradebridge-dragging {
+        transition: none;
+        opacity: 0.94;
+      }
+
+      #vc-gradebridge-panel.vc-gradebridge-dragging .vc-gradebridge-header {
+        cursor: grabbing;
+      }
+
+      .vc-gradebridge-header-button {
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        width: 28px;
+        height: 26px;
+        padding: 0;
+        background: rgba(255,255,255,0.08);
+        color: #d6dde7;
+        cursor: pointer;
+      }
+
+      .vc-gradebridge-header-button:hover {
+        background: rgba(255,255,255,0.14);
+        color: #ffffff;
+      }
+
+      .vc-gradebridge-header-button svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .vc-gradebridge-body {
+        padding: 11px 12px 12px;
       }
 
       .vc-gradebridge-button {
@@ -963,11 +1057,17 @@ function renderPanel() {
 
       .vc-gradebridge-pair-block {
         display: grid;
-        gap: 7px;
+        gap: 9px;
+      }
+
+      .vc-gradebridge-toggle-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
       }
 
       .vc-gradebridge-section-label {
-        margin: 2px 0 1px;
+        margin: 2px 0 3px;
         color: #aab2bd;
         font-size: 11px;
         font-weight: 700;
@@ -977,27 +1077,30 @@ function renderPanel() {
 
       .vc-gradebridge-assignment-card {
         width: 100%;
+        min-width: 0;
         appearance: none;
         -webkit-appearance: none;
         display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-        gap: 8px;
+        grid-template-rows: auto auto;
+        align-items: start;
+        gap: 4px;
         border: 0;
         border-radius: 10px;
-        padding: 9px 10px;
+        padding: 7px 8px;
         text-align: left;
         font-size: 12px;
         font-weight: 650;
       }
 
-      .vc-gradebridge-assignment-card-current,
-      .vc-gradebridge-assignment-card-current:disabled {
+      .vc-gradebridge-assignment-card-current * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+      }
+
+      .vc-gradebridge-assignment-card-current {
         cursor: default;
         background: rgba(255,255,255,0.08) !important;
-        color: #aab2bd !important;
-        -webkit-text-fill-color: #aab2bd !important;
-        opacity: 0.78;
+        color: #ffffff !important;
       }
 
       .vc-gradebridge-assignment-card-target {
@@ -1011,14 +1114,18 @@ function renderPanel() {
       }
 
       .vc-gradebridge-assignment-tag {
+        justify-self: start;
+        max-width: 100%;
         padding: 2px 6px;
         border-radius: 999px;
         background: rgba(255,255,255,0.12);
         color: inherit;
-        font-size: 10px;
+        font-size: 9.5px;
         font-weight: 750;
-        line-height: 1;
+        line-height: 1.05;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .vc-gradebridge-assignment-tag-go {
@@ -1030,6 +1137,7 @@ function renderPanel() {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        line-height: 1.25;
       }
 
       .vc-gradebridge-manage {
@@ -1202,5 +1310,80 @@ function init() {
   renderPanel();
 }
 
+function switchConnectedAssignmentFromDock() {
+  const currentInfo = getCurrentInfo();
+  const currentPair = getCurrentPair();
+  if (!currentPair) return false;
+  goToPair(currentPair, currentInfo);
+  return true;
+}
+
+function bindDockActionBridge() {
+  if (window.__vcGradeBridgeDockBridgeBound) return;
+  window.__vcGradeBridgeDockBridgeBound = true;
+  let lastRequestId = '';
+
+  const handler = event => {
+    const detail = event.detail || {};
+    if (detail.helperId !== 'gradebridge' || detail.actionId !== 'switch') return;
+    if (detail.requestId && detail.requestId === lastRequestId) return;
+    lastRequestId = detail.requestId || `${Date.now()}`;
+    switchConnectedAssignmentFromDock();
+  };
+
+  document.addEventListener('viscomm-helper-action', handler);
+  window.addEventListener('viscomm-helper-action', handler);
+}
+
+function registerVisCommHelper() {
+  window.VisCommHelpers = window.VisCommHelpers || {
+    helpers: {},
+    register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+    }
+  };
+
+  window.VisCommHelpers.register({
+    id: 'gradebridge',
+    name: 'GradeBridge',
+    panelId: PANEL_ID,
+    show() {
+      renderPanel();
+      const panel = document.getElementById(PANEL_ID);
+      panel?.style.removeProperty('display');
+    },
+    hide() {
+      const panel = document.getElementById(PANEL_ID);
+      if (panel) panel.style.display = 'none';
+    },
+    toggle() {
+      if (this.isOpen()) this.hide();
+      else this.show();
+    },
+    isOpen() {
+      const panel = document.getElementById(PANEL_ID);
+      if (!panel) return false;
+      const style = window.getComputedStyle(panel);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    },
+    dockActions() {
+      const pair = getCurrentPair();
+      return [
+        {
+          id: 'switch',
+          label: 'Switch',
+          icon: 'switch',
+          disabled: !pair,
+          run: switchConnectedAssignmentFromDock
+        }
+      ];
+    }
+  });
+}
+
+  bindDockActionBridge();
+  registerVisCommHelper();
   init();
 })();
