@@ -1463,45 +1463,67 @@ if (princeSlot) {
     startLoops();
   }
 
-  function registerAssessmentHelper() {
-    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
-      helpers: {},
-      register(helper) {
-        if (!helper?.id) return;
-        this.helpers[helper.id] = helper;
-        (helper.aliases || []).forEach(alias => {
-          this.helpers[alias] = helper;
-        });
-        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
-        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
-      }
+  function ensureAssessmentHelpersRegistry() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+    window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+    window.AssessmentHelpers.register = function register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
     };
     window.VisCommHelpers = window.AssessmentHelpers;
+    return window.AssessmentHelpers;
+  }
 
-    window.AssessmentHelpers.register({
+  function getRegisteredPanel() {
+    return document.getElementById(PANEL_ID);
+  }
+
+  function showRegisteredPanel(render = () => renderPanel(true)) {
+    render?.();
+    const panel = getRegisteredPanel();
+    panel?.style.removeProperty('display');
+    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  }
+
+  function hideRegisteredPanel() {
+    const panel = getRegisteredPanel();
+    if (panel) panel.style.display = 'none';
+  }
+
+  function isRegisteredPanelOpen() {
+    const panel = getRegisteredPanel();
+    if (!panel) return false;
+    const style = window.getComputedStyle(panel);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function toggleRegisteredPanel(render = () => renderPanel(true)) {
+    if (isRegisteredPanelOpen()) hideRegisteredPanel();
+    else showRegisteredPanel(render);
+  }
+
+  function registerAssessmentHelper() {
+    const registry = ensureAssessmentHelpersRegistry();
+
+    registry.register({
       id: HELPER_ID,
       aliases: HELPER_ALIASES,
       name: HELPER_NAME,
       panelId: PANEL_ID,
+      panelIds: [PANEL_ID],
       show() {
-        renderPanel(true);
-        const panel = document.getElementById(PANEL_ID);
-        panel?.style.removeProperty('display');
+        showRegisteredPanel(() => renderPanel(true));
       },
-      hide() {
-        const panel = document.getElementById(PANEL_ID);
-        if (panel) panel.style.display = 'none';
-      },
+      hide: hideRegisteredPanel,
       toggle() {
-        if (this.isOpen()) this.hide();
-        else this.show();
+        toggleRegisteredPanel(() => renderPanel(true));
       },
-      isOpen() {
-        const panel = document.getElementById(PANEL_ID);
-        if (!panel) return false;
-        const style = window.getComputedStyle(panel);
-        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
-      }
+      isOpen: isRegisteredPanelOpen
     });
   }
 

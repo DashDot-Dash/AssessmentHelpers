@@ -163,8 +163,15 @@
   }
 
   function getHelperPanel(helper) {
-    const ids = helper.panelIds || [helper.panelId];
-    for (const id of ids) {
+    const registered = getRegisteredHelper(helper);
+    const ids = [
+      registered?.panelId,
+      ...(registered?.panelIds || []),
+      helper.panelId,
+      ...(helper.panelIds || [])
+    ].filter(Boolean);
+    const uniqueIds = [...new Set(ids)];
+    for (const id of uniqueIds) {
       const panel = document.getElementById(id);
       if (panel) return panel;
     }

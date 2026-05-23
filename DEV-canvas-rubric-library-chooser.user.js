@@ -16,6 +16,8 @@
   // constants/config
   const HELPER_ID = 'rubric-library';
   const HELPER_NAME = 'Rubric Library';
+  const PANEL_ID = 'jj-rubric-overlay';
+  const LAUNCHER_ID = 'jj-rubric-library-btn';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
   const LEGACY_POSITION_KEYS = {
@@ -24,8 +26,8 @@
   };
 
   const selectors = {
-    launcher: '#jj-rubric-library-btn',
-    overlay: '#jj-rubric-overlay',
+    launcher: `#${LAUNCHER_ID}`,
+    overlay: `#${PANEL_ID}`,
     status: '#jj-status'
   };
 
@@ -266,7 +268,7 @@ function createLauncherButton() {
   if (document.querySelector(selectors.launcher)) return;
 
   const btn = document.createElement('button');
-  btn.id = 'jj-rubric-library-btn';
+  btn.id = LAUNCHER_ID;
   btn.textContent = 'Rubric Builder';
   btn.type = 'button';
 
@@ -366,7 +368,7 @@ function createLauncherButton() {
     handleCloseModal();
 
     const overlay = document.createElement('div');
-    overlay.id = 'jj-rubric-overlay';
+    overlay.id = PANEL_ID;
     overlay.style.cssText = `
       position:fixed;
       inset:0;
@@ -427,7 +429,7 @@ function createLauncherButton() {
   }
 
   function handleCloseModal() {
-    document.getElementById('jj-rubric-overlay')?.remove();
+    document.getElementById(PANEL_ID)?.remove();
   }
 
   function renderLibrary() {
@@ -639,41 +641,59 @@ function updateStatus() {
     createLauncherButton();
   }
 
-  function registerAssessmentHelper() {
-    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
-      helpers: {},
-      register(helper) {
-        if (!helper?.id) return;
-        this.helpers[helper.id] = helper;
-        (helper.aliases || []).forEach(alias => {
-          this.helpers[alias] = helper;
-        });
-        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
-        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
-      }
+  function ensureAssessmentHelpersRegistry() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+    window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+    window.AssessmentHelpers.register = function register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
     };
     window.VisCommHelpers = window.AssessmentHelpers;
+    return window.AssessmentHelpers;
+  }
 
-    window.AssessmentHelpers.register({
+  function getRegisteredPanel() {
+    return document.getElementById(PANEL_ID);
+  }
+
+  function showRegisteredPanel() {
+    createLauncherButton();
+    renderModal();
+    const panel = getRegisteredPanel();
+    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  }
+
+  function hideRegisteredPanel() {
+    handleCloseModal();
+  }
+
+  function isRegisteredPanelOpen() {
+    return !!getRegisteredPanel();
+  }
+
+  function toggleRegisteredPanel() {
+    if (isRegisteredPanelOpen()) hideRegisteredPanel();
+    else showRegisteredPanel();
+  }
+
+  function registerAssessmentHelper() {
+    const registry = ensureAssessmentHelpersRegistry();
+
+    registry.register({
       id: HELPER_ID,
       aliases: ['rubric-smoother'],
       name: HELPER_NAME,
-      panelId: 'jj-rubric-overlay',
-      panelIds: ['jj-rubric-overlay', 'jj-rubric-library-btn'],
-      show() {
-        createLauncherButton();
-        renderModal();
-      },
-      hide() {
-        handleCloseModal();
-      },
-      toggle() {
-        if (this.isOpen()) this.hide();
-        else this.show();
-      },
-      isOpen() {
-        return !!document.getElementById('jj-rubric-overlay');
-      }
+      panelId: PANEL_ID,
+      panelIds: [PANEL_ID, LAUNCHER_ID],
+      show: showRegisteredPanel,
+      hide: hideRegisteredPanel,
+      toggle: toggleRegisteredPanel,
+      isOpen: isRegisteredPanelOpen
     });
   }
 

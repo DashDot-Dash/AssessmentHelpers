@@ -288,6 +288,14 @@ function getPanelMinimized() {
   return !!loadPanelUi().minimized;
 }
 
+function bringPanelToFront(panel) {
+  if (!panel) return;
+  const current = Number(window.__canvasAssessmentPanelZIndex || 999999);
+  const next = current + 1;
+  window.__canvasAssessmentPanelZIndex = next;
+  panel.style.zIndex = String(next);
+}
+
 function panelToggleIcon(expand) {
   const path = expand
     ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
@@ -902,6 +910,8 @@ function renderPanel() {
   `;
 
   document.body.appendChild(panel);
+  panel.addEventListener('mousedown', () => bringPanelToFront(panel), true);
+  bringPanelToFront(panel);
   applySavedPanelPosition(panel);
   makePanelFloating(panel);
 
@@ -1341,44 +1351,66 @@ function bindDockActionBridge() {
   window.addEventListener('viscomm-helper-action', handler);
 }
 
-function registerAssessmentHelper() {
-  window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
-    helpers: {},
-    register(helper) {
-      if (!helper?.id) return;
-      this.helpers[helper.id] = helper;
-      (helper.aliases || []).forEach(alias => {
-        this.helpers[alias] = helper;
-      });
-      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
-      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
-    }
+function ensureAssessmentHelpersRegistry() {
+  window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+  window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+  window.AssessmentHelpers.register = function register(helper) {
+    if (!helper?.id) return;
+    this.helpers[helper.id] = helper;
+    (helper.aliases || []).forEach(alias => {
+      this.helpers[alias] = helper;
+    });
+    window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+    window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
   };
   window.VisCommHelpers = window.AssessmentHelpers;
+  return window.AssessmentHelpers;
+}
 
-  window.AssessmentHelpers.register({
+function getRegisteredPanel() {
+  return document.getElementById(PANEL_ID);
+}
+
+function showRegisteredPanel(render = renderPanel) {
+  render?.();
+  const panel = getRegisteredPanel();
+  panel?.style.removeProperty('display');
+  if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+}
+
+function hideRegisteredPanel() {
+  const panel = getRegisteredPanel();
+  if (panel) panel.style.display = 'none';
+}
+
+function isRegisteredPanelOpen() {
+  const panel = getRegisteredPanel();
+  if (!panel) return false;
+  const style = window.getComputedStyle(panel);
+  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+}
+
+function toggleRegisteredPanel(render = renderPanel) {
+  if (isRegisteredPanelOpen()) hideRegisteredPanel();
+  else showRegisteredPanel(render);
+}
+
+function registerAssessmentHelper() {
+  const registry = ensureAssessmentHelpersRegistry();
+
+  registry.register({
     id: HELPER_ID,
     name: HELPER_NAME,
     panelId: PANEL_ID,
+    panelIds: [PANEL_ID],
     show() {
-      renderPanel();
-      const panel = document.getElementById(PANEL_ID);
-      panel?.style.removeProperty('display');
+      showRegisteredPanel(renderPanel);
     },
-    hide() {
-      const panel = document.getElementById(PANEL_ID);
-      if (panel) panel.style.display = 'none';
-    },
+    hide: hideRegisteredPanel,
     toggle() {
-      if (this.isOpen()) this.hide();
-      else this.show();
+      toggleRegisteredPanel(renderPanel);
     },
-    isOpen() {
-      const panel = document.getElementById(PANEL_ID);
-      if (!panel) return false;
-      const style = window.getComputedStyle(panel);
-      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
-    },
+    isOpen: isRegisteredPanelOpen,
     dockActions() {
       const pair = getCurrentPair();
       return [
