@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader When Will It End
-// @namespace    VisComm@UON
+// @name         DEV Canvas SpeedGrader ETA
+// @namespace    AssessmentHelpers
 // @version      1.0.0
 // @description  Estimate marking time remaining and log marking session data locally, with local group awareness
 // @match        https://*/courses/*/gradebook/speed_grader*
@@ -19,6 +19,9 @@
   // Estimates SpeedGrader marking time and logs local session timing data.
 
   // constants/config
+  const HELPER_ID = 'eta';
+  const HELPER_NAME = 'ETA';
+  const HELPER_ALIASES = ['wwie'];
   const PANEL_ID = 'wwie-prince-panel';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_when_will_it_end_v1';
@@ -1226,8 +1229,8 @@ const contextMeta =
   if (data.minimized) {
     panel.innerHTML = `
       <div class="wwie-drag-handle wwie-header" style="align-items:center;">
-        <div class="wwie-title">When will it end?</div>
-        <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Expand" aria-label="Expand When will it end?">${panelToggleIcon(true)}</button>
+        <div class="wwie-title">ETA</div>
+        <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Expand" aria-label="Expand ETA">${panelToggleIcon(true)}</button>
       </div>
     `;
     panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
@@ -1237,10 +1240,10 @@ const contextMeta =
  panel.innerHTML = `
   <div class="wwie-drag-handle wwie-header wwie-header--border">
     <div>
-      <div class="wwie-title">When will it end?</div>
+      <div class="wwie-title">ETA</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Minimise" aria-label="Minimise When will it end?">${panelToggleIcon(false)}</button>
+      <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Minimise" aria-label="Minimise ETA">${panelToggleIcon(false)}</button>
     </div>
   </div>
 
@@ -1460,19 +1463,25 @@ if (princeSlot) {
     startLoops();
   }
 
-  function registerVisCommHelper() {
-    window.VisCommHelpers = window.VisCommHelpers || {
+  function registerAssessmentHelper() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
       helpers: {},
       register(helper) {
         if (!helper?.id) return;
         this.helpers[helper.id] = helper;
+        (helper.aliases || []).forEach(alias => {
+          this.helpers[alias] = helper;
+        });
+        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
         window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
       }
     };
+    window.VisCommHelpers = window.AssessmentHelpers;
 
-    window.VisCommHelpers.register({
-      id: 'wwie',
-      name: 'WWIE',
+    window.AssessmentHelpers.register({
+      id: HELPER_ID,
+      aliases: HELPER_ALIASES,
+      name: HELPER_NAME,
       panelId: PANEL_ID,
       show() {
         renderPanel(true);
@@ -1496,6 +1505,6 @@ if (princeSlot) {
     });
   }
 
-  registerVisCommHelper();
+  registerAssessmentHelper();
   setTimeout(init, 1800);
 })();

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         DEV Canvas Rubric Library Chooser
-// @namespace    VisComm@UON
+// @namespace    AssessmentHelpers
 // @version      1.0.0
 // @description  Choose rubric criteria from a library and download Canvas import CSV
 // @match        https://*/courses/*/rubrics*
@@ -14,6 +14,8 @@
   // Lets rubric criteria be chosen from an embedded library and exported as Canvas CSV.
 
   // constants/config
+  const HELPER_ID = 'rubric-library';
+  const HELPER_NAME = 'Rubric Library';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
   const LEGACY_POSITION_KEYS = {
@@ -265,7 +267,7 @@ function createLauncherButton() {
 
   const btn = document.createElement('button');
   btn.id = 'jj-rubric-library-btn';
-  btn.textContent = 'VisComm Rubric Builder';
+  btn.textContent = 'Rubric Builder';
   btn.type = 'button';
 
   const savedX = loadStoredValue('launcher_left', LEGACY_POSITION_KEYS.left);
@@ -394,7 +396,7 @@ function createLauncherButton() {
     modal.innerHTML = `
       <div style="padding:16px 20px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; gap:16px; align-items:center;">
         <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
-<strong style="font-size:16px; font-weight:700;">VisComm Rubric Chooser</strong>
+<strong style="font-size:16px; font-weight:700;">Rubric Chooser</strong>
 <input id="jj-rubric-title" type="text" placeholder="New rubric name" style="padding:8px 10px; font-size:14px; width:100%; max-width:420px; border:1px solid #cfd5dd; border-radius:8px; background:#eef1f4; color:#2f3a45;">
 </div>
 <button id="jj-close-modal" type="button" style="background:#161a20; color:#d5d9df; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Close</button>
@@ -637,8 +639,47 @@ function updateStatus() {
     createLauncherButton();
   }
 
+  function registerAssessmentHelper() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
+      helpers: {},
+      register(helper) {
+        if (!helper?.id) return;
+        this.helpers[helper.id] = helper;
+        (helper.aliases || []).forEach(alias => {
+          this.helpers[alias] = helper;
+        });
+        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+        window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+      }
+    };
+    window.VisCommHelpers = window.AssessmentHelpers;
+
+    window.AssessmentHelpers.register({
+      id: HELPER_ID,
+      aliases: ['rubric-smoother'],
+      name: HELPER_NAME,
+      panelId: 'jj-rubric-overlay',
+      panelIds: ['jj-rubric-overlay', 'jj-rubric-library-btn'],
+      show() {
+        createLauncherButton();
+        renderModal();
+      },
+      hide() {
+        handleCloseModal();
+      },
+      toggle() {
+        if (this.isOpen()) this.hide();
+        else this.show();
+      },
+      isOpen() {
+        return !!document.getElementById('jj-rubric-overlay');
+      }
+    });
+  }
+
   const observer = new MutationObserver(() => createLauncherButton());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
+  registerAssessmentHelper();
   init();
 })();

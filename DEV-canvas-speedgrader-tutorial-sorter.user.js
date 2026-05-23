@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         DEV Canvas SpeedGrader Tutorial Sorter
-// @namespace    VisComm@UON
+// @namespace    AssessmentHelpers
 // @version      1.0.1
 // @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
 // @match        https://*/courses/*/gradebook/speed_grader*
@@ -15,6 +15,8 @@
   // Imports class lists and provides tutorial-group navigation in SpeedGrader.
 
   // constants/config
+  const HELPER_ID = 'tutorial-sorter';
+  const HELPER_NAME = 'Tutorial Sorter';
   const PANEL_ID = 'chatster-lmg-panel';
   const STYLE_ID = 'chatster-lmg-style';
   const Z_INDEX_BASE = 100000;
@@ -173,8 +175,16 @@ const selectors = {
     });
   }
 
+  function getAllCourseClasses() {
+    const data = loadStoredTutorialSorterData();
+    return Object.values(data.courses || {})
+      .flatMap(bucket => Object.values(bucket?.classes || {}))
+      .sort((a, b) => String(a.label || a.name || '').localeCompare(String(b.label || b.name || '')));
+  }
+
   function loadGroups(courseCode = getCurrentCourseCode()) {
-    return getCourseClasses(courseCode);
+    const groups = getCourseClasses(courseCode);
+    return groups.length ? groups : getAllCourseClasses();
   }
 
   function saveGroups(groups, courseCode = getCurrentCourseCode()) {
@@ -1683,14 +1693,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
     <button id="chatster-lmg-minimize" class="chatster-ui-btn-quiet chatster-ui-panel-toggle" title="${minimized ? 'Expand' : 'Minimise'}" aria-label="${minimized ? 'Expand Tutorial Sorter' : 'Minimise Tutorial Sorter'}">${panelToggleIcon(minimized)}</button>
   </div>
 
-  ${minimized ? `
-    <div class="chatster-ui-body" style="padding-top:10px;">
-      <div class="chatster-ui-row chatster-ui-row--center">
-        <button id="chatster-lmg-prev" class="chatster-ui-btn">◀ Prev</button>
-        <button id="chatster-lmg-next" class="chatster-ui-btn">Next ▶</button>
-      </div>
-    </div>
-  ` : `
+  ${minimized ? '' : `
   <div class="chatster-ui-body">
 
     <div class="chatster-ui-section">
@@ -1938,19 +1941,24 @@ if (minimized) {
     state.tick = setInterval(() => renderPanel(false), 1000);
   }
 
-  function registerVisCommHelper() {
-    window.VisCommHelpers = window.VisCommHelpers || {
+  function registerAssessmentHelper() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
       helpers: {},
       register(helper) {
         if (!helper?.id) return;
         this.helpers[helper.id] = helper;
+        (helper.aliases || []).forEach(alias => {
+          this.helpers[alias] = helper;
+        });
+        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
         window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
       }
     };
+    window.VisCommHelpers = window.AssessmentHelpers;
 
-    window.VisCommHelpers.register({
-      id: 'tutorial-sorter',
-      name: 'Tutorial Sorter',
+    window.AssessmentHelpers.register({
+      id: HELPER_ID,
+      name: HELPER_NAME,
       panelId: PANEL_ID,
       show() {
         init();
@@ -1994,6 +2002,6 @@ if (minimized) {
     });
   }
 
-  registerVisCommHelper();
+  registerAssessmentHelper();
   setTimeout(init, 1800);
 })();

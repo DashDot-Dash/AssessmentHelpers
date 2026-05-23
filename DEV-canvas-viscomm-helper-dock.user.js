@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas VisComm Helper Dock
-// @namespace    VisComm@UON
+// @name         DEV Canvas Assessment Helper Dock
+// @namespace    AssessmentHelpers
 // @version      0.1.0
-// @description  Floating launcher for VisComm Canvas helper panels
+// @description  Floating launcher for Canvas assessment helper panels
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
@@ -14,9 +14,10 @@
 (function () {
   'use strict';
 
-  const DOCK_ID = 'vc-helper-dock';
-  const STYLE_ID = 'vc-helper-dock-style';
-  const STORAGE_KEY = 'vcHelperDock:ui:v1';
+  const DOCK_ID = 'assessment-helper-dock';
+  const STYLE_ID = 'assessment-helper-dock-style';
+  const STORAGE_KEY = 'assessmentHelpers:dockUi:v1';
+  const LEGACY_STORAGE_KEY = 'vcHelperDock:ui:v1';
   const Z_INDEX_BASE = 1000000;
   let dockObserver = null;
 
@@ -34,14 +35,19 @@
     maximize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3" /><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6" /><path d="M12 8h4v4" /><path d="M16 8l-5 5" /></svg>'
   };
 
-  window.VisCommHelpers = window.VisCommHelpers || {
+  window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
     helpers: {},
     register(helper) {
       if (!helper?.id) return;
       this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
       window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
     }
   };
+  window.VisCommHelpers = window.AssessmentHelpers;
 
   const HELPERS = [
     {
@@ -59,11 +65,12 @@
       panelIds: ['vc-benchmarker-panel', 'sg-benchmarker-panel']
     },
     {
-      id: 'wwie',
-      name: 'WWIE',
+      id: 'eta',
+      aliases: ['wwie'],
+      name: 'ETA',
       icon: 'hourglass',
-      panelId: 'vc-wwie-panel',
-      panelIds: ['vc-wwie-panel', 'wwie-prince-panel']
+      panelId: 'eta-panel',
+      panelIds: ['eta-panel', 'vc-wwie-panel', 'wwie-prince-panel']
     },
     {
       id: 'tutorial-sorter',
@@ -80,17 +87,22 @@
       panelIds: ['vc-gradebridge-panel']
     },
     {
-      id: 'rubric-smoother',
-      name: 'Rubric Smoother',
+      id: 'rubric-library',
+      aliases: ['rubric-smoother'],
+      name: 'Rubric Library',
       icon: 'icons',
-      panelId: 'vc-rubric-smoother-panel',
-      panelIds: ['vc-rubric-smoother-panel', 'jj-rubric-overlay', 'jj-rubric-library-btn']
+      panelId: 'rubric-library-panel',
+      panelIds: ['rubric-library-panel', 'vc-rubric-smoother-panel', 'jj-rubric-overlay', 'jj-rubric-library-btn']
     }
   ];
 
   function loadUi() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {};
+      return JSON.parse(
+        localStorage.getItem(STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_STORAGE_KEY) ||
+        '{}'
+      ) || {};
     } catch (_) {
       return {};
     }
@@ -160,7 +172,10 @@
   }
 
   function getRegisteredHelper(helper) {
-    return window.VisCommHelpers?.helpers?.[helper.id] || null;
+    const registry = window.AssessmentHelpers || window.VisCommHelpers;
+    return registry?.helpers?.[helper.id] ||
+      (helper.aliases || []).map(alias => registry?.helpers?.[alias]).find(Boolean) ||
+      null;
   }
 
   function isPanelVisible(panel) {
@@ -173,19 +188,37 @@
     return loadUi().hidden || {};
   }
 
+  function isHelperHidden(helper) {
+    const hidden = hiddenMap();
+    return !!hidden[helper.id] || (helper.aliases || []).some(alias => hidden[alias]);
+  }
+
   function setHelperHidden(helper, hidden) {
     const ui = loadUi();
     const hiddenHelpers = { ...(ui.hidden || {}) };
     hiddenHelpers[helper.id] = !!hidden;
+    (helper.aliases || []).forEach(alias => {
+      hiddenHelpers[alias] = !!hidden;
+    });
     saveUi({ ...ui, hidden: hiddenHelpers });
     applyHelperVisibility(helper);
     renderDock();
   }
 
+  function clearHelperHidden(helper) {
+    const ui = loadUi();
+    const hiddenHelpers = { ...(ui.hidden || {}) };
+    hiddenHelpers[helper.id] = false;
+    (helper.aliases || []).forEach(alias => {
+      hiddenHelpers[alias] = false;
+    });
+    saveUi({ ...ui, hidden: hiddenHelpers });
+  }
+
   function applyHelperVisibility(helper) {
     const registered = getRegisteredHelper(helper);
     if (registered) {
-      if (hiddenMap()[helper.id]) {
+      if (isHelperHidden(helper)) {
         registered.hide?.();
       }
       return;
@@ -194,7 +227,7 @@
     const panel = getHelperPanel(helper);
     if (!panel) return;
 
-    const hidden = !!hiddenMap()[helper.id];
+    const hidden = isHelperHidden(helper);
     if (hidden) {
       if (!panel.dataset.vcHelperDockPreviousDisplay) {
         panel.dataset.vcHelperDockPreviousDisplay = panel.style.display || '';
@@ -229,6 +262,11 @@
         panel,
         available: !!registered || !!panel,
         actions,
+        ready: actions.length
+          ? actions.some(action => !action.disabled)
+          : registered
+            ? !!registered.isOpen?.()
+            : !!panel && isPanelVisible(panel),
         active: registered
           ? !!registered.isOpen?.()
           : !!panel && isPanelVisible(panel)
@@ -244,19 +282,22 @@
 
   function getFallbackDockActions(helper, panel) {
     if (helper.id !== 'gradebridge' || !panel) return [];
+    const hasSwitchTarget = !!panel.querySelector('[data-vc-gradebridge-action="jump"]');
 
     return [
       {
         id: 'switch',
         label: 'Switch',
         icon: 'switch',
-        disabled: false,
+        disabled: !hasSwitchTarget,
         run: () => {
           const detail = {
             helperId: 'gradebridge',
             actionId: 'switch',
             requestId: `${Date.now()}:${Math.random()}`
           };
+          document.dispatchEvent(new CustomEvent('assessment-helper-action', { detail }));
+          window.dispatchEvent(new CustomEvent('assessment-helper-action', { detail }));
           document.dispatchEvent(new CustomEvent('viscomm-helper-action', { detail }));
           window.dispatchEvent(new CustomEvent('viscomm-helper-action', { detail }));
         }
@@ -644,7 +685,7 @@
 
       if (minimized) {
         dock.innerHTML = `
-          <button type="button" class="vc-dock-tab" title="Open VisComm Helpers" aria-label="Open VisComm Helpers">
+          <button type="button" class="vc-dock-tab" title="Open Assessment Helpers" aria-label="Open Assessment Helpers">
             ${ICONS.maximize}
             <span>VC</span>
           </button>
@@ -655,8 +696,8 @@
       }
 
       const helperViews = getHelperViewModels();
-      const activeHelpers = helperViews.filter(item => item.active || item.actions.length);
-      const inactiveHelpers = helperViews.filter(item => !item.active && !item.actions.length);
+      const activeHelpers = helperViews.filter(item => item.ready);
+      const inactiveHelpers = helperViews.filter(item => !item.ready);
       const unavailableOpen = !!ui.unavailableOpen;
       const renderHelperButton = ({ helper, available, active, actions }) => {
         const classes = ['vc-dock-helper', active ? 'is-active' : ''].filter(Boolean).join(' ');
@@ -742,10 +783,7 @@
             if (registered.isOpen?.()) {
               setHelperHidden(helper, true);
             } else {
-              const uiNow = loadUi();
-              const hiddenHelpers = { ...(uiNow.hidden || {}) };
-              hiddenHelpers[helper.id] = false;
-              saveUi({ ...uiNow, hidden: hiddenHelpers });
+              clearHelperHidden(helper);
               registered.show?.();
               renderDock();
             }
@@ -774,6 +812,7 @@
     startObserver();
     window.addEventListener('pageshow', renderDock);
     window.addEventListener('focus', renderDock);
+    window.addEventListener('assessment-helper-registered', renderDock);
     window.addEventListener('viscomm-helper-registered', renderDock);
   }
 

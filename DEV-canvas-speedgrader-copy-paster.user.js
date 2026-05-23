@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         DEV Canvas SpeedGrader Copy Paster
-// @namespace    VisComm@UON
+// @namespace    AssessmentHelpers
 // @version      1.0.0
 // @description  Floating assignment-specific comment snippet panel for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -16,6 +16,8 @@
   // Manages reusable SpeedGrader comment snippets for the current assignment.
 
   // constants/config
+  const HELPER_ID = 'copy-paster';
+  const HELPER_NAME = 'Copy/Paster';
   const PANEL_ID = 'sg-copypaster-panel';
   const STYLE_ID = 'sg-copypaster-style';
   const Z_INDEX_BASE = 100000;
@@ -899,6 +901,11 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-panel-toggle svg {
       width: 16px;
       height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     #${PANEL_ID} .cp-body {
@@ -1831,19 +1838,24 @@ body.appendChild(
     startObserver();
   }
 
-  function registerVisCommHelper() {
-    window.VisCommHelpers = window.VisCommHelpers || {
+  function registerAssessmentHelper() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
       helpers: {},
       register(helper) {
         if (!helper?.id) return;
         this.helpers[helper.id] = helper;
+        (helper.aliases || []).forEach(alias => {
+          this.helpers[alias] = helper;
+        });
+        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
         window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
       }
     };
+    window.VisCommHelpers = window.AssessmentHelpers;
 
-    window.VisCommHelpers.register({
-      id: 'copy-paster',
-      name: 'Copy/Paster',
+    window.AssessmentHelpers.register({
+      id: HELPER_ID,
+      name: HELPER_NAME,
       panelId: PANEL_ID,
       show() {
         renderPanel();
@@ -1867,6 +1879,6 @@ body.appendChild(
     });
   }
 
-  registerVisCommHelper();
+  registerAssessmentHelper();
   init();
 })();

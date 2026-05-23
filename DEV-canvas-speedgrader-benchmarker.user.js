@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DEV Canvas SpeedGrader Benchmarker
 // @version      1.0.1
-// @namespace    VisComm@UON
+// @namespace    AssessmentHelpers
 // @description  Local benchmarking overlay for Canvas SpeedGrader
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
@@ -16,6 +16,8 @@
   // Tracks local SpeedGrader benchmarking buckets and filtered navigation state.
 
   // constants/config
+  const HELPER_ID = 'benchmarker';
+  const HELPER_NAME = 'Benchmarker';
   const PANEL_ID = 'sg-benchmarker-panel';
   const STYLE_ID = 'sg-benchmarker-style';
   const Z_INDEX_BASE = 100000;
@@ -1433,19 +1435,24 @@ body.appendChild(importExportDetails);
     startObserver();
   }
 
-  function registerVisCommHelper() {
-    window.VisCommHelpers = window.VisCommHelpers || {
+  function registerAssessmentHelper() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
       helpers: {},
       register(helper) {
         if (!helper?.id) return;
         this.helpers[helper.id] = helper;
+        (helper.aliases || []).forEach(alias => {
+          this.helpers[alias] = helper;
+        });
+        window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
         window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
       }
     };
+    window.VisCommHelpers = window.AssessmentHelpers;
 
-    window.VisCommHelpers.register({
-      id: 'benchmarker',
-      name: 'Benchmarker',
+    window.AssessmentHelpers.register({
+      id: HELPER_ID,
+      name: HELPER_NAME,
       panelId: PANEL_ID,
       show() {
         renderPanel();
@@ -1469,6 +1476,6 @@ body.appendChild(importExportDetails);
     });
   }
 
-  registerVisCommHelper();
+  registerAssessmentHelper();
   init();
 })();

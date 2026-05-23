@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         DEV Canvas Speedgrader GradeBridger
-// @namespace    https://github.com/GitJane/VisComm-Helpers
+// @namespace    AssessmentHelpers
 // @version      0.0.2
 // @description  Jump between paired Canvas SpeedGrader assignments while keeping the current student.
 // @author       Jane + Chatster
@@ -14,6 +14,8 @@
 (function () {
   'use strict';
 
+  const HELPER_ID = 'gradebridge';
+  const HELPER_NAME = 'GradeBridge';
   const STORAGE_KEYS = {
     pairs: 'vcGradeBridge:pairs:v1',
     anchor: 'vcGradeBridge:anchor:v1',
@@ -900,6 +902,8 @@ function renderPanel() {
   `;
 
   document.body.appendChild(panel);
+  applySavedPanelPosition(panel);
+  makePanelFloating(panel);
 
   panel.querySelector('#vc-gradebridge-minimize')?.addEventListener('click', () => {
     updatePanelMinimized(!minimized);
@@ -1331,23 +1335,30 @@ function bindDockActionBridge() {
     switchConnectedAssignmentFromDock();
   };
 
+  document.addEventListener('assessment-helper-action', handler);
+  window.addEventListener('assessment-helper-action', handler);
   document.addEventListener('viscomm-helper-action', handler);
   window.addEventListener('viscomm-helper-action', handler);
 }
 
-function registerVisCommHelper() {
-  window.VisCommHelpers = window.VisCommHelpers || {
+function registerAssessmentHelper() {
+  window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
     helpers: {},
     register(helper) {
       if (!helper?.id) return;
       this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
       window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
     }
   };
+  window.VisCommHelpers = window.AssessmentHelpers;
 
-  window.VisCommHelpers.register({
-    id: 'gradebridge',
-    name: 'GradeBridge',
+  window.AssessmentHelpers.register({
+    id: HELPER_ID,
+    name: HELPER_NAME,
     panelId: PANEL_ID,
     show() {
       renderPanel();
@@ -1384,6 +1395,6 @@ function registerVisCommHelper() {
 }
 
   bindDockActionBridge();
-  registerVisCommHelper();
+  registerAssessmentHelper();
   init();
 })();
