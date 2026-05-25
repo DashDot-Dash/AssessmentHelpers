@@ -248,6 +248,13 @@ function loadPairs() {
 
 function savePairs(pairs) {
   localStorage.setItem(STORAGE_KEYS.pairs, JSON.stringify(pairs));
+  notifyDockStatusChanged();
+}
+
+function notifyDockStatusChanged() {
+  const detail = { helperId: HELPER_ID };
+  window.dispatchEvent(new CustomEvent('assessment-helper-status-changed', { detail }));
+  window.dispatchEvent(new CustomEvent('viscomm-helper-status-changed', { detail }));
 }
 
 function loadAssignmentNameCache() {
@@ -299,7 +306,7 @@ function bringPanelToFront(panel) {
 function panelToggleIcon(expand) {
   const path = expand
     ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-    : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+    : '<path d="M6 12h12"></path>';
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
 }
 
@@ -485,7 +492,7 @@ function clearSavedAssignmentAnchor() {
 
 function getFirstAssignmentStatusText(firstAssignment) {
   if (!firstAssignment?.assignmentId) {
-    return 'No connection yet.';
+    return 'Connect this assignment, then navigate to another SpeedGrader assignment to complete the connection.';
   }
 
   const assignmentName = getAssignmentDisplayName(
@@ -531,11 +538,11 @@ function getPrimarySetupButtonLabel(setupState, anchor) {
 
 function getSetupHelpLabel(setupState) {
   if (setupState === 'no-anchor') {
-    return 'Choose this first, then go to the assignment you want to connect';
+    return 'Connect this assignment, then navigate to another SpeedGrader assignment to complete the connection.';
   }
 
   if (setupState === 'anchor-is-current') {
-    return 'Go to the SpeedGrader Assignment you would like to connect';
+    return 'Now navigate to another SpeedGrader assignment to complete the connection.';
   }
 
   return '';
@@ -832,17 +839,11 @@ function renderPanel() {
       <button type="button" class="vc-gradebridge-secondary" data-vc-gradebridge-action="save-anchor">
         ${escapeHtml(primarySetupButtonLabel)}
       </button>
-      <button type="button" class="vc-gradebridge-secondary vc-gradebridge-helper" disabled>
-        ${escapeHtml(setupHelpLabel)}
-      </button>
     `;
   } else if (setupState === 'anchor-is-current') {
     connectionControls = `
       <button type="button" class="vc-gradebridge-secondary vc-gradebridge-confirmed" disabled>
         ${escapeHtml(primarySetupButtonLabel)}
-      </button>
-      <button type="button" class="vc-gradebridge-secondary vc-gradebridge-helper" disabled>
-        ${escapeHtml(setupHelpLabel)}
       </button>
       <button type="button" class="vc-gradebridge-link" data-vc-gradebridge-action="clear-anchor">
         Clear this connection
@@ -898,11 +899,12 @@ function renderPanel() {
         </div>
       </div>
     ` : `
-      <div class="vc-gradebridge-empty">No connection yet.</div>
+      <div class="vc-gradebridge-empty">Not Connected yet. Use Manage Connections to set up fast switching between assignments.</div>
     `}
     <details class="vc-gradebridge-manage" ${pair ? '' : 'open'}>
       <summary>Manage Connections</summary>
-      ${(!pair || anchor) ? `<div class="vc-gradebridge-anchor">${escapeHtml(firstAssignmentStatusText)}</div>` : ''}
+      ${(!pair && anchor) ? `<div class="vc-gradebridge-anchor">${escapeHtml(firstAssignmentStatusText)}</div>` : ''}
+      ${(!pair && setupHelpLabel) ? `<div class="vc-gradebridge-instructions">${escapeHtml(setupHelpLabel)}</div>` : ''}
       ${connectionControls}
     </details>
     </div>
@@ -953,11 +955,11 @@ function renderPanel() {
         z-index: 999999;
         width: 340px;
         border-radius: 14px;
-        background: #11151a;
-        color: #f4f4f4;
+        background: #18181B;
+        color: #FAFAFA;
         box-shadow: 0 10px 30px rgba(0,0,0,0.35);
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.08);
         overflow: hidden;
       }
 
@@ -968,7 +970,7 @@ function renderPanel() {
         justify-content: space-between;
         gap: 10px;
         padding: 10px 12px 10px 25px;
-        background: #252b33;
+        background: #27272A;
         cursor: grab;
         user-select: none;
         touch-action: none;
@@ -982,11 +984,11 @@ function renderPanel() {
         bottom: 0;
         width: 12px;
         border-radius: 0 2px 2px 0;
-        background: #d6a21d;
+        background: #D6A21D;
       }
 
       .vc-gradebridge-header--border {
-        border-bottom: 1px solid rgba(255,255,255,0.10);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
       }
 
       .vc-gradebridge-title {
@@ -1013,14 +1015,14 @@ function renderPanel() {
         width: 28px;
         height: 26px;
         padding: 0;
-        background: rgba(255,255,255,0.08);
-        color: #d6dde7;
+        background: rgba(255,255,255,0.05);
+        color: #FAFAFA;
         cursor: pointer;
       }
 
       .vc-gradebridge-header-button:hover {
         background: rgba(255,255,255,0.14);
-        color: #ffffff;
+        color: #FAFAFA;
       }
 
       .vc-gradebridge-header-button svg {
@@ -1042,29 +1044,29 @@ function renderPanel() {
         border: 0;
         border-radius: 10px;
         padding: 9px 10px;
-        background: #2563eb;
-        color: white;
+        background: #E4E4E7;
+        color: #18181B;
         font-size: 13px;
         font-weight: 650;
         cursor: pointer;
       }
 
       .vc-gradebridge-button:hover {
-        background: #1d4ed8;
+        background: #E4E4E7;
       }
 
       .vc-gradebridge-empty {
         padding: 9px 10px;
         border-radius: 10px;
-        background: rgba(255,255,255,0.08);
-        color: #c9d1dc;
+        background: #27272A;
+        color: #A1A1AA;
         font-size: 12px;
         line-height: 1.3;
       }
 
       .vc-gradebridge-status {
         margin-top: 8px;
-        color: #aab2bd;
+        color: #A1A1AA;
         font-size: 11px;
         line-height: 1.3;
       }
@@ -1082,7 +1084,7 @@ function renderPanel() {
 
       .vc-gradebridge-section-label {
         margin: 2px 0 3px;
-        color: #aab2bd;
+        color: #A1A1AA;
         font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.02em;
@@ -1107,24 +1109,24 @@ function renderPanel() {
       }
 
       .vc-gradebridge-assignment-card-current * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
+        color: #FAFAFA !important;
+        -webkit-text-fill-color: #FAFAFA !important;
       }
 
       .vc-gradebridge-assignment-card-current {
         cursor: default;
-        background: rgba(255,255,255,0.08) !important;
-        color: #ffffff !important;
+        background: rgba(255,255,255,0.05) !important;
+        color: #FAFAFA !important;
       }
 
       .vc-gradebridge-assignment-card-target {
         cursor: pointer;
-        background: #2563eb !important;
-        color: #ffffff !important;
+        background: #E4E4E7 !important;
+        color: #18181B !important;
       }
 
       .vc-gradebridge-assignment-card-target:hover {
-        background: #1d4ed8 !important;
+        background: #E4E4E7 !important;
       }
 
       .vc-gradebridge-assignment-tag {
@@ -1156,12 +1158,12 @@ function renderPanel() {
 
       .vc-gradebridge-manage {
         margin-top: 10px;
-        border-top: 1px solid rgba(255,255,255,0.12);
+        border-top: 1px solid rgba(255,255,255,0.06);
         padding-top: 9px;
       }
 
       .vc-gradebridge-manage summary {
-        color: #d6dde7;
+        color: #FAFAFA;
         cursor: pointer;
         font-size: 12px;
         font-weight: 700;
@@ -1174,7 +1176,7 @@ function renderPanel() {
 
       .vc-gradebridge-manage summary::after {
         content: " ▾";
-        color: #8f9bab;
+        color: #A1A1AA;
       }
 
       .vc-gradebridge-manage[open] summary {
@@ -1183,9 +1185,16 @@ function renderPanel() {
 
       .vc-gradebridge-anchor {
         margin-bottom: 8px;
-        color: #aab2bd;
+        color: #A1A1AA;
         font-size: 11px;
         line-height: 1.3;
+      }
+
+      .vc-gradebridge-instructions {
+        margin-bottom: 8px;
+        color: #A1A1AA;
+        font-size: 11px;
+        line-height: 1.35;
       }
 
       .vc-gradebridge-secondary,
@@ -1201,12 +1210,12 @@ function renderPanel() {
 
       .vc-gradebridge-secondary {
         margin-top: 6px;
-        background: rgba(255,255,255,0.12);
-        color: #f4f4f4;
+        background: #27272A;
+        color: #FAFAFA;
       }
 
       .vc-gradebridge-secondary:hover {
-        background: rgba(255,255,255,0.18);
+        background: #3F3F46;
       }
 
       .vc-gradebridge-secondary:disabled {
@@ -1215,11 +1224,17 @@ function renderPanel() {
       }
 
       .vc-gradebridge-secondary:disabled:hover {
-        background: rgba(255,255,255,0.12);
+        background: #27272A;
       }
 
       .vc-gradebridge-confirmed:disabled {
+        cursor: default;
         opacity: 0.85;
+        color: #fefefe;
+        background: rgba(26, 216, 87, 0.88);
+      }
+
+      .vc-gradebridge-confirmed:disabled:hover {
         color: #fefefe;
         background: rgba(26, 216, 87, 0.88);
       }
@@ -1232,13 +1247,13 @@ function renderPanel() {
       .vc-gradebridge-link {
         margin-top: 6px;
         background: transparent;
-        color: #aab2bd;
+        color: #A1A1AA;
         text-align: left;
       }
 
       .vc-gradebridge-link:hover {
-        color: #f4f4f4;
-        background: rgba(255,255,255,0.08);
+        color: #FAFAFA;
+        background: rgba(255,255,255,0.05);
       }
 
       #vc-gradebridge-quiet-overlay {
@@ -1278,7 +1293,7 @@ function renderPanel() {
         width: 15px;
         height: 15px;
         border: 2px solid rgba(37, 99, 235, 0.24);
-        border-top-color: #2563eb;
+        border-top-color: #D6A21D;
         border-radius: 999px;
         animation: vc-gradebridge-spin 680ms linear infinite;
       }
@@ -1330,6 +1345,14 @@ function switchConnectedAssignmentFromDock() {
   if (!currentPair) return false;
   goToPair(currentPair, currentInfo);
   return true;
+}
+
+function getGradeBridgeDockStatus() {
+  const pair = getCurrentPair();
+  return {
+    configured: !!pair,
+    label: pair?.targetAssignmentName || ''
+  };
 }
 
 function bindDockActionBridge() {
@@ -1411,6 +1434,7 @@ function registerAssessmentHelper() {
       toggleRegisteredPanel(renderPanel);
     },
     isOpen: isRegisteredPanelOpen,
+    dockStatus: getGradeBridgeDockStatus,
     dockActions() {
       const pair = getCurrentPair();
       return [

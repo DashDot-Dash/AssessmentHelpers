@@ -123,6 +123,13 @@ const selectors = {
 
   function saveStoredTutorialSorterData(data) {
     localStorage.setItem(GROUPS_KEY, JSON.stringify(data && data.courses ? data : { courses: {} }));
+    notifyDockStatusChanged();
+  }
+
+  function notifyDockStatusChanged() {
+    const detail = { helperId: HELPER_ID };
+    window.dispatchEvent(new CustomEvent('assessment-helper-status-changed', { detail }));
+    window.dispatchEvent(new CustomEvent('viscomm-helper-status-changed', { detail }));
   }
 
   function migrateLegacyGroups(groups) {
@@ -219,6 +226,7 @@ const selectors = {
     localStorage.removeItem(PANEL_POS_KEY);
     localStorage.removeItem(PANEL_UI_KEY);
     localStorage.removeItem(CONTEXT_KEY);
+    notifyDockStatusChanged();
   }
 
   function getPanelPosition() {
@@ -1149,6 +1157,14 @@ function getStudentMenuItems() {
     return { activeGroup, currentIndexInGroup };
   }
 
+  function getTutorialSorterDockStatus() {
+    const { activeGroup } = getActiveGroupNavigationContext();
+    return {
+      configured: !!activeGroup?.students?.length,
+      label: activeGroup?.label || activeGroup?.name || ''
+    };
+  }
+
   async function goToRelativeGroupStudent(delta) {
     const { activeGroup, currentIndexInGroup } = getActiveGroupNavigationContext();
     if (!activeGroup || !activeGroup.students.length) return false;
@@ -1194,8 +1210,8 @@ function addStyles() {
     .chatster-ui-panel {
       width: 340px;
       z-index: ${Z_INDEX_BASE};
-      background: #1f2329;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
@@ -1209,7 +1225,7 @@ function addStyles() {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -1222,7 +1238,7 @@ function addStyles() {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
   }
 
@@ -1238,8 +1254,8 @@ function addStyles() {
       padding: 12px;
     }
 
-        .chatster-ui-details {
-      background: #161a20;
+    .chatster-ui-details {
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
       padding: 8px 10px;
@@ -1247,7 +1263,7 @@ function addStyles() {
 
     .chatster-ui-details summary {
       cursor: pointer;
-      color: #9aa3af;
+      color: #A1A1AA;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -1270,23 +1286,40 @@ function addStyles() {
     }
 
     .chatster-ui-btn {
-      background: #11151a;
-      color: #f3f4f6;
+      background: #27272A;
+      color: #FAFAFA;
       border: 1px solid rgba(255,255,255,0.08);
     }
 
     .chatster-ui-btn:hover {
-      background: #171c22;
+      background: #3F3F46;
+    }
+
+    .chatster-ui-icon-btn {
+      min-width: 38px;
+      min-height: 32px;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .chatster-ui-icon-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .chatster-ui-btn-quiet {
-      background: #161a20;
-      color: #d5d9df;
+      background: #27272A;
+      color: #A1A1AA;
       border: 1px solid rgba(255,255,255,0.06);
     }
 
     .chatster-ui-btn-quiet:hover {
-      background: #1b2027;
+      background: #3F3F46;
     }
 
     .chatster-ui-panel-toggle {
@@ -1319,21 +1352,21 @@ function addStyles() {
 
     .chatster-ui-muted {
       font-size: 11px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     .chatster-ui-field-label {
       display: block;
       font-size: 11px;
-      color: #9aa3af;
+      color: #A1A1AA;
       margin-bottom: 4px;
     }
 
     .chatster-ui-select,
     .chatster-ui-input {
       width: 100%;
-      background: #11151a;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 8px;
       padding: 8px;
@@ -1341,14 +1374,14 @@ function addStyles() {
     }
 
     .chatster-ui-card {
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
       padding: 10px;
     }
 
     .chatster-ui-stat {
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
       padding: 8px 10px;
@@ -1391,6 +1424,36 @@ function addStyles() {
   justify-content: center;
 }
 
+    .chatster-ui-nav-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 10px;
+      background: #18181B;
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 10px;
+    }
+
+    .chatster-ui-nav-block .chatster-ui-btn {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+    }
+
+    .chatster-ui-nav-block svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     .chatster-ui-stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1416,8 +1479,8 @@ function addStyles() {
       max-height: 220px;
       overflow: auto;
       font-size: 12px;
-      color: #c7ced8;
-      background: #11151a;
+      color: #A1A1AA;
+      background: #18181B;
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
     }
@@ -1433,7 +1496,7 @@ function addStyles() {
       cursor: pointer;
       border-radius: 6px;
       background: transparent;
-      color: #c7ced8;
+      color: #A1A1AA;
       font-weight: 400;
     }
 
@@ -1445,7 +1508,7 @@ function addStyles() {
 
     .chatster-ui-student-sub {
       font-size: 11px;
-      color: #8f98a3;
+      color: #A1A1AA;
       margin-top: 2px;
     }
 
@@ -1549,8 +1612,18 @@ if (!handle || !panel.contains(handle) || clickable) return;
   function panelToggleIcon(expand) {
     const path = expand
       ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-      : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+      : '<path d="M6 12h12"></path>';
     return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+  }
+
+  function actionIcon(name) {
+    const paths = {
+      upload: '<path d="M12 16v-12"></path><path d="M7 9l5 -5l5 5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      prev: '<path d="M15 6l-6 6l6 6"></path>',
+      next: '<path d="M9 6l6 6l-6 6"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || ''}</svg>`;
   }
 
   function bindDropHandlers(panel) {
@@ -1569,8 +1642,8 @@ if (!handle || !panel.contains(handle) || clickable) return;
       zone.style.borderColor = active
         ? 'rgba(255,255,255,0.45)'
         : 'rgba(255,255,255,0.14)';
-      zone.style.background = active ? '#2b313a' : '#161a20';
-      zone.style.color = active ? '#fff' : '#c7ced8';
+      zone.style.background = active ? '#3F3F46' : '#18181B';
+      zone.style.color = active ? '#fff' : '#A1A1AA';
     }
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(type => {
@@ -1706,6 +1779,11 @@ if (!handle || !panel.contains(handle) || clickable) return;
           </option>
         `).join('')}
       </select>
+      ${groups.length ? '' : `
+        <div class="chatster-ui-muted" style="margin-top:6px;line-height:1.4;">
+          Import a class file to enable dock Prev/Next.
+        </div>
+      `}
     </div>
 
     <div class="chatster-ui-stats-grid">
@@ -1732,9 +1810,9 @@ if (!handle || !panel.contains(handle) || clickable) return;
       ` : ''}
     </div>
 
-   <div class="chatster-ui-row chatster-ui-row--center chatster-ui-section">
-  <button id="chatster-lmg-prev" class="chatster-ui-btn">◀ Prev</button>
-  <button id="chatster-lmg-next" class="chatster-ui-btn">Next ▶</button>
+   <div class="chatster-ui-nav-block">
+  <button id="chatster-lmg-prev" class="chatster-ui-btn">${actionIcon('prev')}<span>Prev</span></button>
+  <button id="chatster-lmg-next" class="chatster-ui-btn"><span>Next</span>${actionIcon('next')}</button>
 </div>
 
     ${activeGroup ? `
@@ -1769,8 +1847,8 @@ if (!handle || !panel.contains(handle) || clickable) return;
         class="chatster-ui-dropzone"
         style="
           border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-          background:${state.isDropActive ? '#2b313a' : '#161a20'};
-          color:${state.isDropActive ? '#fff' : '#c7ced8'};
+          background:${state.isDropActive ? '#3F3F46' : '#18181B'};
+          color:${state.isDropActive ? '#fff' : '#A1A1AA'};
         "
       >
         <div style="font-weight:700;">Drop class file here</div>
@@ -1780,7 +1858,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
       </div>
 
       <div class="chatster-ui-wrap chatster-ui-section-lg">
-        <button id="chatster-lmg-import" class="chatster-ui-btn">Import class file</button>
+        <button id="chatster-lmg-import" class="chatster-ui-btn chatster-ui-icon-btn" title="Import class file" aria-label="Import class file">${actionIcon('upload')}</button>
         <input
           id="chatster-lmg-file"
           type="file"
@@ -1811,7 +1889,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
             <option value="day_time_staff" ${exportNameMode === 'day_time_staff' ? 'selected' : ''}>Day/time - staff</option>
             <option value="room_staff" ${exportNameMode === 'room_staff' ? 'selected' : ''}>Room - staff</option>
           </select>
-          <button id="chatster-lmg-export-csv" class="chatster-ui-btn">Export Canvas CSV</button>
+          <button id="chatster-lmg-export-csv" class="chatster-ui-btn chatster-ui-icon-btn" title="Export Canvas CSV" aria-label="Export Canvas CSV">${actionIcon('download')}</button>
         </div>
       </div>
 
@@ -2001,6 +2079,7 @@ if (minimized) {
         toggleRegisteredPanel(init);
       },
       isOpen: isRegisteredPanelOpen,
+      dockStatus: getTutorialSorterDockStatus,
       dockActions() {
         const { activeGroup } = getActiveGroupNavigationContext();
         const disabled = !activeGroup || !activeGroup.students.length;

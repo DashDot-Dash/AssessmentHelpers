@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment Helpers Theme Preview</title>
+  <style>
+    :root {
+      --shell: #18181B;
+      --header: #27272A;
+      --section: #27272A;
+      --control: #27272A;
+      --control-hover: #3F3F46;
+      --control-active: #E4E4E7;
+      --stripe: #D6A21D;
+      --border: #3F3F46;
+      --text: #FAFAFA;
+      --muted: #A1A1AA;
+      --surface: var(--shell);
+      --hover: var(--control-hover);
+      --accent: var(--control-active);
+      --neutral: var(--muted);
+      --page: #edf0f2;
+      --panel: #FAFAFA;
+      --ink: #18222d;
+      --ink-soft: #607080;
+      --on-dark: var(--text);
+      --success: #2f7d4f;
+      --warning-soft: #fff5d5;
+      --line: var(--border);
+      --shadow: 0 14px 34px rgba(24, 34, 45, 0.22);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--page);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(46, 66, 87, 0.04) 1px, transparent 1px),
+        linear-gradient(rgba(46, 66, 87, 0.04) 1px, transparent 1px),
+        var(--page);
+      background-size: 28px 28px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 18px;
+      border-right: 1px solid rgba(24, 34, 45, 0.14);
+      background: #fff;
+    }
+
+    .controls-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 20px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 22px 0 10px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-soft);
+    }
+
+    h3 {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink-soft);
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .preset {
+      min-height: 42px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .preset strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .preset-swatches {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 3px;
+    }
+
+    .preset-swatches span {
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .color-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 82px;
+      align-items: center;
+      gap: 10px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .color-row input[type="color"] {
+      width: 44px;
+      height: 34px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .color-name {
+      min-width: 0;
+    }
+
+    .color-name strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .color-name span {
+      display: block;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--ink-soft);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hex {
+      padding: 6px 7px;
+      border-radius: 6px;
+      background: #f2f4f6;
+      font-size: 12px;
+      color: var(--ink);
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wheel-card {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .wheel-target {
+      display: grid;
+      grid-template-columns: 1fr 90px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .wheel-target select {
+      width: 100%;
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .wheel-picker {
+      position: relative;
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      width: min(220px, 100%);
+      margin: 0 auto;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, #fff 0 16%, transparent 17%),
+        conic-gradient(#d43d3d, #d6a21d, #88a840, #299d67, #2f9195, #276781, #59489a, #b44284, #d43d3d);
+      box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.84), 0 10px 20px rgba(24, 34, 45, 0.16);
+      overflow: hidden;
+    }
+
+    .wheel-picker input[type="color"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.001;
+      cursor: pointer;
+    }
+
+    .wheel-centre {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 6px solid #fff;
+      background: var(--stripe);
+      box-shadow: 0 4px 12px rgba(24, 34, 45, 0.22);
+      color: #1f2830;
+      font-weight: 800;
+      font-size: 12px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .code-output {
+      width: 100%;
+      min-height: 128px;
+      resize: vertical;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f7f8f9;
+      color: #263442;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .control-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .secondary-button {
+      min-height: 36px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--on-dark);
+      font-weight: 700;
+    }
+
+    .secondary-button:hover {
+      background: var(--hover);
+    }
+
+    .preview {
+      position: relative;
+      min-width: 0;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .canvas-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 58px;
+      padding: 0 18px;
+      border-radius: var(--radius);
+      background: #f8f9fa;
+      border: 1px solid rgba(24, 34, 45, 0.12);
+      box-shadow: 0 4px 14px rgba(24, 34, 45, 0.08);
+    }
+
+    .canvas-bar strong {
+      color: #4b5560;
+    }
+
+    .canvas-tabs {
+      display: flex;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .canvas-tabs span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #eceff1;
+      color: #52616f;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 690px;
+      margin-top: 20px;
+      border: 1px solid rgba(24, 34, 45, 0.14);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.46)),
+        radial-gradient(circle at 18% 15%, rgba(214, 162, 29, 0.12), transparent 34%),
+        radial-gradient(circle at 86% 34%, rgba(99, 142, 150, 0.18), transparent 32%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      overflow: hidden;
+    }
+
+    .dock {
+      position: absolute;
+      top: 22px;
+      left: 22px;
+      width: 238px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--on-dark);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .dock::before,
+    .helper-panel::before,
+    .mini-strip::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 12px;
+      background: var(--accent);
+    }
+
+    .dock-header,
+    .panel-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 10px 8px 22px;
+      background: var(--header);
+      color: var(--on-dark);
+    }
+
+    .dock-title,
+    .panel-title {
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--on-dark);
+    }
+
+    .icon-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .dock-body {
+      padding: 10px;
+    }
+
+    .helper-button,
+    .quick-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      min-height: 34px;
+      margin-bottom: 7px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: var(--control);
+      color: var(--on-dark);
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .helper-button:hover,
+    .quick-button:hover {
+      background: var(--hover);
+    }
+
+    .helper-button.active {
+      background: var(--accent);
+      color: #20242a;
+    }
+
+    .helper-button.disabled {
+      opacity: 0.48;
+    }
+
+    .quick-cluster {
+      margin: 10px 0;
+      padding: 8px;
+      border: 1px solid rgba(214, 162, 29, 0.78);
+      border-radius: var(--radius);
+      background: var(--section);
+    }
+
+    .quick-heading {
+      margin: 0 0 7px;
+      color: rgba(248, 250, 251, 0.8);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .quick-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .quick-button {
+      justify-content: center;
+      min-height: 31px;
+      margin: 0;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    .other {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .other summary {
+      cursor: pointer;
+      color: rgba(248, 250, 251, 0.82);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .helper-panel {
+      position: absolute;
+      width: 320px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .helper-panel.gradebridge {
+      top: 70px;
+      right: 36px;
+    }
+
+    .helper-panel.tutorial {
+      top: 306px;
+      right: 78px;
+    }
+
+    .helper-panel.copy {
+      left: 292px;
+      bottom: 48px;
+      width: 292px;
+    }
+
+    .panel-body {
+      padding: 14px 14px 14px 26px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px;
+      border-radius: 6px;
+      background: var(--warning-soft);
+      border: 1px solid rgba(214, 162, 29, 0.42);
+      font-size: 12px;
+      color: #534018;
+    }
+
+    .field {
+      margin-top: 10px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #3a4652;
+    }
+
+    .fake-select,
+    .fake-input {
+      display: flex;
+      align-items: center;
+      min-height: 35px;
+      padding: 0 9px;
+      border: 1px solid rgba(24, 34, 45, 0.18);
+      border-radius: 6px;
+      background: #fff;
+      color: #344252;
+      font-size: 13px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .primary-action,
+    .plain-action,
+    .success-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .primary-action {
+      background: var(--accent);
+      color: #20242a;
+    }
+
+    .plain-action {
+      background: #eef2f3;
+      color: #344252;
+    }
+
+    .success-action {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .group-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .group-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border-radius: 6px;
+      background: #f3f6f7;
+      font-size: 12px;
+    }
+
+    .group-chip {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--header);
+      color: var(--on-dark);
+      font-weight: 800;
+    }
+
+    .mini-strip {
+      position: absolute;
+      left: 310px;
+      top: 42px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      width: 206px;
+      padding: 7px 9px 7px 24px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--on-dark);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .mini-strip strong {
+      min-width: 0;
+      flex: 1;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .contrast-strip {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      min-height: 54px;
+    }
+
+    .contrast-strip span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .contrast-strip span:nth-child(1) { background: var(--shell); }
+    .contrast-strip span:nth-child(2) { background: var(--header); }
+    .contrast-strip span:nth-child(3) { background: var(--section); }
+    .contrast-strip span:nth-child(4) { background: var(--control); }
+    .contrast-strip span:nth-child(5) { background: var(--control-hover); }
+    .contrast-strip span:nth-child(6) { background: var(--control-active); color: #20242a; }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(24, 34, 45, 0.14);
+      }
+
+      .preview {
+        padding: 14px;
+      }
+
+      .stage {
+        min-height: 980px;
+      }
+
+      .dock,
+      .helper-panel,
+      .mini-strip {
+        position: relative;
+        inset: auto;
+        width: auto;
+        margin: 14px;
+      }
+
+      .contrast-strip {
+        position: relative;
+        margin-top: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="controls">
+      <div class="controls-header">
+        <div>
+          <h1>Assessment Helpers Theme Preview</h1>
+          <p class="hint">Try colours here first, then copy the CSS variables back into the DEV userscripts.</p>
+        </div>
+      </div>
+
+      <h2>Presets</h2>
+      <div class="preset-grid" id="presetGrid"></div>
+
+      <h2>Theme Colours</h2>
+      <div class="color-list" id="colorList"></div>
+
+      <h2>Colour Wheel</h2>
+      <div class="wheel-card">
+        <div class="wheel-target">
+          <select id="wheelTarget" aria-label="Colour wheel target"></select>
+          <span class="hex" id="wheelHex">#E4E4E7</span>
+        </div>
+        <label class="wheel-picker" aria-label="Open colour wheel">
+          <input type="color" id="wheelPicker" value="#E4E4E7">
+          <span class="wheel-centre">Pick colour</span>
+        </label>
+      </div>
+
+      <h2>CSS Variables</h2>
+      <textarea class="code-output" id="cssOutput" readonly></textarea>
+      <div class="control-actions">
+        <button class="secondary-button" type="button" id="copyCss">Copy CSS</button>
+        <button class="secondary-button" type="button" id="resetTheme">Reset</button>
+      </div>
+    </aside>
+
+    <section class="preview" aria-label="Assessment Helpers preview">
+      <div class="canvas-bar">
+        <strong>Canvas SpeedGrader</strong>
+        <div class="canvas-tabs">
+          <span>Rubric</span>
+          <span>Submission</span>
+          <span>Assessment Helpers active</span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="dock">
+          <div class="dock-header">
+            <div class="dock-title">Assessment Helpers</div>
+            <button class="icon-button" type="button" aria-label="Minimise dock">
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="dock-body">
+            <button class="helper-button active" type="button"><span>GradeBridge</span><span>Open</span></button>
+            <button class="helper-button active" type="button"><span>Tutorial Sorter</span><span>Open</span></button>
+            <button class="helper-button" type="button"><span>Copy/Paster</span><span>Show</span></button>
+
+            <div class="quick-cluster">
+              <p class="quick-heading">Tutorial Sorter</p>
+              <div class="quick-row">
+                <button class="quick-button" type="button">Prev</button>
+                <button class="quick-button" type="button">Next</button>
+              </div>
+            </div>
+
+            <div class="quick-cluster">
+              <p class="quick-heading">GradeBridge</p>
+              <button class="quick-button" type="button">Switch</button>
+            </div>
+
+            <details class="other" open>
+              <summary>Other helpers</summary>
+              <button class="helper-button disabled" type="button"><span>ETA</span><span>Idle</span></button>
+              <button class="helper-button disabled" type="button"><span>Rubric Library</span><span>Page only</span></button>
+            </details>
+          </div>
+        </div>
+
+        <div class="mini-strip">
+          <strong>AH</strong>
+          <button class="icon-button" type="button" aria-label="Restore dock">
+            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 4h12v12M20 4 9 15M4 8v12h12" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </button>
+        </div>
+
+        <section class="helper-panel gradebridge">
+          <div class="panel-header">
+            <div class="panel-title">GradeBridge</div>
+            <button class="icon-button" type="button" aria-label="Minimise GradeBridge">
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="status">
+              <strong>Connected</strong>
+              <span>Fast switch ready</span>
+            </div>
+            <div class="field">
+              <label>Manage Connections</label>
+              <div class="fake-select">Design Journal to Folio Review</div>
+            </div>
+            <p class="hint">Connect this assignment, then navigate to another SpeedGrader assignment to complete the connection.</p>
+            <div class="action-row">
+              <button class="success-action" type="button">Connected</button>
+              <button class="primary-action" type="button">Switch</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="helper-panel tutorial">
+          <div class="panel-header">
+            <div class="panel-title">Tutorial Sorter</div>
+            <button class="icon-button" type="button" aria-label="Minimise Tutorial Sorter">
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="status">
+              <strong>3 groups loaded</strong>
+              <span>Next: Studio B</span>
+            </div>
+            <div class="group-list">
+              <div class="group-row"><span class="group-chip">A</span><span>Studio A</span><strong>12</strong></div>
+              <div class="group-row"><span class="group-chip">B</span><span>Studio B</span><strong>15</strong></div>
+              <div class="group-row"><span class="group-chip">C</span><span>Studio C</span><strong>14</strong></div>
+            </div>
+            <div class="action-row">
+              <button class="plain-action" type="button" aria-label="Import groups">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <button class="plain-action" type="button" aria-label="Export groups">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 15V3m0 0 4 4m-4-4-4 4M5 19h14" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <button class="primary-action" type="button">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="helper-panel copy">
+          <div class="panel-header">
+            <div class="panel-title">Copy/Paster</div>
+            <button class="icon-button" type="button" aria-label="Minimise Copy/Paster">
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>Comment Snippet</label>
+              <div class="fake-input">Strong process notes, but the final reflection needs one clearer example.</div>
+            </div>
+            <div class="action-row">
+              <button class="primary-action" type="button">Paste</button>
+              <button class="plain-action" type="button">Save</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="contrast-strip" aria-label="Theme colour strip">
+          <span>Shell</span>
+          <span>Header</span>
+          <span>Section</span>
+          <span>Control</span>
+          <span>Hover</span>
+          <span>Active</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const colorDefs = [
+      { key: "shell", label: "Shell", note: "Dock and panel outer background" },
+      { key: "header", label: "Header", note: "Draggable panel and dock bars" },
+      { key: "section", label: "Section", note: "Grouped quick actions and inner areas" },
+      { key: "control", label: "Control", note: "Default buttons and pills" },
+      { key: "controlHover", cssVar: "control-hover", label: "Control Hover", note: "Button hover and drop states" },
+      { key: "controlActive", cssVar: "control-active", label: "Control Active", note: "Selected helpers and primary actions" },
+      { key: "stripe", label: "Stripe", note: "Yellow helper stripe and small border cues" },
+      { key: "border", label: "Border", note: "Standard outlines and dividers" },
+      { key: "text", label: "Text", note: "Main text on dark panels" },
+      { key: "muted", label: "Muted", note: "Secondary and disabled text" },
+    ];
+
+    const presets = {
+      "Radix Neutral": {
+        shell: "#18181B",
+        header: "#27272A",
+        section: "#27272A",
+        control: "#27272A",
+        controlHover: "#3F3F46",
+        controlActive: "#E4E4E7",
+        stripe: "#D6A21D",
+        border: "#3F3F46",
+        text: "#FAFAFA",
+        muted: "#A1A1AA",
+      },
+      "Lost In Canvas": {
+        shell: "#1F2329",
+        header: "#252B33",
+        section: "#161A20",
+        control: "#11151A",
+        controlHover: "#171C22",
+        controlActive: "#D6A21D",
+        stripe: "#D6A21D",
+        border: "#3F3F46",
+        text: "#FAFAFA",
+        muted: "#8F9BAB",
+      },
+      "Current Palette": {
+        shell: "#2E4257",
+        header: "#276781",
+        section: "#263A4D",
+        control: "#2E4257",
+        controlHover: "#638E96",
+        controlActive: "#D6A21D",
+        stripe: "#D6A21D",
+        border: "#526473",
+        text: "#FAFAFA",
+        muted: "#B8C0C7",
+      },
+      "Higher Contrast": {
+        shell: "#243447",
+        header: "#1F5F75",
+        section: "#1D2A39",
+        control: "#243447",
+        controlHover: "#5D99A3",
+        controlActive: "#E0A81B",
+        stripe: "#E0A81B",
+        border: "#51606B",
+        text: "#F4F7F8",
+        muted: "#AEB8BE",
+      },
+      "Calmer Teal": {
+        shell: "#314D5B",
+        header: "#357084",
+        section: "#294550",
+        control: "#314D5B",
+        controlHover: "#78A5AB",
+        controlActive: "#D4A11F",
+        stripe: "#D4A11F",
+        border: "#627980",
+        text: "#F4F7F8",
+        muted: "#B8C5C8",
+      },
+      "Night Demo": {
+        shell: "#1F2E3A",
+        header: "#274F63",
+        section: "#17242E",
+        control: "#1F2E3A",
+        controlHover: "#5F8F99",
+        controlActive: "#D9A31C",
+        stripe: "#D9A31C",
+        border: "#4B5D66",
+        text: "#F4F7F8",
+        muted: "#AEB7BC",
+      },
+    };
+
+    const state = { ...presets["Radix Neutral"] };
+    const colorList = document.getElementById("colorList");
+    const presetGrid = document.getElementById("presetGrid");
+    const cssOutput = document.getElementById("cssOutput");
+    const wheelTarget = document.getElementById("wheelTarget");
+    const wheelPicker = document.getElementById("wheelPicker");
+    const wheelHex = document.getElementById("wheelHex");
+
+    function setCssVar(key, value) {
+      state[key] = value.toUpperCase();
+      const def = colorDefs.find(item => item.key === key);
+      document.documentElement.style.setProperty(`--${def?.cssVar || key}`, state[key]);
+      const input = document.querySelector(`[data-color="${key}"]`);
+      const hex = document.querySelector(`[data-hex="${key}"]`);
+      if (input && input.value.toUpperCase() !== state[key]) input.value = state[key];
+      if (hex) hex.textContent = state[key];
+      if (wheelTarget.value === key) {
+        wheelPicker.value = state[key];
+        wheelHex.textContent = state[key];
+      }
+      updateCssOutput();
+    }
+
+    function applyTheme(theme) {
+      colorDefs.forEach(({ key }) => setCssVar(key, theme[key]));
+    }
+
+    function updateCssOutput() {
+      cssOutput.value = `:root {
+  --ah-shell: ${state.shell};
+  --ah-header: ${state.header};
+  --ah-section: ${state.section};
+  --ah-control: ${state.control};
+  --ah-control-hover: ${state.controlHover};
+  --ah-control-active: ${state.controlActive};
+  --ah-stripe: ${state.stripe};
+  --ah-border: ${state.border};
+  --ah-text: ${state.text};
+  --ah-muted: ${state.muted};
+}`;
+    }
+
+    function renderControls() {
+      colorList.innerHTML = colorDefs.map(({ key, label, note }) => `
+        <label class="color-row">
+          <input type="color" value="${state[key]}" data-color="${key}" aria-label="${label}">
+          <span class="color-name">
+            <strong>${label}</strong>
+            <span>${note}</span>
+          </span>
+          <span class="hex" data-hex="${key}">${state[key]}</span>
+        </label>
+      `).join("");
+
+      colorDefs.forEach(({ key, label }) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = label;
+        wheelTarget.append(option);
+      });
+      wheelTarget.value = "controlActive";
+
+      Object.entries(presets).forEach(([name, theme]) => {
+        const button = document.createElement("button");
+        button.className = "preset";
+        button.type = "button";
+        button.innerHTML = `
+          <strong>${name}</strong>
+          <span class="preset-swatches">
+            ${colorDefs.map(({ key }) => `<span style="background:${theme[key]}"></span>`).join("")}
+          </span>
+        `;
+        button.addEventListener("click", () => applyTheme(theme));
+        presetGrid.append(button);
+      });
+
+      colorList.addEventListener("input", (event) => {
+        const key = event.target.dataset.color;
+        if (key) setCssVar(key, event.target.value);
+      });
+    }
+
+    wheelTarget.addEventListener("change", () => {
+      const key = wheelTarget.value;
+      wheelPicker.value = state[key];
+      wheelHex.textContent = state[key];
+    });
+
+    wheelPicker.addEventListener("input", () => {
+      setCssVar(wheelTarget.value, wheelPicker.value);
+    });
+
+    document.getElementById("copyCss").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(cssOutput.value);
+        document.getElementById("copyCss").textContent = "Copied";
+        setTimeout(() => {
+          document.getElementById("copyCss").textContent = "Copy CSS";
+        }, 1200);
+      } catch {
+        cssOutput.focus();
+        cssOutput.select();
+      }
+    });
+
+    document.getElementById("resetTheme").addEventListener("click", () => {
+      applyTheme(presets["Radix Neutral"]);
+    });
+
+    renderControls();
+    applyTheme(state);
+  </script>
+</body>
+</html>

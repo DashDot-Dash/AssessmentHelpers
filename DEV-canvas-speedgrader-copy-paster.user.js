@@ -811,7 +811,9 @@ function handleImportData(file) {
       copy: '<path d="M8 8m0 2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v7a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2z"></path><path d="M16 8v-1a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v7a2 2 0 0 0 2 2h1"></path>',
       edit: '<path d="M4 20h4l10.5 -10.5a2.8 2.8 0 1 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path>',
       delete: '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3h6v3"></path>',
-      minimize: '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>',
+      upload: '<path d="M12 16v-12"></path><path d="M7 9l5 -5l5 5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      minimize: '<path d="M6 12h12"></path>',
       maximize: '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
     };
 
@@ -845,8 +847,8 @@ function handleImportData(file) {
       left: 20px;
       width: 510px;
       z-index: ${Z_INDEX_BASE};
-      background: #1f2329;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
@@ -869,7 +871,7 @@ function handleImportData(file) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -881,7 +883,7 @@ function handleImportData(file) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
 }
 
@@ -919,7 +921,7 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-small {
      
       font-size:11px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .cp-grid {
@@ -949,13 +951,13 @@ function handleImportData(file) {
   cursor: pointer;
   font-size: 11px;
   
-  background: #11151a;
-  color: #f3f4f6;
+  background: #18181B;
+  color: #FAFAFA;
   border: 1px solid rgba(255,255,255,0.08);
 }
 
     #${PANEL_ID} button:hover {
-      background: #171c22;
+      background: #3F3F46;
       filter: none;
     }
 
@@ -970,8 +972,8 @@ function handleImportData(file) {
       width: 100%;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.08);
-      background: #11151a;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       padding: 8px 10px;
     }
 
@@ -984,7 +986,7 @@ function handleImportData(file) {
       display: block;
       margin-bottom: 4px;
       font-size: 11px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .cp-check {
@@ -992,7 +994,7 @@ function handleImportData(file) {
       align-items: center;
       gap: 8px;
       margin: 0;
-      color: #d5d9df;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .cp-check input {
@@ -1002,7 +1004,7 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-list {
       overflow: auto;
       border-radius: 10px;
-      background: #161a20;
+      background: #18181B;
       border: 1px solid rgba(255,255,255,0.05);
       padding: 6px;
     }
@@ -1024,11 +1026,11 @@ function handleImportData(file) {
       height: 4px;
       transform: translateX(-50%);
       border-radius: 999px;
-      background: rgba(214,162,29,0.75);
+      background: rgba(143,145,148,0.75);
     }
 
     #${PANEL_ID} .cp-resize-handle:hover::before {
-      background: #d6a21d;
+      background: #E4E4E7;
     }
 
     #${PANEL_ID} .cp-section {
@@ -1042,12 +1044,12 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-section-title {
       margin: 2px 0 8px;
       padding: 5px 8px;
-      border-left: 4px solid #d6a21d;
+      border-left: 4px solid #D6A21D;
       border-radius: 6px;
-      background: rgba(214,162,29,0.12);
+      background: rgba(255,255,255,0.05);
       font-size: 11px;
       font-weight: 700;
-      color: #ffd36b;
+      color: #E4E4E7;
     }
 
     #${PANEL_ID} .cp-band-buttons {
@@ -1061,26 +1063,26 @@ function handleImportData(file) {
       padding: 3px 7px;
       border-radius: 999px;
       font-size: 10px;
-      color: #d5d9df;
-      background: #11151a;
-      border: 1px solid rgba(214,162,29,0.25);
+      color: #A1A1AA;
+      background: #27272A;
+      border: 1px solid rgba(143,145,148,0.25);
     }
 
     #${PANEL_ID} .cp-band-button:hover {
-      border-color: rgba(214,162,29,0.65);
+      border-color: rgba(143,145,148,0.65);
     }
 
     #${PANEL_ID} .cp-band-button.active {
-      color: #1f2329;
-      background: #d6a21d;
-      border-color: #d6a21d;
+      color: #18181B;
+      background: #E4E4E7;
+      border-color: #E4E4E7;
       outline: none;
     }
 
     #${PANEL_ID} .cp-item {
       padding: 10px;
       border-radius: 10px;
-      background: #1b2027;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       margin-bottom: 8px;
     }
@@ -1104,12 +1106,12 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-item-meta {
       margin-top: 2px;
       font-size: 10px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .cp-item-text {
       font-size: 11px;
-      color: #c7ced8;
+      color: #A1A1AA;
       white-space: pre-wrap;
       margin-bottom: 8px;
     }
@@ -1146,7 +1148,7 @@ function handleImportData(file) {
       justify-content: center;
       padding: 0;
       border-radius: 7px;
-      color: #d5d9df;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .cp-icon-btn svg {
@@ -1162,7 +1164,7 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-icon-btn-primary {
       width: 34px;
       background: #2f7d32;
-      color: #ffffff;
+      color: #FAFAFA;
     }
 
     #${PANEL_ID} .cp-icon-btn-primary:hover {
@@ -1205,19 +1207,19 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-action-secondary {
-      color: #ffd36b;
-      background: #161a20;
-      border-color: rgba(214,162,29,0.32);
+      color: #E4E4E7;
+      background: #27272A;
+      border-color: rgba(143,145,148,0.32);
     }
 
     #${PANEL_ID} .cp-action-secondary:hover {
-      background: rgba(214,162,29,0.12);
-      border-color: rgba(214,162,29,0.65);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(143,145,148,0.65);
     }
 
     #${PANEL_ID} .cp-action-primary {
       color: #95d59b;
-      background: #161a20;
+      background: #18181B;
       border-color: rgba(47,125,50,0.42);
     }
 
@@ -1229,7 +1231,7 @@ function handleImportData(file) {
 #${PANEL_ID} .cp-btn-primary {
 padding: 4px 8px;
   background: #2f7d32;
-  color: #ffffff;
+  color: #FAFAFA;
   font-size: 11pt;
  
   border: 1px solid rgba(255,255,255,0.08);
@@ -1247,13 +1249,13 @@ padding: 4px 8px;
     #${PANEL_ID} .cp-btn-small {
       padding: 4px 8px;
       font-size: 11px;
-      background: #161a20;
-      color: #d5d9df;
+      background: #18181B;
+      color: #A1A1AA;
       border: 1px solid rgba(255,255,255,0.06);
     }
 
     #${PANEL_ID} .cp-btn-small:hover {
-      background: #1b2027;
+      background: #3F3F46;
     }
 
     #${PANEL_ID} .cp-btn-danger {
@@ -1277,7 +1279,7 @@ padding: 4px 8px;
 
     #${PANEL_ID} details.cp-import-export summary {
       cursor: pointer;
-      color: #d5d9df;
+      color: #A1A1AA;
       font-size: 12px;
       list-style-position: inside;
     }
@@ -1651,7 +1653,7 @@ padding: 4px 8px;
 body.appendChild(
   createElement('div', {
     class: 'cp-row cp-small',
-    style: 'background:#161a20;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
+    style: 'background:#18181B;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
   }, [
     `Assignment: ${getAssignmentName()}`
   ])
@@ -1776,12 +1778,18 @@ body.appendChild(
       }, [
         createElement('button', {
           type: 'button',
-          text: 'Export CSV',
+          class: 'cp-icon-btn',
+          title: 'Export CSV',
+          'aria-label': 'Export CSV',
+          html: iconSvg('download'),
           onclick: handleExportData
         }),
         createElement('button', {
           type: 'button',
-          text: 'Import CSV',
+          class: 'cp-icon-btn',
+          title: 'Import CSV',
+          'aria-label': 'Import CSV',
+          html: iconSvg('upload'),
           onclick: () => fileInput.click()
         }),
         createElement('button', {

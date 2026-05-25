@@ -38,7 +38,14 @@
   const selectors = {
     panel: `#${PANEL_ID}`,
     selectedStudent: '[data-testid="selected-student"]',
-    studentSelectTrigger: '[data-testid="student-select-trigger"]'
+    studentSelectTrigger: [
+      '[data-testid="student-select-trigger"]',
+      'button[aria-haspopup="listbox"]',
+      'button[aria-haspopup="menu"]',
+      '[role="button"][aria-haspopup="listbox"]',
+      '[role="button"][aria-haspopup="menu"]',
+      '[role="combobox"]'
+    ].join(',')
   };
 
   // state
@@ -49,6 +56,8 @@
     lastRenderedSignature: '',
     tickInterval: null,
     navInterval: null,
+    contextInterval: null,
+    lastContextSignature: '',
     drag: null,
     princeWidget: null,
     lastProgressRatio: 0,
@@ -243,18 +252,23 @@ function getCurrentStudentDisplayName() {
 }
 
 function getCurrentStudentKey() {
-  const displayName = getCurrentStudentDisplayName();
-  if (displayName) return `name:${normalizeName(displayName)}`;
-
   const url = new URL(window.location.href);
   const byParam =
     url.searchParams.get('student_id') ||
     url.searchParams.get('student_ids') ||
-    url.searchParams.get('user_id');
+    url.searchParams.get('user_id') ||
+    url.searchParams.get('anonymous_id');
 
   if (byParam) return `id:${byParam}`;
 
+  const displayName = getCurrentStudentDisplayName();
+  if (displayName) return `name:${normalizeName(displayName)}`;
+
   return 'unknown_student';
+}
+
+function isUsableStudentKey(key) {
+  return !!key && key !== 'unknown_student';
 }
 
 function getLocalGroupContext() {
@@ -295,6 +309,19 @@ function getLocalGroupContext() {
   } catch {
     return null;
   }
+}
+
+function getLocalGroupContextSignature() {
+  const context = getLocalGroupContext();
+  if (!context) return '';
+  return JSON.stringify({
+    course_key: context.course_key || '',
+    active_group_id: context.active_group_id || '',
+    current_index_in_group: context.current_index_in_group,
+    matched_count: context.matched_count,
+    remaining_in_group: context.remaining_in_group,
+    updated_at: context.updated_at || ''
+  });
 }
 
   function getStudentListInfo() {
@@ -583,7 +610,7 @@ function createPrinceProgressWidget() {
     right: ${config.paddingX}px;
     bottom: ${config.paddingBottom}px;
     height: ${config.barHeight}px;
-    background: #11151a;
+    background: #18181B;
     border-radius: 999px;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
   `;
@@ -927,7 +954,7 @@ async function celebrateTo(newProgress) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -939,7 +966,7 @@ async function celebrateTo(newProgress) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
   }
 
@@ -953,7 +980,7 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-muted {
       font-size:11px;
-      color:#9aa3af;
+      color:#A1A1AA;
     }
 
     #${PANEL_ID} .wwie-body {
@@ -968,7 +995,7 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-stat {
-      background:#161a20;
+      background:#18181B;
       border:1px solid rgba(255,255,255,0.05);
       border-radius:10px;
       padding:8px 10px;
@@ -976,7 +1003,7 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-stat-label {
       font-size:11px;
-      color:#9aa3af;
+      color:#A1A1AA;
       margin-bottom:3px;
     }
 
@@ -995,33 +1022,13 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-btn,
     #${PANEL_ID} .wwie-btn-quiet {
-      appearance:none;
-      -webkit-appearance:none;
-      border-radius:8px;
-      padding:4px 8px;
-      cursor:pointer;
-      font-size:11px;
-      font-weight:400;
-    }
-
-    #${PANEL_ID} .wwie-btn {
-      background:#11151a;
-      color:#f3f4f6;
-      border:1px solid rgba(255,255,255,0.08);
-    }
-
-    #${PANEL_ID} .wwie-btn:hover {
-      background:#171c22;
-    }
-
-    #${PANEL_ID} .wwie-btn-quiet {
-      background:#161a20;
-      color:#d5d9df;
+      background:#27272A;
+      color:#A1A1AA;
       border:1px solid rgba(255,255,255,0.06);
     }
 
     #${PANEL_ID} .wwie-btn-quiet:hover {
-      background:#1b2027;
+      background:#3F3F46;
     }
 
     #${PANEL_ID} .wwie-panel-toggle {
@@ -1033,6 +1040,20 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #${PANEL_ID} .wwie-icon-btn {
+      min-width: 36px;
+      display: inline-grid;
+      place-items: center;
+    }
+    #${PANEL_ID} .wwie-icon-btn svg {
       width: 16px;
       height: 16px;
       fill: none;
@@ -1082,8 +1103,8 @@ function ensurePanel() {
     ${pos.left != null ? `left:${pos.left}px;` : 'right:18px;'}
     width: ${PANEL_WIDTH}px;
     z-index: ${Z_INDEX_BASE};
-    background: #1f2329;
-    color: #f3f4f6;
+    background: #18181B;
+    color: #FAFAFA;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.28);
@@ -1156,8 +1177,15 @@ function ensurePanel() {
 function panelToggleIcon(expand) {
   const path = expand
     ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-    : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+    : '<path d="M6 12h12"></path>';
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
+function actionIcon(name) {
+  const paths = {
+    download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || ''}</svg>`;
 }
 
 function renderPanel(force = false, options = {}) {
@@ -1251,7 +1279,7 @@ const contextMeta =
   <div class="wwie-muted" style="margin-bottom:8px;">
     ${escapeHtml(getAssignmentName())}
   </div>
-  <div style="margin-top:8px;font-size:10px;color:#aeb6c2;padding:6px;">
+  <div style="margin-top:8px;font-size:10px;color:#A1A1AA;padding:6px;">
   ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
     <div class="wwie-stats-grid">
       ${stat('Completed', visibleDone)}
@@ -1264,7 +1292,7 @@ const contextMeta =
 
     <div id="wwie-prince-slot"></div>
 
-    <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
+    <div class="wwie-muted" style="margin-top:6px;color:#A1A1AA;">
       Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
       Logged entries: ${data.entries.length}<br>
       Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
@@ -1272,7 +1300,7 @@ const contextMeta =
 
     <div class="wwie-button-row">
       <button id="wwie-log" class="${getButtonCss()}">Log now</button>
-      <button id="wwie-export-csv" class="${getButtonCss()}">Export CSV</button>
+      <button id="wwie-export-csv" class="${getButtonCss()} wwie-icon-btn" title="Export CSV" aria-label="Export CSV">${actionIcon('download')}</button>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
@@ -1308,8 +1336,9 @@ if (princeSlot) {
     const data = defaultData();
     data.minimized = false;
     saveData(data);
-    state.currentStudentKey = getCurrentStudentKey();
-    state.currentStartTime = Date.now();
+    const currentKey = getCurrentStudentKey();
+    state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
+    state.currentStartTime = state.currentStudentKey ? Date.now() : null;
     renderPanel(true);
   }
 
@@ -1344,11 +1373,13 @@ if (princeSlot) {
   }
 
   function logCurrentStudentIfValid() {
+    if (!state.currentStartTime) return false;
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     return addEntry(elapsed, 'auto');
   }
 
   function handleLogNow() {
+    if (!state.currentStartTime) return;
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     const previousProgress = state.lastProgressRatio;
     const ok = addEntry(elapsed, 'manual');
@@ -1409,6 +1440,7 @@ if (princeSlot) {
   const previousProgress = state.lastProgressRatio ?? previousProgressInfo.ratio;
 
   const newKey = getCurrentStudentKey();
+  if (!isUsableStudentKey(newKey)) return false;
 
   if (!state.currentStudentKey) {
     state.currentStudentKey = newKey;
@@ -1437,6 +1469,7 @@ if (princeSlot) {
   function startLoops() {
     if (state.navInterval) clearInterval(state.navInterval);
     if (state.tickInterval) clearInterval(state.tickInterval);
+    if (state.contextInterval) clearInterval(state.contextInterval);
 
     state.navInterval = setInterval(() => {
       if (location.href !== state.lastSeenUrl) {
@@ -1453,14 +1486,62 @@ if (princeSlot) {
     state.tickInterval = setInterval(() => {
       renderPanel(false);
     }, 1000);
+
+    state.lastContextSignature = getLocalGroupContextSignature();
+    state.contextInterval = setInterval(() => {
+      const signature = getLocalGroupContextSignature();
+      if (signature !== state.lastContextSignature) {
+        state.lastContextSignature = signature;
+        renderPanel(true);
+      }
+    }, 1200);
   }
 
   function init() {
-    if (document.getElementById(PANEL_ID)) return;
-    state.currentStudentKey = getCurrentStudentKey();
-    state.currentStartTime = Date.now();
+    if (!document.body) return false;
+    if (document.getElementById(PANEL_ID)) {
+      if (!state.navInterval || !state.tickInterval) startLoops();
+      return true;
+    }
+    const currentKey = getCurrentStudentKey();
+    state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
+    state.currentStartTime = state.currentStudentKey ? Date.now() : null;
     renderPanel(true);
     startLoops();
+    return true;
+  }
+
+  function scheduleInit() {
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    function tryInit() {
+      attempts += 1;
+      if (init()) return;
+      if (attempts < maxAttempts) setTimeout(tryInit, 500);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tryInit, { once: true });
+    } else {
+      setTimeout(tryInit, 0);
+    }
+
+    const observer = new MutationObserver(() => {
+      if (document.getElementById(PANEL_ID)) {
+        observer.disconnect();
+        return;
+      }
+      if (document.querySelector(selectors.selectedStudent) || document.querySelector(selectors.studentSelectTrigger)) {
+        init();
+        observer.disconnect();
+      }
+    });
+
+    if (document.documentElement) {
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      setTimeout(() => observer.disconnect(), 8000);
+    }
   }
 
   function ensureAssessmentHelpersRegistry() {
@@ -1517,16 +1598,16 @@ if (princeSlot) {
       panelId: PANEL_ID,
       panelIds: [PANEL_ID],
       show() {
-        showRegisteredPanel(() => renderPanel(true));
+        showRegisteredPanel(init);
       },
       hide: hideRegisteredPanel,
       toggle() {
-        toggleRegisteredPanel(() => renderPanel(true));
+        toggleRegisteredPanel(init);
       },
       isOpen: isRegisteredPanelOpen
     });
   }
 
   registerAssessmentHelper();
-  setTimeout(init, 1800);
+  scheduleInit();
 })();

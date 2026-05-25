@@ -18,8 +18,9 @@
   const STYLE_ID = 'assessment-helper-dock-style';
   const STORAGE_KEY = 'assessmentHelpers:dockUi:v1';
   const LEGACY_STORAGE_KEY = 'vcHelperDock:ui:v1';
-  const Z_INDEX_BASE = 1000000;
+  const Z_INDEX_BASE = 2147483000;
   let dockObserver = null;
+  let dockRenderTimer = null;
 
   const ICONS = {
     clipboardList: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" /><path d="M9 12l.01 0" /><path d="M13 12l2 0" /><path d="M9 16l.01 0" /><path d="M13 16l2 0" /></svg>',
@@ -31,7 +32,7 @@
     prev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 5v14l-8 -7l8 -7" /><path d="M10 5v14l-8 -7l8 -7" /></svg>',
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v14l8 -7l-8 -7" /><path d="M14 5v14l8 -7l-8 -7" /></svg>',
     switch: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 16h10" /><path d="M11 16l4 4" /><path d="M11 16l4 -4" /><path d="M13 8h-10" /><path d="M13 8l-4 4" /><path d="M13 8l-4 -4" /></svg>',
-    minimize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3" /><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6" /><path d="M15 13h-4v-4" /><path d="M11 13l5 -5" /></svg>',
+    minimize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg>',
     maximize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3" /><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6" /><path d="M12 8h4v4" /><path d="M16 8l-5 5" /></svg>'
   };
 
@@ -55,14 +56,16 @@
       name: 'Copy/Paster',
       icon: 'clipboardList',
       panelId: 'vc-copy-paster-panel',
-      panelIds: ['vc-copy-paster-panel', 'sg-copypaster-panel']
+      panelIds: ['vc-copy-paster-panel', 'sg-copypaster-panel'],
+      contexts: ['speedgrader']
     },
     {
       id: 'benchmarker',
       name: 'Benchmarker',
       icon: 'filterPlus',
       panelId: 'vc-benchmarker-panel',
-      panelIds: ['vc-benchmarker-panel', 'sg-benchmarker-panel']
+      panelIds: ['vc-benchmarker-panel', 'sg-benchmarker-panel'],
+      contexts: ['speedgrader']
     },
     {
       id: 'eta',
@@ -70,31 +73,62 @@
       name: 'ETA',
       icon: 'hourglass',
       panelId: 'eta-panel',
-      panelIds: ['eta-panel', 'vc-wwie-panel', 'wwie-prince-panel']
+      panelIds: ['eta-panel', 'vc-wwie-panel', 'wwie-prince-panel'],
+      contexts: ['speedgrader']
     },
     {
       id: 'tutorial-sorter',
       name: 'Tutorial Sorter',
       icon: 'reorder',
       panelId: 'vc-tutorial-sorter-panel',
-      panelIds: ['vc-tutorial-sorter-panel', 'chatster-lmg-panel']
+      panelIds: ['vc-tutorial-sorter-panel', 'chatster-lmg-panel'],
+      contexts: ['speedgrader']
     },
     {
       id: 'gradebridge',
       name: 'GradeBridge',
       icon: 'circlesRelation',
       panelId: 'vc-gradebridge-panel',
-      panelIds: ['vc-gradebridge-panel']
+      panelIds: ['vc-gradebridge-panel'],
+      contexts: ['speedgrader']
     },
     {
-      id: 'rubric-library',
-      aliases: ['rubric-smoother'],
-      name: 'Rubric Library',
+      id: 'rubric-builder',
+      aliases: ['rubric-library', 'rubric-smoother'],
+      name: 'Rubric Builder',
       icon: 'icons',
-      panelId: 'rubric-library-panel',
-      panelIds: ['rubric-library-panel', 'vc-rubric-smoother-panel', 'jj-rubric-overlay', 'jj-rubric-library-btn']
+      panelId: 'rubric-builder-panel',
+      panelIds: ['rubric-builder-panel', 'rubric-library-panel', 'vc-rubric-smoother-panel', 'jj-rubric-overlay'],
+      contexts: ['rubrics'],
+      primaryWhenAvailable: true
     }
   ];
+
+  function getPageContext() {
+    const path = window.location.pathname;
+    if (path.includes('/rubrics')) return 'rubrics';
+    if (path.includes('/speed_grader')) return 'speedgrader';
+    return 'canvas';
+  }
+
+  function getContextHelpers() {
+    const context = getPageContext();
+    return HELPERS.filter(helper => !helper.contexts || helper.contexts.includes(context));
+  }
+
+  function getCourseId() {
+    const match = window.location.pathname.match(/\/courses\/(\d+)/);
+    return match?.[1] || 'unknown-course';
+  }
+
+  function getAssignmentId() {
+    const url = new URL(window.location.href);
+    return (
+      url.searchParams.get('assignment_id') ||
+      url.searchParams.get('assignment') ||
+      'unknown-assignment'
+    );
+  }
 
   function loadUi() {
     try {
@@ -226,7 +260,11 @@
     const registered = getRegisteredHelper(helper);
     if (registered) {
       if (isHelperHidden(helper)) {
-        registered.hide?.();
+        try {
+          registered.hide?.();
+        } catch (err) {
+          console.warn('[Assessment Helpers Dock] Could not apply saved hidden state', helper.id, err);
+        }
       }
       return;
     }
@@ -255,36 +293,96 @@
   }
 
   function applySavedVisibility() {
-    HELPERS.forEach(applyHelperVisibility);
+    getContextHelpers().forEach(applyHelperVisibility);
   }
 
   function getHelperViewModels() {
-    return HELPERS.map(helper => {
+    return getContextHelpers().map(helper => {
       const registered = getRegisteredHelper(helper);
       const panel = getHelperPanel(helper);
       const actions = getDockActions(helper);
+      const status = getDockStatus(helper);
+      let registeredOpen = false;
+      if (registered?.isOpen) {
+        try {
+          registeredOpen = !!registered.isOpen();
+        } catch (err) {
+          console.warn('[Assessment Helpers Dock] Could not read helper open state', helper.id, err);
+        }
+      }
+      const panelOpen = !!panel && isPanelVisible(panel);
+      const open = registeredOpen || panelOpen;
+      const hasEnabledAction = actions.some(action => !action.disabled);
+
       return {
         helper,
         registered,
         panel,
         available: !!registered || !!panel,
         actions,
-        ready: actions.length
-          ? actions.some(action => !action.disabled)
+        ready: helper.primaryWhenAvailable && (!!registered || !!panel)
+          ? true
+          : open
+          ? true
+          : status.configured
+          ? true
+          : actions.length
+          ? hasEnabledAction
           : registered
-            ? !!registered.isOpen?.()
-            : !!panel && isPanelVisible(panel),
-        active: registered
-          ? !!registered.isOpen?.()
-          : !!panel && isPanelVisible(panel)
+            ? open
+            : panelOpen,
+        active: open
       };
     });
+  }
+
+  function getDockStatus(helper) {
+    const registered = getRegisteredHelper(helper);
+    try {
+      const status = registered?.dockStatus?.();
+      if (status?.configured) return status;
+    } catch (err) {
+      console.warn('[Assessment Helpers Dock] Could not read dock status', helper?.id, err);
+    }
+
+    return getFallbackDockStatus(helper);
+  }
+
+  function getFallbackDockStatus(helper) {
+    if (helper.id === 'gradebridge') {
+      try {
+        const pairs = JSON.parse(localStorage.getItem('vcGradeBridge:pairs:v1') || '{}') || {};
+        const pair = pairs[getCourseId()]?.[getAssignmentId()];
+        return { configured: !!pair };
+      } catch (_) {
+        return { configured: false };
+      }
+    }
+
+    if (helper.id === 'tutorial-sorter') {
+      try {
+        const data = JSON.parse(localStorage.getItem('chatster_tutorial_sorter_groups_v11') || '{}') || {};
+        const hasStudents = Object.values(data.courses || {}).some(course => {
+          return Object.values(course?.classes || {}).some(group => Array.isArray(group?.students) && group.students.length > 0);
+        });
+        return { configured: hasStudents };
+      } catch (_) {
+        return { configured: false };
+      }
+    }
+
+    return { configured: false };
   }
 
   function getDockActions(helper) {
     const registered = getRegisteredHelper(helper);
     const panel = getHelperPanel(helper);
-    return registered?.dockActions?.() || getFallbackDockActions(helper, panel);
+    try {
+      return registered?.dockActions?.() || getFallbackDockActions(helper, panel);
+    } catch (err) {
+      console.warn('[Assessment Helpers Dock] Could not read dock actions', helper?.id, err);
+      return getFallbackDockActions(helper, panel);
+    }
   }
 
   function getFallbackDockActions(helper, panel) {
@@ -323,11 +421,11 @@
         right: 18px;
         top: 132px;
         z-index: ${Z_INDEX_BASE};
-        width: 176px;
-        border: 1px solid rgba(255,255,255,0.12);
+        width: 190px;
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 14px;
-        background: #11151a;
-        color: #f4f4f4;
+        background: #18181B;
+        color: #FAFAFA;
         box-shadow: 0 10px 30px rgba(0,0,0,0.30);
         font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         overflow: hidden;
@@ -351,8 +449,8 @@
         justify-content: space-between;
         gap: 8px;
         padding: 10px 10px 10px 25px;
-        background: #252b33;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: #27272A;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
         cursor: grab;
         touch-action: none;
       }
@@ -364,13 +462,13 @@
         top: 0;
         bottom: 0;
         width: 12px;
-        background: #d6a21d;
+        background: #D6A21D;
         border-radius: 0 2px 2px 0;
       }
 
       #${DOCK_ID} .vc-dock-title {
         min-width: 0;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 750;
         white-space: nowrap;
       }
@@ -383,14 +481,14 @@
         width: 28px;
         height: 26px;
         padding: 0;
-        background: rgba(255,255,255,0.08);
-        color: #d6dde7;
+        background: rgba(255,255,255,0.05);
+        color: #FAFAFA;
         cursor: pointer;
       }
 
       #${DOCK_ID} .vc-dock-toggle:hover {
         background: rgba(255,255,255,0.14);
-        color: #ffffff;
+        color: #FAFAFA;
       }
 
       #${DOCK_ID} .vc-dock-toggle svg {
@@ -410,8 +508,8 @@
         gap: 6px;
         border: 0;
         padding: 10px 12px 10px 18px;
-        background: #252b33;
-        color: #ffffff;
+        background: #27272A;
+        color: #FAFAFA;
         font-size: 13px;
         font-weight: 800;
         cursor: pointer;
@@ -435,7 +533,7 @@
         top: 0;
         bottom: 0;
         width: 12px;
-        background: #d6a21d;
+        background: #D6A21D;
       }
 
       #${DOCK_ID} .vc-dock-list {
@@ -458,8 +556,8 @@
         border: 0;
         border-radius: 9px;
         padding: 8px 9px;
-        background: rgba(255,255,255,0.08);
-        color: #d6dde7;
+        background: #27272A;
+        color: #FAFAFA;
         text-align: left;
         font: inherit;
         font-weight: 700;
@@ -467,13 +565,13 @@
       }
 
       #${DOCK_ID} .vc-dock-helper:hover:not(:disabled) {
-        background: rgba(255,255,255,0.14);
-        color: #ffffff;
+        background: #3F3F46;
+        color: #FAFAFA;
       }
 
       #${DOCK_ID} .vc-dock-helper.is-active {
-        background: #2563eb;
-        color: #ffffff;
+        background: #E4E4E7;
+        color: #18181B;
       }
 
       #${DOCK_ID} .vc-dock-helper:disabled {
@@ -486,11 +584,24 @@
         gap: 6px;
       }
 
+      #${DOCK_ID} .vc-dock-helper-card.has-actions {
+        position: relative;
+        gap: 7px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        padding: 5px;
+        background: rgba(255,255,255,0.06);
+      }
+
+      #${DOCK_ID} .vc-dock-helper-card.has-actions .vc-dock-helper {
+        border-bottom: 5px solid #D6A21D;
+      }
+
       #${DOCK_ID} .vc-dock-action-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
         gap: 6px;
-        padding: 0 2px;
+        padding: 0 1px;
       }
 
       #${DOCK_ID} .vc-dock-action {
@@ -500,10 +611,11 @@
         justify-content: center;
         gap: 5px;
         border: 0;
+        border-bottom: 5px solid #D6A21D;
         border-radius: 8px;
         padding: 6px 7px;
-        background: rgba(255,255,255,0.08);
-        color: #d6dde7;
+        background: #27272A;
+        color: #FAFAFA;
         font-size: 11px;
         font-weight: 750;
         line-height: 1;
@@ -511,8 +623,8 @@
       }
 
       #${DOCK_ID} .vc-dock-action:hover:not(:disabled) {
-        background: rgba(255,255,255,0.14);
-        color: #ffffff;
+        background: #3F3F46;
+        color: #FAFAFA;
       }
 
       #${DOCK_ID} .vc-dock-action:disabled {
@@ -535,7 +647,7 @@
         padding: 9px 10px;
         border-radius: 9px;
         background: rgba(255,255,255,0.06);
-        color: #aab2bd;
+        color: #A1A1AA;
         font-size: 12px;
         line-height: 1.3;
       }
@@ -550,7 +662,7 @@
         justify-content: space-between;
         gap: 8px;
         padding: 8px 10px;
-        color: #aab2bd;
+        color: #A1A1AA;
         font-size: 11px;
         font-weight: 750;
         cursor: pointer;
@@ -563,7 +675,7 @@
 
       #${DOCK_ID} .vc-dock-unavailable summary::after {
         content: "▸";
-        color: #8f9bab;
+        color: #A1A1AA;
         font-size: 11px;
       }
 
@@ -612,10 +724,51 @@
     if (!dockObserver) return;
     dockObserver.observe(document.documentElement, {
       childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class']
+      subtree: true
     });
+  }
+
+  function isHelperPanelElement(el) {
+    if (!el?.id) return false;
+    return getContextHelpers().some(helper => {
+      const ids = [helper.panelId, ...(helper.panelIds || [])].filter(Boolean);
+      return ids.includes(el.id);
+    });
+  }
+
+  function isInsideKnownHelperPanel(node) {
+    if (!(node instanceof Element)) return false;
+    return getContextHelpers().some(helper => {
+      const ids = [helper.panelId, ...(helper.panelIds || [])].filter(Boolean);
+      return ids.some(id => node.closest?.(`#${CSS.escape(id)}`));
+    });
+  }
+
+  function mutationMayAffectDock(mutation) {
+    if (mutation.target?.id === DOCK_ID || mutation.target?.closest?.(`#${DOCK_ID}`)) return false;
+    if (isInsideKnownHelperPanel(mutation.target) && !isHelperPanelElement(mutation.target)) return false;
+
+    const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+    if (!nodes.length) return false;
+
+    return nodes.some(node => {
+      if (!(node instanceof Element)) return false;
+      if (node.id === DOCK_ID || node.closest?.(`#${DOCK_ID}`)) return false;
+      if (isHelperPanelElement(node)) return true;
+      if (getContextHelpers().some(helper => {
+        const ids = [helper.panelId, ...(helper.panelIds || [])].filter(Boolean);
+        return ids.some(id => node.querySelector?.(`#${CSS.escape(id)}`));
+      })) return true;
+      return false;
+    });
+  }
+
+  function scheduleRenderDock() {
+    if (dockRenderTimer) return;
+    dockRenderTimer = window.setTimeout(() => {
+      dockRenderTimer = null;
+      renderDock();
+    }, 120);
   }
 
   function attachDockDragging(dock) {
@@ -694,7 +847,7 @@
         dock.innerHTML = `
           <button type="button" class="vc-dock-tab" title="Open Assessment Helpers" aria-label="Open Assessment Helpers">
             ${ICONS.maximize}
-            <span>VC</span>
+            <span>AH</span>
           </button>
         `;
         dock.querySelector('.vc-dock-tab')?.addEventListener('click', () => updateUi({ minimized: false }));
@@ -708,9 +861,10 @@
       const unavailableOpen = !!ui.unavailableOpen;
       const renderHelperButton = ({ helper, available, active, actions }) => {
         const classes = ['vc-dock-helper', active ? 'is-active' : ''].filter(Boolean).join(' ');
+        const cardClasses = ['vc-dock-helper-card', actions?.length ? 'has-actions' : ''].filter(Boolean).join(' ');
         const icon = ICONS[helper.icon] || ICONS.icons;
         return `
-          <div class="vc-dock-helper-card">
+          <div class="${cardClasses}">
             <button
               type="button"
               class="${classes}"
@@ -744,7 +898,7 @@
 
       dock.innerHTML = `
         <div class="vc-dock-header">
-          <div class="vc-dock-title">Helpers</div>
+          <div class="vc-dock-title">Assessment Helpers</div>
           <button type="button" class="vc-dock-toggle" title="Minimise" aria-label="Minimise dock">
             ${ICONS.minimize}
           </button>
@@ -752,7 +906,7 @@
         <div class="vc-dock-list">
           ${activeHelpers.length
             ? activeHelpers.map(renderHelperButton).join('')
-            : '<div class="vc-dock-empty">No helpers are showing right now.</div>'}
+            : '<div class="vc-dock-empty">Open a helper or expand Other helpers.</div>'}
         </div>
         ${inactiveHelpers.length ? `
           <details class="vc-dock-unavailable" ${unavailableOpen ? 'open' : ''}>
@@ -772,35 +926,63 @@
       dock.querySelectorAll('[data-vc-action-id]').forEach(button => {
         button.addEventListener('click', async event => {
           event.stopPropagation();
-          const helper = HELPERS.find(item => item.id === button.dataset.vcHelperId);
-          const action = helper
-            ? getDockActions(helper).find(item => item.id === button.dataset.vcActionId)
-            : null;
-          if (!action || action.disabled) return;
-          await action.run?.();
-          renderDock();
+          try {
+            const helper = HELPERS.find(item => item.id === button.dataset.vcHelperId);
+            const action = helper
+              ? getDockActions(helper).find(item => item.id === button.dataset.vcActionId)
+              : null;
+            if (!action || action.disabled) return;
+            await action.run?.();
+            renderDock();
+          } catch (err) {
+            console.warn('[Assessment Helpers Dock] Dock action failed', err);
+          }
         });
       });
       dock.querySelectorAll('[data-vc-helper-id]').forEach(button => {
         if (button.dataset.vcActionId) return;
         button.addEventListener('click', () => {
-          const helper = HELPERS.find(item => item.id === button.dataset.vcHelperId);
-          const registered = helper ? getRegisteredHelper(helper) : null;
-          if (helper && registered) {
-            if (registered.isOpen?.()) {
-              setHelperHidden(helper, true);
-            } else {
-              clearHelperHidden(helper);
-              registered.show?.();
-              renderDock();
+          try {
+            const helper = HELPERS.find(item => item.id === button.dataset.vcHelperId);
+            const registered = helper ? getRegisteredHelper(helper) : null;
+            if (helper && registered) {
+              let open = false;
+              try {
+                open = !!registered.isOpen?.();
+              } catch (err) {
+                console.warn('[Assessment Helpers Dock] Could not read helper open state on click', helper.id, err);
+                open = !!getHelperPanel(helper) && isPanelVisible(getHelperPanel(helper));
+              }
+
+              if (open) {
+                setHelperHidden(helper, true);
+              } else {
+                clearHelperHidden(helper);
+                try {
+                  registered.show?.();
+                  const panel = getHelperPanel(helper);
+                  if (panel) {
+                    panel.dataset.vcHelperDockHidden = '0';
+                    delete panel.dataset.vcHelperDockPreviousDisplay;
+                  }
+                } catch (err) {
+                  console.warn('[Assessment Helpers Dock] Registered helper show failed', helper.id, err);
+                  const panel = getHelperPanel(helper);
+                  if (panel) panel.style.removeProperty('display');
+                }
+                renderDock();
+                window.setTimeout(renderDock, 120);
+              }
+              return;
             }
-            return;
+
+            const panel = helper ? getHelperPanel(helper) : null;
+            if (!helper || !panel) return;
+
+            setHelperHidden(helper, isPanelVisible(panel));
+          } catch (err) {
+            console.warn('[Assessment Helpers Dock] Helper toggle failed', err);
           }
-
-          const panel = helper ? getHelperPanel(helper) : null;
-          if (!helper || !panel) return;
-
-          setHelperHidden(helper, isPanelVisible(panel));
         });
       });
       attachDockDragging(dock);
@@ -810,7 +992,9 @@
   }
 
   function startObserver() {
-    dockObserver = new MutationObserver(() => renderDock());
+    dockObserver = new MutationObserver(mutations => {
+      if (mutations.some(mutationMayAffectDock)) scheduleRenderDock();
+    });
     resumeObserver();
   }
 
@@ -821,6 +1005,8 @@
     window.addEventListener('focus', renderDock);
     window.addEventListener('assessment-helper-registered', renderDock);
     window.addEventListener('viscomm-helper-registered', renderDock);
+    window.addEventListener('assessment-helper-status-changed', scheduleRenderDock);
+    window.addEventListener('viscomm-helper-status-changed', scheduleRenderDock);
   }
 
   if (document.readyState === 'loading') {

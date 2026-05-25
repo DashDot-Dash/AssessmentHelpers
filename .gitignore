@@ -1,0 +1,25 @@
+# macOS local metadata
+.DS_Store
+**/.DS_Store
+
+# Node / Playwright dependencies and generated reports
+node_modules/
+playwright-report/
+test-results/
+blob-report/
+
+# Local caches and logs
+.cache/
+.tmp/
+tmp/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment/local override files
+.env
+.env.*
+!.env.example
+

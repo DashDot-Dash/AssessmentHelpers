@@ -25,20 +25,37 @@
   const LEGACY_STORAGE_PREFIX = 'sgBenchmarker_v06';
 
   const BUCKETS = [
-    { id: 'hd', label: 'HD', key: '1', color: '#2e7d32' },
-    { id: 'distinction', label: 'Distinction', key: '2', color: '#1b5ee4' },
-    { id: 'credit', label: 'Credit', key: '3', color: '#fdbf5b' },
-    { id: 'pass', label: 'Pass', key: '4', color: '#ef6c00' },
-    { id: 'fail', label: 'Fail', key: '5', color: '#c62828' },
-    { id: 'no_submission', label: 'No Submission', key: '6', color: '#8a8a8a' }
+    { id: 'hd', label: 'HD', color: '#2e7d32' },
+    { id: 'distinction', label: 'D', color: '#1b5ee4' },
+    { id: 'credit', label: 'C', color: '#fdbf5b' },
+    { id: 'pass', label: 'P', color: '#ef6c00' },
+    { id: 'fail', label: 'Fail', color: '#c62828' },
+    { id: 'no_submission', label: 'No Submission', color: '#8a8a8a' }
   ];
 
   // selectors
   const selectors = {
     panel: `#${PANEL_ID}`,
     selectedStudent: '[data-testid="selected-student"]',
-    studentSelectTrigger: '[data-testid="student-select-trigger"]',
-    studentMenuItem: 'span[data-testid^="student-option-"][role="menuitem"]'
+    studentSelectTrigger: [
+      '[data-testid="student-select-trigger"]',
+      'button[aria-haspopup="listbox"]',
+      'button[aria-haspopup="menu"]',
+      '[role="button"][aria-haspopup="listbox"]',
+      '[role="button"][aria-haspopup="menu"]',
+      '[role="combobox"]'
+    ].join(','),
+    studentMenuItem: [
+      'span[data-testid^="student-option-"][role="menuitem"]',
+      '[data-testid^="student-option-"]',
+      '[id^="student-option-"]',
+      '[role="menuitem"][aria-labelledby]',
+      '[role="option"][aria-labelledby]',
+      '[role="menuitem"]',
+      '[role="option"]',
+      '[role="listbox"] [role="option"]',
+      '[role="menu"] [role="menuitem"]'
+    ].join(',')
   };
 
   // state
@@ -232,24 +249,42 @@
 }
 
 function getStudentMenuItems() {
-  return getElements(selectors.studentMenuItem).map(el => {
-    const labelId = el.getAttribute('aria-labelledby');
-    const labelEl = labelId ? document.getElementById(labelId) : null;
-    const labelText = (labelEl?.textContent || el.textContent || '').trim();
+  return getElements(selectors.studentMenuItem)
+    .map(el => {
+      const labelId = el.getAttribute('aria-labelledby');
+      const labelEl = labelId ? document.getElementById(labelId) : null;
+      const labelText = cleanText(
+        labelEl?.textContent ||
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.textContent ||
+        ''
+      );
 
-    const idAttr = el.getAttribute('id') || '';
-    const anonymousId = idAttr.startsWith('student-option-')
-      ? idAttr.replace(/^student-option-/, '')
-      : '';
+      const idAttr = el.getAttribute('id') || '';
+      const testId = el.getAttribute('data-testid') || '';
+      const anonymousId = idAttr.startsWith('student-option-')
+        ? idAttr.replace(/^student-option-/, '')
+        : testId.startsWith('student-option-')
+          ? testId.replace(/^student-option-/, '')
+          : '';
 
-    return {
-      el,
-      idAttr,
-      anonymous_id: anonymousId,
-      name: labelText,
-      normalized_name: normalizeName(labelText)
-    };
-  }).filter(item => item.name);
+      return {
+        el,
+        idAttr,
+        testId,
+        anonymous_id: anonymousId,
+        name: labelText,
+        normalized_name: normalizeName(labelText)
+      };
+    })
+    .filter(item => {
+      if (!item.name) return false;
+      const lower = item.name.toLowerCase();
+      if (lower === 'select student') return false;
+      if (lower === 'student') return false;
+      return true;
+    });
 }
 
 function isStudentMenuOpen() {
@@ -293,25 +328,45 @@ function waitForStudentMenu(timeoutMs = 2500) {
   });
 }
 
-function clickStudentInOpenMenuByName(targetName) {
-  const targetNorm = normalizeName(targetName);
-  if (!targetNorm) return false;
+function clickStudentInOpenMenu(targetStudent) {
+  const targetIds = [
+    targetStudent?.id,
+    targetStudent?.studentId,
+    targetStudent?.student_id,
+    targetStudent?.anonymous_id
+  ].map(value => String(value || '').trim()).filter(Boolean);
+
+  const targetNames = [
+    targetStudent?.name || '',
+    targetStudent?.canvas_name || '',
+    targetStudent?.displayName || ''
+  ].map(normalizeName).filter(Boolean);
+
+  if (!targetIds.length && !targetNames.length) return false;
 
   const items = getStudentMenuItems();
-
-  let match = items.find(item => item.normalized_name === targetNorm);
+  let match = targetIds.length
+    ? items.find(item => targetIds.includes(String(item.anonymous_id || '').trim()))
+    : null;
 
   if (!match) {
-    match = items.find(item =>
-      item.normalized_name.includes(targetNorm) ||
-      targetNorm.includes(item.normalized_name)
-    );
+    match = items.find(item => targetNames.includes(item.normalized_name));
+  }
+
+  if (!match) {
+    match = items.find(item => {
+      const n = item.normalized_name;
+      return targetNames.some(targetName => (
+        n.includes(targetName) ||
+        targetName.includes(n)
+      ));
+    });
   }
 
   if (!match) {
     log('No matching student found in open menu', {
-      targetName,
-      available: items.map(i => i.name)
+      targetStudent,
+      available: items.map(i => ({ name: i.name, anonymous_id: i.anonymous_id }))
     });
     return false;
   }
@@ -329,7 +384,7 @@ function clickStudentInOpenMenuByName(targetName) {
   }
 
   function bucketColor(bucketId) {
-    return bucketById(bucketId)?.color || '#455a64';
+    return bucketById(bucketId)?.color || '#3F3F46';
   }
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
@@ -575,13 +630,24 @@ function updateSectionOpen(sectionName, open) {
     return url.toString();
   }
 
+  function navigateToStudentByUrl(studentId) {
+    const url = buildStudentUrlFallback(studentId);
+    log('Falling back to SpeedGrader URL navigation', { studentId, url });
+    window.location.assign(url);
+  }
+
 async function navigateToStudent(studentId) {
   const store = loadStore();
   const record = store.students?.[studentId];
   const targetName = record?.name || '';
 
+  if (String(getStudentId() || '') === String(studentId || '')) {
+    log('Already on target student', { studentId, targetName });
+    return;
+  }
+
   if (!targetName) {
-    alert(`No saved name found for student ${studentId}`);
+    navigateToStudentByUrl(studentId);
     return;
   }
 
@@ -594,20 +660,26 @@ async function navigateToStudent(studentId) {
   }
 
   if (!openStudentDrilldown()) {
-    alert('Could not open the Canvas student menu.');
+    navigateToStudentByUrl(studentId);
     return;
   }
 
   const items = await waitForStudentMenu();
   if (!items.length) {
-    alert('The Canvas student menu did not appear.');
+    navigateToStudentByUrl(studentId);
     return;
   }
 
-  const clicked = clickStudentInOpenMenuByName(targetName);
+  const clicked = clickStudentInOpenMenu({
+    ...record,
+    id: studentId,
+    studentId,
+    name: targetName,
+    displayName: targetName
+  });
   if (!clicked) {
     closeStudentDrilldown();
-    alert(`Could not find "${targetName}" in the Canvas student menu.`);
+    navigateToStudentByUrl(studentId);
   }
 }
 
@@ -633,6 +705,24 @@ async function navigateInFilter(direction) {
   if (idx >= list.length) idx = 0;
 
   await navigateToStudent(list[idx].id);
+}
+
+function getTutorialSorterNavigationAction(direction) {
+  const registry = window.AssessmentHelpers || window.VisCommHelpers;
+  const helper = registry?.helpers?.['tutorial-sorter'];
+  const actionId = direction < 0 ? 'prev' : 'next';
+  const actions = helper?.dockActions?.() || [];
+  return actions.find(action => action.id === actionId) || null;
+}
+
+async function navigateInSelectedTutorial(direction) {
+  const action = getTutorialSorterNavigationAction(direction);
+  if (!action || action.disabled) {
+    alert('Select a tutorial in Tutorial Sorter first.');
+    return;
+  }
+
+  await action.run?.();
 }
 
   function resetCurrentAssignmentData() {
@@ -705,8 +795,18 @@ async function navigateInFilter(direction) {
   function panelToggleIcon(expanded) {
     const path = expanded
       ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-      : '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M15 13h-4v-4"></path><path d="M11 13l5 -5"></path>';
+      : '<path d="M6 12h12"></path>';
     return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+  }
+
+  function actionIcon(name) {
+    const paths = {
+      upload: '<path d="M12 16v-12"></path><path d="M7 9l5 -5l5 5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      prev: '<path d="M15 6l-6 6l6 6"></path>',
+      next: '<path d="M9 6l6 6l-6 6"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || ''}</svg>`;
   }
 
   function addStyles() {
@@ -721,8 +821,8 @@ async function navigateInFilter(direction) {
       right: 20px;
       width: 340px;
       z-index: ${Z_INDEX_BASE};
-      background: #1f2329;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       overflow: hidden;
@@ -745,7 +845,7 @@ async function navigateInFilter(direction) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -758,7 +858,7 @@ async function navigateInFilter(direction) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
 }
 
@@ -801,7 +901,7 @@ async function navigateInFilter(direction) {
       margin-bottom: 12px;
       padding: 10px;
       border-radius: 10px;
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
     }
 
@@ -811,11 +911,13 @@ async function navigateInFilter(direction) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 8px;
-  margin: -2px 0 8px 0;
-  border-radius: 8px;
-  background: #11151a;
-  color: #d8dee8;
+  padding: 0 0 8px 0;
+  margin: 0 0 8px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0;
+  background: transparent;
+  color: #FAFAFA;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -823,20 +925,21 @@ async function navigateInFilter(direction) {
 }
 
 #${PANEL_ID} .sg-section-toggle:hover {
-  background: #1b2027;
+  background: transparent;
+  color: #E4E4E7;
 }
 
 #${PANEL_ID} .sg-section-toggle-label {
-  color: #9aa3af;
+  color: #A1A1AA;
 }
 
 #${PANEL_ID} .sg-section-toggle-icon {
-  color: #d6a21d;
+  color: #E4E4E7;
   font-size: 12px;
 }
       #${PANEL_ID} .sg-details {
       margin-top: 12px;
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
       padding: 8px 10px;
@@ -844,7 +947,7 @@ async function navigateInFilter(direction) {
 
     #${PANEL_ID} .sg-details summary {
       cursor: pointer;
-      color: #9aa3af;
+      color: #A1A1AA;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -860,7 +963,7 @@ async function navigateInFilter(direction) {
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: #9aa3af;
+      color: #A1A1AA;
       margin-bottom: 8px;
     }
 
@@ -896,6 +999,7 @@ async function navigateInFilter(direction) {
       color: #fff;
       white-space: nowrap;
       flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,0.12);
     }
 
     #${PANEL_ID} .sg-grid {
@@ -908,21 +1012,44 @@ async function navigateInFilter(direction) {
       grid-template-columns: 1fr 1fr 1fr;
     }
 
+    #${PANEL_ID} .sg-grade-primary-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #${PANEL_ID} .sg-grade-secondary-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav button {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+    }
+
     #${PANEL_ID} button {
       appearance: none;
       -webkit-appearance: none;
       border-radius: 8px;
       padding: 4px 8px;
       cursor: pointer;
-      background: #11151a;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       font-size: 12px;
       font-weight: 400;
       border: 1px solid rgba(255,255,255,0.08);
     }
 
     #${PANEL_ID} button:hover {
-      background: #171c22;
+      background: #3F3F46;
       filter: none;
     }
 
@@ -931,15 +1058,42 @@ async function navigateInFilter(direction) {
       outline-offset: 0;
     }
 
+    #${PANEL_ID} .sg-icon-btn {
+      min-height: 30px;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .sg-action-btn {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav svg,
+    #${PANEL_ID} .sg-icon-btn svg,
+    #${PANEL_ID} .sg-action-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     #${PANEL_ID} .sg-small {
       font-size: 11px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .sg-counts {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px 10px;
+      gap: 6px 8px;
     }
 
     #${PANEL_ID} .sg-count-chip {
@@ -948,14 +1102,14 @@ async function navigateInFilter(direction) {
       gap: 8px;
       padding: 6px 8px;
       border-radius: 8px;
-      background: #1b2027;
+      background: #3F3F46;
       border: 1px solid rgba(255,255,255,0.05);
       border-left: 9px solid transparent;
       cursor: pointer;
     }
 
     #${PANEL_ID} .sg-count-chip:hover {
-      background: #222833;
+      background: #3F3F46;
     }
 
     #${PANEL_ID} .sg-count-chip.active {
@@ -963,11 +1117,15 @@ async function navigateInFilter(direction) {
       outline-offset: 0;
     }
 
+    #${PANEL_ID} .sg-count-chip-full {
+      grid-column: 1 / -1;
+    }
+
     #${PANEL_ID} .sg-list {
       max-height: 220px;
       overflow: auto;
       border-radius: 10px;
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       padding: 6px;
       margin-top: 8px;
@@ -981,7 +1139,7 @@ async function navigateInFilter(direction) {
       border-radius: 6px;
       cursor: pointer;
       border-left: 9px solid transparent;
-      color: #c7ced8;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .sg-item:hover {
@@ -1003,7 +1161,7 @@ async function navigateInFilter(direction) {
     #${PANEL_ID} .sg-item-bucket {
       font-size: 11px;
       white-space: nowrap;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} input[type="file"] {
@@ -1013,12 +1171,14 @@ async function navigateInFilter(direction) {
 #${PANEL_ID} .sg-grade-btn {
   display: flex;
   align-items: stretch;
+  justify-content: center;
   padding: 0;
   overflow: hidden;
   color: #fff;
   border: 1px solid rgba(255,255,255,0.08);
-  border-left: 9px solid transparent;
-  background: #242c37;
+  border-bottom: 5px solid transparent;
+  background: #27272A;
+  min-height: 34px;
 }
 
 
@@ -1026,26 +1186,15 @@ async function navigateInFilter(direction) {
       filter: brightness(1.05);
     }
 
-   #${PANEL_ID} .sg-grade-key {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  padding: 8px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(255,255,255,0.06);
-  border-right: 1px solid rgba(255,255,255,0.08);
-  flex: 0 0 auto;
-}
-
     #${PANEL_ID} .sg-grade-label {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 10px;
+      padding: 8px 7px;
       flex: 1 1 auto;
-      font-weight: 600;
+      font-weight: 750;
+      min-width: 0;
+      white-space: nowrap;
     }
 
     #${PANEL_ID} .sg-btn-danger {
@@ -1183,41 +1332,61 @@ const head = createElement('div', {
 
     studentTop.lastChild.style.background = currentBucket
       ? bucketColor(currentBucket)
-      : '#455a64';
+      : '#27272A';
+    studentTop.lastChild.style.borderColor = currentBucket
+      ? bucketColor(currentBucket)
+      : '#3F3F46';
 
     studentSection.appendChild(createElement('div', { class: 'sg-section-title', text: 'Current Student' }));
     studentSection.appendChild(studentTop);
     studentSection.appendChild(
       createElement('div', {
         class: 'sg-small',
-        text: `Assignment: ${getAssignmentName()} | Student ID: ${studentId || 'unknown'}`
+        text: getAssignmentName()
       })
     );
     body.appendChild(studentSection);
 
     // Bucket assignment buttons
-// Bucket assignment buttons
-const bucketButtons = createElement('div', { class: 'sg-row sg-grid' });
+    const primaryBuckets = BUCKETS.filter(b => ['hd', 'distinction', 'credit', 'pass'].includes(b.id));
+    const secondaryBuckets = BUCKETS.filter(b => ['fail', 'no_submission'].includes(b.id));
+    const createBucketButton = (bucket) => {
+      const gradeButton = createElement('button', {
+        class: `sg-grade-btn ${currentBucket === bucket.id ? 'active' : ''}`,
+        onclick: () => updateStudentBucket(bucket.id)
+      }, [
+        createElement('span', { class: 'sg-grade-label', text: bucket.label })
+      ]);
 
-for (const b of BUCKETS) {
-  const gradeButton = createElement('button', {
-    class: `sg-grade-btn ${currentBucket === b.id ? 'active' : ''}`,
-    onclick: () => updateStudentBucket(b.id)
-  }, [
-    createElement('span', { class: 'sg-grade-key', text: b.key }),
-    createElement('span', { class: 'sg-grade-label', text: b.label })
-  ]);
+      gradeButton.style.borderBottomColor = bucket.color;
+      return gradeButton;
+    };
 
-gradeButton.style.borderLeftColor = b.color;
-gradeButton.querySelector('.sg-grade-key').style.background = 'rgba(255,255,255,0.06)';
-gradeButton.querySelector('.sg-grade-key').style.color = '#d8dee8';
+    const primaryBucketButtons = createElement('div', { class: 'sg-row sg-grid sg-grade-primary-grid' });
+    primaryBuckets.forEach(bucket => primaryBucketButtons.appendChild(createBucketButton(bucket)));
+    body.appendChild(primaryBucketButtons);
 
-  bucketButtons.appendChild(gradeButton);
-}
+    const secondaryBucketButtons = createElement('div', { class: 'sg-row sg-grid sg-grade-secondary-grid' });
+    secondaryBuckets.forEach(bucket => secondaryBucketButtons.appendChild(createBucketButton(bucket)));
+    body.appendChild(secondaryBucketButtons);
 
-body.appendChild(bucketButtons);
+    const createTutorialNavButton = (direction, label, iconName, iconAfter = false) => {
+      return createElement('button', {
+        html: iconAfter
+          ? `<span>${label}</span>${actionIcon(iconName)}`
+          : `${actionIcon(iconName)}<span>${label}</span>`,
+        onclick: () => navigateInSelectedTutorial(direction)
+      });
+    };
 
-  
+    const tutorialNavSection = createElement('div', { class: 'sg-section' }, [
+      createElement('div', { class: 'sg-section-title', text: 'Selected Tutorial' }),
+      createElement('div', { class: 'sg-tutorial-nav' }, [
+        createTutorialNavButton(-1, 'Prev', 'prev'),
+        createTutorialNavButton(1, 'Next', 'next', true)
+      ])
+    ]);
+    body.appendChild(tutorialNavSection);
 
 
     const bucketsOpen = getSectionOpen('buckets');
@@ -1240,6 +1409,8 @@ countsSection.appendChild(
 );
 
 if (bucketsOpen) {
+  const countsGrid = createElement('div', { class: 'sg-counts' });
+
   [
     { id: 'all', label: 'All', value: counts.all, bucket: null },
     { id: 'hd', label: 'HD', value: counts.hd, bucket: 'hd' },
@@ -1250,29 +1421,18 @@ if (bucketsOpen) {
     { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
   ].forEach(item => {
     const chip = createElement('div', {
-      class: `sg-count-chip ${activeFilter === item.id ? 'active' : ''}`,
+      class: `sg-count-chip ${item.id === 'all' ? 'sg-count-chip-full' : ''} ${activeFilter === item.id ? 'active' : ''}`,
       onclick: () => updateActiveFilter(item.id)
     }, [
       createElement('div', { text: item.label }),
       createElement('div', { text: String(item.value) })
     ]);
 
-    chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : '#455a64';
-    countsSection.appendChild(chip);
+    chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : bucketColor(null);
+    countsGrid.appendChild(chip);
   });
 
-  countsSection.appendChild(
-    createElement('div', { class: 'sg-row sg-grid sg-grid-2', style: 'margin-top:10px; margin-bottom:0;' }, [
-      createElement('button', {
-        text: '◀ Prev',
-        onclick: () => navigateInFilter(-1)
-      }),
-      createElement('button', {
-        text: 'Next ▶',
-        onclick: () => navigateInFilter(1)
-      })
-    ])
-  );
+  countsSection.appendChild(countsGrid);
 }
 
 body.appendChild(countsSection);
@@ -1343,17 +1503,30 @@ fileInput.addEventListener('change', (e) => {
 body.appendChild(fileInput);
 
 const importExportDetails = createElement('details', { class: 'sg-details' }, [
-  createElement('summary', { text: 'Import / Export' })
+  createElement('summary', { text: 'Save / Import' })
 ]);
+
+importExportDetails.appendChild(
+  createElement('div', {
+    class: 'sg-small',
+    text: 'Save your class results or import previous class data'
+  })
+);
 
 importExportDetails.appendChild(
   createElement('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px; margin-bottom:0;' }, [
     createElement('button', {
-      text: 'Export',
+      class: 'sg-action-btn',
+      title: 'Save Benchmarker data',
+      'aria-label': 'Save Benchmarker data',
+      html: `${actionIcon('download')}<span>Save</span>`,
       onclick: handleExportData
     }),
     createElement('button', {
-      text: 'Import',
+      class: 'sg-action-btn',
+      title: 'Import previous Benchmarker data',
+      'aria-label': 'Import Benchmarker data',
+      html: `${actionIcon('upload')}<span>Import</span>`,
       onclick: () => fileInput.click()
     }),
     createElement('button', {
@@ -1370,31 +1543,6 @@ body.appendChild(importExportDetails);
     panel.appendChild(body);
   }
 
-  function shouldIgnoreKeys(target) {
-    if (!target) return false;
-    const tag = target.tagName?.toLowerCase();
-    return (
-      tag === 'input' ||
-      tag === 'textarea' ||
-      tag === 'select' ||
-      target.isContentEditable
-    );
-  }
-
-  function handleKeydown(e) {
-    if (shouldIgnoreKeys(e.target)) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    if (e.key === '1') { e.preventDefault(); updateStudentBucket('hd'); return; }
-    if (e.key === '2') { e.preventDefault(); updateStudentBucket('distinction'); return; }
-    if (e.key === '3') { e.preventDefault(); updateStudentBucket('credit'); return; }
-    if (e.key === '4') { e.preventDefault(); updateStudentBucket('pass'); return; }
-    if (e.key === '5') { e.preventDefault(); updateStudentBucket('fail'); return; }
-    if (e.key === '6') { e.preventDefault(); updateStudentBucket('no_submission'); return; }
-    if (e.key === '[') { e.preventDefault(); navigateInFilter(-1); return; }
-    if (e.key === ']') { e.preventDefault(); navigateInFilter(1); return; }
-  }
-
   function init() {
     log('Booting');
 
@@ -1407,7 +1555,6 @@ body.appendChild(importExportDetails);
     };
 
     tryRender();
-    document.addEventListener('keydown', handleKeydown, true);
     setTimeout(renderPanel, 1500);
     setTimeout(renderPanel, 3500);
 
