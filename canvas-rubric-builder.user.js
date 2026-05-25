@@ -1,20 +1,24 @@
 // ==UserScript==
-// @name         Canvas Rubric Library Chooser
-// @namespace    VisComm@UON
-// @version      1.0.0
-// @description  Choose rubric criteria from a library and download Canvas import CSV
+// @name         Assessment Helpers - Rubric Builder
+// @namespace    AssessmentHelpers
+// @version      1.1.0
+// @description  Assessment Helpers panel for building Canvas rubric CSVs from reusable criteria
 // @match        https://*/courses/*/rubrics*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-library-chooser.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-library-chooser.user.js
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
 // @grant        none
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  // Lets rubric criteria be chosen from an embedded library and exported as Canvas CSV.
+  // Builds Canvas rubric CSVs from an embedded criteria library.
 
   // constants/config
+  const HELPER_ID = 'rubric-builder';
+  const HELPER_NAME = 'Rubric Builder';
+  const PANEL_ID = 'jj-rubric-overlay';
+  const LAUNCHER_ID = 'jj-rubric-library-btn';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
   const LEGACY_POSITION_KEYS = {
@@ -23,8 +27,8 @@
   };
 
   const selectors = {
-    launcher: '#jj-rubric-library-btn',
-    overlay: '#jj-rubric-overlay',
+    launcher: `#${LAUNCHER_ID}`,
+    overlay: `#${PANEL_ID}`,
     status: '#jj-status'
   };
 
@@ -262,11 +266,16 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
   }
 
 function createLauncherButton() {
+  if (window.AssessmentHelpers?.helpers?.[HELPER_ID]) {
+    removeLauncherButton();
+    return;
+  }
+
   if (document.querySelector(selectors.launcher)) return;
 
   const btn = document.createElement('button');
-  btn.id = 'jj-rubric-library-btn';
-  btn.textContent = 'VisComm Rubric Builder';
+  btn.id = LAUNCHER_ID;
+  btn.textContent = 'Rubric Builder';
   btn.type = 'button';
 
   const savedX = loadStoredValue('launcher_left', LEGACY_POSITION_KEYS.left);
@@ -278,7 +287,7 @@ function createLauncherButton() {
     left: ${savedX || '20px'};
     z-index: ${Z_INDEX_BASE};
     padding: 10px 12px;
-    background: #252b33;
+    background: #27272A;
     color: white;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 8px;
@@ -303,6 +312,12 @@ function createLauncherButton() {
   bringPanelToFront(btn);
   clampLauncherToViewport(btn, true);
 }
+
+  function removeLauncherButton() {
+    const launcher = document.querySelector(selectors.launcher);
+    if (launcher) launcher.remove();
+    elements.launcher = null;
+  }
     function bindDragging(el) {
   let isDragging = false;
   let startX = 0;
@@ -365,7 +380,7 @@ function createLauncherButton() {
     handleCloseModal();
 
     const overlay = document.createElement('div');
-    overlay.id = 'jj-rubric-overlay';
+    overlay.id = PANEL_ID;
     overlay.style.cssText = `
       position:fixed;
       inset:0;
@@ -395,10 +410,10 @@ function createLauncherButton() {
     modal.innerHTML = `
       <div style="padding:16px 20px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; gap:16px; align-items:center;">
         <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
-<strong style="font-size:16px; font-weight:700;">VisComm Rubric Chooser</strong>
+<strong style="font-size:16px; font-weight:700;">Rubric Builder</strong>
 <input id="jj-rubric-title" type="text" placeholder="New rubric name" style="padding:8px 10px; font-size:14px; width:100%; max-width:420px; border:1px solid #cfd5dd; border-radius:8px; background:#eef1f4; color:#2f3a45;">
 </div>
-<button id="jj-close-modal" type="button" style="background:#161a20; color:#d5d9df; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Close</button>
+<button id="jj-close-modal" type="button" style="background:#27272A; color:#A1A1AA; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Close</button>
 </div>
 
       <div style="display:grid; grid-template-columns: 1.2fr 1fr; min-height:0; background:#eef1f5;">
@@ -408,7 +423,7 @@ function createLauncherButton() {
 
 <div style="padding:12px 20px; border-top:1px solid #d9dde3; display:flex; justify-content:space-between; align-items:center; background:#f8f9fb;">
   <div id="jj-status" style="font-size:13px; color:#555;">Select criteria and enter weights.</div>
-  <button id="jj-download-csv" type="button" style="background:#11151a; color:#f3f4f6; border:1px solid rgba(0,0,0,0.08); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Download Canvas CSV</button>
+  <button id="jj-download-csv" type="button" title="Download Canvas CSV" aria-label="Download Canvas CSV" style="display:inline-grid; place-items:center; min-width:34px; min-height:28px; background:#27272A; color:#FAFAFA; border:1px solid rgba(0,0,0,0.08); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">${actionIcon('download')}</button>
 </div>
     `;
 
@@ -426,7 +441,14 @@ function createLauncherButton() {
   }
 
   function handleCloseModal() {
-    document.getElementById('jj-rubric-overlay')?.remove();
+    document.getElementById(PANEL_ID)?.remove();
+  }
+
+  function actionIcon(name) {
+    const paths = {
+      download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">${paths[name] || ''}</svg>`;
   }
 
   function renderLibrary() {
@@ -468,7 +490,7 @@ heading.style.cssText = `
   border:1px solid ${checked ? '#bcc4cd' : '#d9dde3'};
   border-radius:10px;
   cursor:pointer;
-background:${checked ? '#e7eaee' : '#ffffff'};
+background:${checked ? '#e7eaee' : '#FAFAFA'};
   box-shadow:${checked ? '0 0 0 1px rgba(120, 128, 138, 0.10) inset' : 'none'};
 `;
 
@@ -527,7 +549,7 @@ card.style.cssText = `
   border-radius:10px;
   padding:12px;
   margin-bottom:12px;
-  background:#ffffff;
+  background:#FAFAFA;
   box-shadow:0 1px 0 rgba(0,0,0,0.02);
 `;
 
@@ -605,7 +627,7 @@ function updateStatus() {
 
   function handleExportCsv() {
     const rubricTitleInput = document.getElementById('jj-rubric-title');
-    const rubricName = (rubricTitleInput?.value || '').trim() || 'Rubric Library Export';
+    const rubricName = (rubricTitleInput?.value || '').trim() || 'Rubric Builder Export';
 
     const selectedItems = Array.from(state.selected.values());
     if (!selectedItems.length) {
@@ -635,11 +657,73 @@ function updateStatus() {
   // 6. START
   // =========================================================
   function init() {
-    createLauncherButton();
+    removeLauncherButton();
   }
 
-  const observer = new MutationObserver(() => createLauncherButton());
+  function ensureAssessmentHelpersRegistry() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+    window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+    window.AssessmentHelpers.register = function register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+    };
+    window.VisCommHelpers = window.AssessmentHelpers;
+    return window.AssessmentHelpers;
+  }
+
+  function getRegisteredPanel() {
+    return document.getElementById(PANEL_ID);
+  }
+
+  function showRegisteredPanel() {
+    removeLauncherButton();
+    renderModal();
+    const panel = getRegisteredPanel();
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  }
+
+  function hideRegisteredPanel() {
+    const panel = getRegisteredPanel();
+    if (panel) panel.dataset.vcHelperDockHidden = '1';
+    handleCloseModal();
+  }
+
+  function isRegisteredPanelOpen() {
+    return !!getRegisteredPanel();
+  }
+
+  function toggleRegisteredPanel() {
+    if (isRegisteredPanelOpen()) hideRegisteredPanel();
+    else showRegisteredPanel();
+  }
+
+  function registerAssessmentHelper() {
+    const registry = ensureAssessmentHelpersRegistry();
+
+    registry.register({
+      id: HELPER_ID,
+      aliases: ['rubric-library', 'rubric-smoother'],
+      name: HELPER_NAME,
+      panelId: PANEL_ID,
+      panelIds: [PANEL_ID],
+      show: showRegisteredPanel,
+      hide: hideRegisteredPanel,
+      toggle: toggleRegisteredPanel,
+      isOpen: isRegisteredPanelOpen
+    });
+  }
+
+  const observer = new MutationObserver(() => removeLauncherButton());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
+  registerAssessmentHelper();
   init();
 })();

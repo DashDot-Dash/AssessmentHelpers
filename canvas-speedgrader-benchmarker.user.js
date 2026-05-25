@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader Benchmarker
-// @version      1.0.0
-// @namespace    VisComm@UON
-// @description  Local benchmarking overlay for Canvas SpeedGrader
+// @name         Assessment Helpers - Benchmarker
+// @version      1.1.0
+// @namespace    AssessmentHelpers
+// @description  Assessment Helpers panel for sorting Canvas SpeedGrader students into benchmark buckets
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
@@ -17,27 +17,48 @@
   // Tracks local SpeedGrader benchmarking buckets and filtered navigation state.
 
   // constants/config
+  const HELPER_ID = 'benchmarker';
+  const HELPER_NAME = 'Benchmarker';
   const PANEL_ID = 'sg-benchmarker-panel';
   const STYLE_ID = 'sg-benchmarker-style';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_benchmarker_v1';
   const LEGACY_STORAGE_PREFIX = 'sgBenchmarker_v06';
+  const TUTORIAL_GROUPS_KEY = 'chatster_tutorial_sorter_groups_v11';
+  const TUTORIAL_ACTIVE_GROUP_KEY = 'chatster_tutorial_sorter_active_group_v11';
 
   const BUCKETS = [
-    { id: 'hd', label: 'HD', key: '1', color: '#2e7d32' },
-    { id: 'distinction', label: 'Distinction', key: '2', color: '#558b2f' },
-    { id: 'credit', label: 'Credit', key: '3', color: '#f9a825' },
-    { id: 'pass', label: 'Pass', key: '4', color: '#ef6c00' },
-    { id: 'fail', label: 'Fail', key: '5', color: '#c62828' },
-    { id: 'no_submission', label: 'No Submission', key: '6', color: '#616161' }
+    { id: 'hd', label: 'HD', color: '#2e7d32' },
+    { id: 'distinction', label: 'D', color: '#1b5ee4' },
+    { id: 'credit', label: 'C', color: '#fdbf5b' },
+    { id: 'pass', label: 'P', color: '#ef6c00' },
+    { id: 'fail', label: 'Fail', color: '#c62828' },
+    { id: 'no_submission', label: 'No Submission', color: '#8a8a8a' }
   ];
 
   // selectors
   const selectors = {
     panel: `#${PANEL_ID}`,
     selectedStudent: '[data-testid="selected-student"]',
-    studentSelectTrigger: '[data-testid="student-select-trigger"]',
-    studentMenuItem: 'span[data-testid^="student-option-"][role="menuitem"]'
+    studentSelectTrigger: [
+      '[data-testid="student-select-trigger"]',
+      'button[aria-haspopup="listbox"]',
+      'button[aria-haspopup="menu"]',
+      '[role="button"][aria-haspopup="listbox"]',
+      '[role="button"][aria-haspopup="menu"]',
+      '[role="combobox"]'
+    ].join(','),
+    studentMenuItem: [
+      'span[data-testid^="student-option-"][role="menuitem"]',
+      '[data-testid^="student-option-"]',
+      '[id^="student-option-"]',
+      '[role="menuitem"][aria-labelledby]',
+      '[role="option"][aria-labelledby]',
+      '[role="menuitem"]',
+      '[role="option"]',
+      '[role="listbox"] [role="option"]',
+      '[role="menu"] [role="menuitem"]'
+    ].join(',')
   };
 
   // state
@@ -131,12 +152,28 @@
   }
 
   function getAssignmentNameFromPageText() {
-    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    const bodyClone = document.body?.cloneNode(true);
+    bodyClone?.querySelectorAll([
+      '#sg-benchmarker-panel',
+      '#assessment-helper-dock',
+      '#chatster-lmg-panel',
+      '#vc-gradebridge-panel',
+      '#sg-copypaster-panel',
+      '#wwie-prince-panel'
+    ].join(',')).forEach(el => el.remove());
+
+    const lines = String(bodyClone?.innerText || '').split(/\r?\n/);
     for (const line of lines) {
       const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
       if (match) {
         const cleaned = cleanAssignmentName(match[1]);
-        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+        if (
+          cleaned &&
+          !/^SpeedGrader$/i.test(cleaned) &&
+          !/^Students in\b/i.test(cleaned)
+        ) {
+          return cleaned;
+        }
       }
     }
     return '';
@@ -231,24 +268,42 @@
 }
 
 function getStudentMenuItems() {
-  return getElements(selectors.studentMenuItem).map(el => {
-    const labelId = el.getAttribute('aria-labelledby');
-    const labelEl = labelId ? document.getElementById(labelId) : null;
-    const labelText = (labelEl?.textContent || el.textContent || '').trim();
+  return getElements(selectors.studentMenuItem)
+    .map(el => {
+      const labelId = el.getAttribute('aria-labelledby');
+      const labelEl = labelId ? document.getElementById(labelId) : null;
+      const labelText = cleanText(
+        labelEl?.textContent ||
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.textContent ||
+        ''
+      );
 
-    const idAttr = el.getAttribute('id') || '';
-    const anonymousId = idAttr.startsWith('student-option-')
-      ? idAttr.replace(/^student-option-/, '')
-      : '';
+      const idAttr = el.getAttribute('id') || '';
+      const testId = el.getAttribute('data-testid') || '';
+      const anonymousId = idAttr.startsWith('student-option-')
+        ? idAttr.replace(/^student-option-/, '')
+        : testId.startsWith('student-option-')
+          ? testId.replace(/^student-option-/, '')
+          : '';
 
-    return {
-      el,
-      idAttr,
-      anonymous_id: anonymousId,
-      name: labelText,
-      normalized_name: normalizeName(labelText)
-    };
-  }).filter(item => item.name);
+      return {
+        el,
+        idAttr,
+        testId,
+        anonymous_id: anonymousId,
+        name: labelText,
+        normalized_name: normalizeName(labelText)
+      };
+    })
+    .filter(item => {
+      if (!item.name) return false;
+      const lower = item.name.toLowerCase();
+      if (lower === 'select student') return false;
+      if (lower === 'student') return false;
+      return true;
+    });
 }
 
 function isStudentMenuOpen() {
@@ -292,25 +347,45 @@ function waitForStudentMenu(timeoutMs = 2500) {
   });
 }
 
-function clickStudentInOpenMenuByName(targetName) {
-  const targetNorm = normalizeName(targetName);
-  if (!targetNorm) return false;
+function clickStudentInOpenMenu(targetStudent) {
+  const targetIds = [
+    targetStudent?.id,
+    targetStudent?.studentId,
+    targetStudent?.student_id,
+    targetStudent?.anonymous_id
+  ].map(value => String(value || '').trim()).filter(Boolean);
+
+  const targetNames = [
+    targetStudent?.name || '',
+    targetStudent?.canvas_name || '',
+    targetStudent?.displayName || ''
+  ].map(normalizeName).filter(Boolean);
+
+  if (!targetIds.length && !targetNames.length) return false;
 
   const items = getStudentMenuItems();
-
-  let match = items.find(item => item.normalized_name === targetNorm);
+  let match = targetIds.length
+    ? items.find(item => targetIds.includes(String(item.anonymous_id || '').trim()))
+    : null;
 
   if (!match) {
-    match = items.find(item =>
-      item.normalized_name.includes(targetNorm) ||
-      targetNorm.includes(item.normalized_name)
-    );
+    match = items.find(item => targetNames.includes(item.normalized_name));
+  }
+
+  if (!match) {
+    match = items.find(item => {
+      const n = item.normalized_name;
+      return targetNames.some(targetName => (
+        n.includes(targetName) ||
+        targetName.includes(n)
+      ));
+    });
   }
 
   if (!match) {
     log('No matching student found in open menu', {
-      targetName,
-      available: items.map(i => i.name)
+      targetStudent,
+      available: items.map(i => ({ name: i.name, anonymous_id: i.anonymous_id }))
     });
     return false;
   }
@@ -328,7 +403,7 @@ function clickStudentInOpenMenuByName(targetName) {
   }
 
   function bucketColor(bucketId) {
-    return bucketById(bucketId)?.color || '#455a64';
+    return bucketById(bucketId)?.color || '#3F3F46';
   }
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
@@ -350,6 +425,8 @@ function clickStudentInOpenMenuByName(targetName) {
       ui: {
         activeFilter: 'all',
         collapsed: false,
+          bucketsOpen: false,
+        studentListOpen: false,
         posX: null,
         posY: null
       }
@@ -366,6 +443,90 @@ function clickStudentInOpenMenuByName(targetName) {
 
   function saveStore(store) {
     localStorage.setItem(getStorageKey(), JSON.stringify(store));
+  }
+
+  function canonicalStudentId(value) {
+    return String(value || '').trim();
+  }
+
+  function getCurrentCourseCode() {
+    const textCandidates = [
+      document.title,
+      getElement('h1')?.textContent || '',
+      getElement('[aria-label*="breadcrumb"]')?.textContent || '',
+      getElement('#breadcrumbs')?.textContent || '',
+      getElement('[data-testid*="course"]')?.textContent || '',
+      document.body?.innerText?.slice(0, 12000) || ''
+    ];
+
+    for (const text of textCandidates) {
+      const match = String(text || '').match(/\b([A-Z]{4}\d{4})\b/);
+      if (match) return match[1];
+    }
+
+    return 'unknown_course';
+  }
+
+  function normalizeCourseCode(value) {
+    const match = String(value || '').toUpperCase().match(/\b([A-Z]{4}\d{4})\b/);
+    return match ? match[1] : getCurrentCourseCode();
+  }
+
+  function loadTutorialSorterData() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(TUTORIAL_GROUPS_KEY));
+      return raw && typeof raw === 'object' ? raw : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getActiveTutorialGroup() {
+    const data = loadTutorialSorterData();
+    if (!data?.courses) return null;
+
+    const courseCode = normalizeCourseCode('');
+    const bucket = data.courses[courseCode] || Object.values(data.courses)[0];
+    if (!bucket?.classes) return null;
+
+    const activeClassKey = bucket.activeClassKey || localStorage.getItem(TUTORIAL_ACTIVE_GROUP_KEY);
+    return bucket.classes[activeClassKey] || Object.values(bucket.classes)[0] || null;
+  }
+
+  function getTutorialRosterStudents() {
+    const group = getActiveTutorialGroup();
+    if (!group?.students?.length) return [];
+
+    return group.students.map((student, index) => {
+      const rawId = canonicalStudentId(
+        student.user_id ||
+        student.student_number ||
+        student.login_id ||
+        student.id ||
+        ''
+      );
+      const name = student.name || student.canvas_name || `Student ${index + 1}`;
+      const id = rawId || `tutorial:${group.id || group.classKey || 'class'}:${normalizeName(name) || index}`;
+
+      return {
+        id,
+        name,
+        source: 'tutorial-sorter',
+        classLabel: group.label || group.name || 'Selected tutorial',
+        tutorialIndex: index
+      };
+    });
+  }
+
+  function formatClassAssignmentInfo(group = getActiveTutorialGroup()) {
+    const metadata = group?.metadata || {};
+    const classInfo = [
+      [metadata.day || group?.day, metadata.time || group?.time].filter(Boolean).join(' '),
+      metadata.location || group?.location
+    ].filter(Boolean).join(' · ');
+    const assignmentName = getAssignmentName();
+
+    return [classInfo, assignmentName].filter(Boolean).join(' | ');
   }
 
   function ensureCurrentStudentTracked() {
@@ -445,6 +606,30 @@ function clickStudentInOpenMenuByName(targetName) {
     return !!loadStore().ui?.collapsed;
   }
 
+  function getSectionOpen(sectionName) {
+  const ui = loadStore().ui || {};
+  if (sectionName === 'buckets') return !!ui.bucketsOpen;
+  if (sectionName === 'studentList') return !!ui.studentListOpen;
+  return false;
+}
+
+function updateSectionOpen(sectionName, open) {
+  const store = loadStore();
+
+  if (!store.ui) store.ui = {};
+
+  if (sectionName === 'buckets') {
+    store.ui.bucketsOpen = open;
+  }
+
+  if (sectionName === 'studentList') {
+    store.ui.studentListOpen = open;
+  }
+
+  saveStore(store);
+  renderPanel();
+}
+
   function updatePanelPosition(x, y) {
     const store = loadStore();
     store.ui.posX = x;
@@ -486,6 +671,20 @@ function clickStudentInOpenMenuByName(targetName) {
     const store = loadStore();
     const seen = new Set();
     const out = [];
+    const tutorialRoster = getTutorialRosterStudents();
+
+    for (const rosterStudent of tutorialRoster) {
+      const stored = store.students?.[rosterStudent.id] || {};
+      seen.add(rosterStudent.id);
+      out.push({
+        ...rosterStudent,
+        ...stored,
+        id: rosterStudent.id,
+        name: stored.name || rosterStudent.name,
+        source: rosterStudent.source,
+        classLabel: rosterStudent.classLabel
+      });
+    }
 
     for (const id of store.order || []) {
       if (store.students[id] && !seen.has(id)) {
@@ -525,12 +724,7 @@ function clickStudentInOpenMenuByName(targetName) {
     }
 
     counts.all =
-      counts.hd +
-      counts.distinction +
-      counts.credit +
-      counts.pass +
-      counts.fail +
-      counts.no_submission;
+      getStudentsArray().length;
 
     return counts;
   }
@@ -548,13 +742,24 @@ function clickStudentInOpenMenuByName(targetName) {
     return url.toString();
   }
 
+  function navigateToStudentByUrl(studentId) {
+    const url = buildStudentUrlFallback(studentId);
+    log('Falling back to SpeedGrader URL navigation', { studentId, url });
+    window.location.assign(url);
+  }
+
 async function navigateToStudent(studentId) {
   const store = loadStore();
-  const record = store.students?.[studentId];
+  const record = store.students?.[studentId] || getStudentsArray().find(s => String(s.id) === String(studentId));
   const targetName = record?.name || '';
 
+  if (String(getStudentId() || '') === String(studentId || '')) {
+    log('Already on target student', { studentId, targetName });
+    return;
+  }
+
   if (!targetName) {
-    alert(`No saved name found for student ${studentId}`);
+    navigateToStudentByUrl(studentId);
     return;
   }
 
@@ -567,20 +772,26 @@ async function navigateToStudent(studentId) {
   }
 
   if (!openStudentDrilldown()) {
-    alert('Could not open the Canvas student menu.');
+    navigateToStudentByUrl(studentId);
     return;
   }
 
   const items = await waitForStudentMenu();
   if (!items.length) {
-    alert('The Canvas student menu did not appear.');
+    navigateToStudentByUrl(studentId);
     return;
   }
 
-  const clicked = clickStudentInOpenMenuByName(targetName);
+  const clicked = clickStudentInOpenMenu({
+    ...record,
+    id: studentId,
+    studentId,
+    name: targetName,
+    displayName: targetName
+  });
   if (!clicked) {
     closeStudentDrilldown();
-    alert(`Could not find "${targetName}" in the Canvas student menu.`);
+    navigateToStudentByUrl(studentId);
   }
 }
 
@@ -606,6 +817,46 @@ async function navigateInFilter(direction) {
   if (idx >= list.length) idx = 0;
 
   await navigateToStudent(list[idx].id);
+}
+
+function getTutorialSorterNavigationAction(direction) {
+  const registry = window.AssessmentHelpers || window.VisCommHelpers;
+  const helper = registry?.helpers?.['tutorial-sorter'];
+  const actionId = direction < 0 ? 'prev' : 'next';
+  const actions = helper?.dockActions?.() || [];
+  return actions.find(action => action.id === actionId) || null;
+}
+
+async function navigateInSelectedTutorial(direction) {
+  const roster = getTutorialRosterStudents();
+  if (roster.length) {
+    const currentId = getStudentId();
+    const currentName = normalizeName(getStudentName());
+    let idx = roster.findIndex(student => String(student.id) === String(currentId));
+
+    if (idx === -1 && currentName) {
+      idx = roster.findIndex(student => normalizeName(student.name) === currentName);
+    }
+
+    if (idx === -1) {
+      idx = direction < 0 ? roster.length - 1 : 0;
+    } else {
+      idx += direction < 0 ? -1 : 1;
+      if (idx < 0) idx = roster.length - 1;
+      if (idx >= roster.length) idx = 0;
+    }
+
+    await navigateToStudent(roster[idx].id);
+    return;
+  }
+
+  const action = getTutorialSorterNavigationAction(direction);
+  if (!action || action.disabled) {
+    alert('Select a tutorial in Tutorial Sorter first.');
+    return;
+  }
+
+  await action.run?.();
 }
 
   function resetCurrentAssignmentData() {
@@ -675,6 +926,21 @@ async function navigateInFilter(direction) {
     return el;
   }
 
+  function panelToggleIcon(expanded) {
+    const path = '<path d="M6 12h12"></path>';
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+  }
+
+  function actionIcon(name) {
+    const paths = {
+      upload: '<path d="M12 16v-12"></path><path d="M7 9l5 -5l5 5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
+      prev: '<path d="M15 6l-6 6l6 6"></path>',
+      next: '<path d="M9 6l6 6l-6 6"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || ''}</svg>`;
+  }
+
   function addStyles() {
   if (document.getElementById(STYLE_ID)) return;
 
@@ -687,8 +953,8 @@ async function navigateInFilter(direction) {
       right: 20px;
       width: 340px;
       z-index: ${Z_INDEX_BASE};
-      background: #1f2329;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       overflow: hidden;
@@ -697,7 +963,7 @@ async function navigateInFilter(direction) {
     }
 
     #${PANEL_ID}.dragging {
-      opacity: 0.92;
+      opacity: 0.9;
       user-select: none;
     }
 
@@ -711,7 +977,7 @@ async function navigateInFilter(direction) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -724,13 +990,31 @@ async function navigateInFilter(direction) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
 }
 
     #${PANEL_ID} .sg-head-buttons {
       display: flex;
       gap: 6px;
+    }
+
+    #${PANEL_ID} .sg-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .sg-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     #${PANEL_ID} .sg-head-title {
@@ -749,8 +1033,61 @@ async function navigateInFilter(direction) {
       margin-bottom: 12px;
       padding: 10px;
       border-radius: 10px;
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    #${PANEL_ID} .sg-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 8px 0;
+  margin: 0 0 8px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0;
+  background: transparent;
+  color: #FAFAFA;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#${PANEL_ID} .sg-section-toggle:hover {
+  background: transparent;
+  color: #E4E4E7;
+}
+
+#${PANEL_ID} .sg-section-toggle-label {
+  color: #A1A1AA;
+}
+
+#${PANEL_ID} .sg-section-toggle-icon {
+  color: #E4E4E7;
+  font-size: 12px;
+}
+      #${PANEL_ID} .sg-details {
+      margin-top: 12px;
+      background: #27272A;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    #${PANEL_ID} .sg-details summary {
+      cursor: pointer;
+      color: #A1A1AA;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    #${PANEL_ID} .sg-details[open] summary {
+      margin-bottom: 10px;
     }
 
     #${PANEL_ID} .sg-section-title {
@@ -758,7 +1095,7 @@ async function navigateInFilter(direction) {
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: #9aa3af;
+      color: #A1A1AA;
       margin-bottom: 8px;
     }
 
@@ -794,6 +1131,7 @@ async function navigateInFilter(direction) {
       color: #fff;
       white-space: nowrap;
       flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,0.12);
     }
 
     #${PANEL_ID} .sg-grid {
@@ -806,21 +1144,52 @@ async function navigateInFilter(direction) {
       grid-template-columns: 1fr 1fr 1fr;
     }
 
+    #${PANEL_ID} .sg-grade-primary-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #${PANEL_ID} .sg-grade-secondary-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav button {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+      background: #D6A21D;
+      color: #18181B;
+      border-color: #D6A21D;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav button:hover {
+      background: #E0B13A;
+      color: #18181B;
+    }
+
     #${PANEL_ID} button {
       appearance: none;
       -webkit-appearance: none;
       border-radius: 8px;
       padding: 4px 8px;
       cursor: pointer;
-      background: #11151a;
-      color: #f3f4f6;
+      background: #18181B;
+      color: #FAFAFA;
       font-size: 12px;
       font-weight: 400;
       border: 1px solid rgba(255,255,255,0.08);
     }
 
     #${PANEL_ID} button:hover {
-      background: #171c22;
+      background: #3F3F46;
       filter: none;
     }
 
@@ -829,15 +1198,42 @@ async function navigateInFilter(direction) {
       outline-offset: 0;
     }
 
+    #${PANEL_ID} .sg-icon-btn {
+      min-height: 30px;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .sg-action-btn {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav svg,
+    #${PANEL_ID} .sg-icon-btn svg,
+    #${PANEL_ID} .sg-action-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     #${PANEL_ID} .sg-small {
       font-size: 11px;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .sg-counts {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px 10px;
+      gap: 6px 8px;
     }
 
     #${PANEL_ID} .sg-count-chip {
@@ -846,14 +1242,14 @@ async function navigateInFilter(direction) {
       gap: 8px;
       padding: 6px 8px;
       border-radius: 8px;
-      background: #1b2027;
+      background: #3F3F46;
       border: 1px solid rgba(255,255,255,0.05);
-      border-left: 6px solid transparent;
+      border-left: 9px solid transparent;
       cursor: pointer;
     }
 
     #${PANEL_ID} .sg-count-chip:hover {
-      background: #222833;
+      background: #3F3F46;
     }
 
     #${PANEL_ID} .sg-count-chip.active {
@@ -861,11 +1257,15 @@ async function navigateInFilter(direction) {
       outline-offset: 0;
     }
 
+    #${PANEL_ID} .sg-count-chip-full {
+      grid-column: 1 / -1;
+    }
+
     #${PANEL_ID} .sg-list {
       max-height: 220px;
       overflow: auto;
       border-radius: 10px;
-      background: #161a20;
+      background: #27272A;
       border: 1px solid rgba(255,255,255,0.05);
       padding: 6px;
       margin-top: 8px;
@@ -875,11 +1275,11 @@ async function navigateInFilter(direction) {
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      padding: 1px 8px;
+      padding: 7px 8px;
       border-radius: 6px;
       cursor: pointer;
-      border-left: 6px solid transparent;
-      color: #c7ced8;
+      border-left: 9px solid transparent;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} .sg-item:hover {
@@ -901,46 +1301,40 @@ async function navigateInFilter(direction) {
     #${PANEL_ID} .sg-item-bucket {
       font-size: 11px;
       white-space: nowrap;
-      color: #9aa3af;
+      color: #A1A1AA;
     }
 
     #${PANEL_ID} input[type="file"] {
       display: none;
     }
 
-    #${PANEL_ID} .sg-grade-btn {
-      display: flex;
-      align-items: stretch;
-      padding: 0;
-      overflow: hidden;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
+#${PANEL_ID} .sg-grade-btn {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 5px solid transparent;
+  background: #27272A;
+  min-height: 34px;
+}
+
 
     #${PANEL_ID} .sg-grade-btn:hover {
       filter: brightness(1.05);
-    }
-
-    #${PANEL_ID} .sg-grade-key {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 28px;
-      padding: 8px 6px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(255,255,255,0.14);
-      border-right: 1px solid rgba(255,255,255,0.12);
-      flex: 0 0 auto;
     }
 
     #${PANEL_ID} .sg-grade-label {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 10px;
+      padding: 8px 7px;
       flex: 1 1 auto;
-      font-weight: 600;
+      font-weight: 750;
+      min-width: 0;
+      white-space: nowrap;
     }
 
     #${PANEL_ID} .sg-btn-danger {
@@ -963,8 +1357,8 @@ async function navigateInFilter(direction) {
     let origX = 0;
     let origY = 0;
 
-    handle.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button')) return;
+handle.addEventListener('mousedown', (e) => {
+  if (e.target.closest('button, input, select, textarea, summary, details, label, a')) return;
 
       bringPanelToFront(panel);
       dragging = true;
@@ -1030,6 +1424,7 @@ async function navigateInFilter(direction) {
     const activeFilter = getActiveFilter();
     const counts = countByBucket();
     const collapsed = getCollapsed();
+    const activeTutorialGroup = getActiveTutorialGroup();
 
     panel.innerHTML = '';
 
@@ -1040,7 +1435,11 @@ const head = createElement('div', {
   createElement('div', { class: 'sg-head-title', text: 'Benchmarker' }),
       createElement('div', { class: 'sg-head-buttons' }, [
         createElement('button', {
-          text: collapsed ? 'Expand' : 'Minimise',
+          class: 'sg-panel-toggle',
+          type: 'button',
+          title: collapsed ? 'Expand' : 'Minimise',
+          'aria-label': collapsed ? 'Expand Benchmarker' : 'Minimise Benchmarker',
+          html: panelToggleIcon(collapsed),
           onclick: () => updateCollapsed(!collapsed)
         })
       ])
@@ -1074,170 +1473,217 @@ const head = createElement('div', {
 
     studentTop.lastChild.style.background = currentBucket
       ? bucketColor(currentBucket)
-      : '#455a64';
+      : '#27272A';
+    studentTop.lastChild.style.borderColor = currentBucket
+      ? bucketColor(currentBucket)
+      : '#3F3F46';
 
     studentSection.appendChild(createElement('div', { class: 'sg-section-title', text: 'Current Student' }));
     studentSection.appendChild(studentTop);
     studentSection.appendChild(
       createElement('div', {
         class: 'sg-small',
-        text: `Assignment: ${getAssignmentName()} | Student ID: ${studentId || 'unknown'}`
+        text: formatClassAssignmentInfo(activeTutorialGroup)
       })
     );
     body.appendChild(studentSection);
 
     // Bucket assignment buttons
-const bucketButtons = createElement('div', { class: 'sg-row sg-grid' });
-for (const b of BUCKETS) {
-  bucketButtons.appendChild(
-    createElement('button', {
-      class: `sg-grade-btn ${currentBucket === b.id ? 'active' : ''}`,
-      onclick: () => updateStudentBucket(b.id)
-    }, [
-      createElement('span', { class: 'sg-grade-key', text: b.key }),
-      createElement('span', { class: 'sg-grade-label', text: b.label })
-    ])
-  );
-}
-body.appendChild(bucketButtons);
-
-    // Student list
-    const filteredList = getFilteredStudents(activeFilter).slice(0, 80);
-    const listSection = createElement('div', { class: 'sg-section' }, [
-      createElement('div', { class: 'sg-section-title', text: 'Student List' }),
-      createElement('div', {
-        class: 'sg-small',
-        text: `Students in "${activeFilter}" queue`
-      })
-    ]);
-
-    const list = createElement('div', { class: 'sg-list' });
-
-    if (!filteredList.length) {
-      list.appendChild(createElement('div', { class: 'sg-item' }, [
-        createElement('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
-      ]));
-    } else {
-      filteredList.forEach(s => {
-        const item = createElement('div', {
-          class: `sg-item ${s.id === studentId ? 'current' : ''}`,
-          onclick: async () => { await navigateToStudent(s.id); }
-        }, [
-          createElement('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
-          createElement('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
-        ]);
-
-        item.style.borderLeftColor = bucketColor(s.bucket);
-        list.appendChild(item);
-      });
-    }
-
-    listSection.appendChild(list);
-    body.appendChild(listSection);
-
-    // Clickable bucket list
-    const countsSection = createElement('div', { class: 'sg-section' }, [
-      createElement('div', { class: 'sg-section-title', text: 'Buckets' })
-    ]);
-
-    [
-      { id: 'all', label: 'All', value: counts.all, bucket: null },
-      { id: 'hd', label: 'HD', value: counts.hd, bucket: 'hd' },
-      { id: 'distinction', label: 'Distinction', value: counts.distinction, bucket: 'distinction' },
-      { id: 'credit', label: 'Credit', value: counts.credit, bucket: 'credit' },
-      { id: 'pass', label: 'Pass', value: counts.pass, bucket: 'pass' },
-      { id: 'fail', label: 'Fail', value: counts.fail, bucket: 'fail' },
-      { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
-    ].forEach(item => {
-      const chip = createElement('div', {
-        class: `sg-count-chip ${activeFilter === item.id ? 'active' : ''}`,
-        onclick: () => updateActiveFilter(item.id)
+    const primaryBuckets = BUCKETS.filter(b => ['hd', 'distinction', 'credit', 'pass'].includes(b.id));
+    const secondaryBuckets = BUCKETS.filter(b => ['fail', 'no_submission'].includes(b.id));
+    const createBucketButton = (bucket) => {
+      const gradeButton = createElement('button', {
+        class: `sg-grade-btn ${currentBucket === bucket.id ? 'active' : ''}`,
+        onclick: () => updateStudentBucket(bucket.id)
       }, [
-        createElement('div', { text: item.label }),
-        createElement('div', { text: String(item.value) })
+        createElement('span', { class: 'sg-grade-label', text: bucket.label })
       ]);
 
-      chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : '#455a64';
-      countsSection.appendChild(chip);
-    });
+      gradeButton.style.borderBottomColor = bucket.color;
+      return gradeButton;
+    };
 
-    countsSection.appendChild(
-   createElement('div', { class: 'sg-row sg-grid sg-grid-2', style: 'margin-top:10px;' }, [
+    const primaryBucketButtons = createElement('div', { class: 'sg-row sg-grid sg-grade-primary-grid' });
+    primaryBuckets.forEach(bucket => primaryBucketButtons.appendChild(createBucketButton(bucket)));
+    body.appendChild(primaryBucketButtons);
 
-        createElement('button', {
-          text: '◀ Prev',
-          onclick: () => navigateInFilter(-1)
-        }),
-        createElement('button', {
-          text: 'Next  ▶',
-          onclick: () => navigateInFilter(1)
-        })
+    const secondaryBucketButtons = createElement('div', { class: 'sg-row sg-grid sg-grade-secondary-grid' });
+    secondaryBuckets.forEach(bucket => secondaryBucketButtons.appendChild(createBucketButton(bucket)));
+    body.appendChild(secondaryBucketButtons);
+
+    const createTutorialNavButton = (direction, label, iconName, iconAfter = false) => {
+      return createElement('button', {
+        html: iconAfter
+          ? `<span>${label}</span>${actionIcon(iconName)}`
+          : `${actionIcon(iconName)}<span>${label}</span>`,
+        onclick: () => navigateInSelectedTutorial(direction)
+      });
+    };
+
+    const tutorialNavSection = createElement('div', { class: 'sg-section' }, [
+      createElement('div', { class: 'sg-section-title', text: 'Selected Tutorial' }),
+      createElement('div', { class: 'sg-tutorial-nav' }, [
+        createTutorialNavButton(-1, 'Prev', 'prev'),
+        createTutorialNavButton(1, 'Next', 'next', true)
       ])
-    );
+    ]);
+    body.appendChild(tutorialNavSection);
 
-    body.appendChild(countsSection);
 
-    const fileInput = createElement('input', {
-      type: 'file',
-      accept: 'application/json'
+    const bucketsOpen = getSectionOpen('buckets');
+const studentListOpen = getSectionOpen('studentList');
+
+// Clickable bucket list
+const countsSection = createElement('div', { class: 'sg-section' });
+
+countsSection.appendChild(
+  createElement('button', {
+    class: 'sg-section-toggle',
+    onclick: () => updateSectionOpen('buckets', !bucketsOpen)
+  }, [
+    createElement('span', { class: 'sg-section-toggle-label', text: 'Buckets' }),
+    createElement('span', {
+      class: 'sg-section-toggle-icon',
+      text: bucketsOpen ? '▾' : '▸'
+    })
+  ])
+);
+
+if (bucketsOpen) {
+  const countsGrid = createElement('div', { class: 'sg-counts' });
+
+  [
+    { id: 'all', label: 'All', value: counts.all, bucket: null },
+    { id: 'hd', label: 'HD', value: counts.hd, bucket: 'hd' },
+    { id: 'distinction', label: 'Distinction', value: counts.distinction, bucket: 'distinction' },
+    { id: 'credit', label: 'Credit', value: counts.credit, bucket: 'credit' },
+    { id: 'pass', label: 'Pass', value: counts.pass, bucket: 'pass' },
+    { id: 'fail', label: 'Fail', value: counts.fail, bucket: 'fail' },
+    { id: 'no_submission', label: 'No Submission', value: counts.no_submission, bucket: 'no_submission' }
+  ].forEach(item => {
+    const chip = createElement('div', {
+      class: `sg-count-chip ${item.id === 'all' ? 'sg-count-chip-full' : ''} ${activeFilter === item.id ? 'active' : ''}`,
+      onclick: () => updateActiveFilter(item.id)
+    }, [
+      createElement('div', { text: item.label }),
+      createElement('div', { text: String(item.value) })
+    ]);
+
+    chip.style.borderLeftColor = item.bucket ? bucketColor(item.bucket) : bucketColor(null);
+    countsGrid.appendChild(chip);
+  });
+
+  countsSection.appendChild(countsGrid);
+}
+
+body.appendChild(countsSection);
+
+// Student list
+const filteredList = getFilteredStudents(activeFilter).slice(0, 80);
+
+const listSection = createElement('div', { class: 'sg-section' });
+
+listSection.appendChild(
+  createElement('button', {
+    class: 'sg-section-toggle',
+    onclick: () => updateSectionOpen('studentList', !studentListOpen)
+  }, [
+    createElement('span', { class: 'sg-section-toggle-label', text: 'Student List' }),
+    createElement('span', {
+      class: 'sg-section-toggle-icon',
+      text: studentListOpen ? '▾' : '▸'
+    })
+  ])
+);
+
+if (studentListOpen) {
+  listSection.appendChild(
+    createElement('div', {
+      class: 'sg-small',
+      text: activeTutorialGroup
+        ? `Students in ${activeTutorialGroup.label || activeTutorialGroup.name || 'selected tutorial'}`
+        : `Students in "${activeFilter}" queue`
+    })
+  );
+
+  const list = createElement('div', { class: 'sg-list' });
+
+  if (!filteredList.length) {
+    list.appendChild(createElement('div', { class: 'sg-item' }, [
+      createElement('div', { class: 'sg-item-name', text: 'No students in this queue yet.' })
+    ]));
+  } else {
+    filteredList.forEach(s => {
+      const item = createElement('div', {
+        class: `sg-item ${s.id === studentId ? 'current' : ''}`,
+        onclick: async () => { await navigateToStudent(s.id); }
+      }, [
+        createElement('div', { class: 'sg-item-name', text: s.name || `Student ${s.id}` }),
+        createElement('div', { class: 'sg-item-bucket', text: bucketLabel(s.bucket) })
+      ]);
+
+      item.style.borderLeftColor = bucketColor(s.bucket);
+      list.appendChild(item);
     });
+  }
 
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) handleImportData(file);
-    });
-    body.appendChild(fileInput);
+  listSection.appendChild(list);
+}
 
-    body.appendChild(
-      createElement('div', { class: 'sg-row sg-grid sg-grid-3' }, [
-        createElement('button', {
-          text: 'Export',
-          onclick: handleExportData
-        }),
-        createElement('button', {
-          text: 'Import',
-          onclick: () => body.querySelector('input[type="file"]')?.click()
-        }),
-        createElement('button', {
-          class: 'sg-btn-danger',
-          text: 'Reset',
-          onclick: resetCurrentAssignmentData
-        })
-      ])
-    );
+body.appendChild(listSection);
 
-    body.appendChild(
-      createElement('div', { class: 'sg-small' }, [
-        'Hotkeys: 1–6 assign categories, [ and ] move through the selected queue. Queue items are clickable.'
-      ])
-    );
+const fileInput = createElement('input', {
+  type: 'file',
+  accept: 'application/json'
+});
 
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (file) handleImportData(file);
+  e.target.value = '';
+});
+
+body.appendChild(fileInput);
+
+const importExportDetails = createElement('details', { class: 'sg-details' }, [
+  createElement('summary', { text: 'Save / Import' })
+]);
+
+importExportDetails.appendChild(
+  createElement('div', {
+    class: 'sg-small',
+    text: 'Save your class results or import previous class data'
+  })
+);
+
+importExportDetails.appendChild(
+  createElement('div', { class: 'sg-row sg-grid sg-grid-3', style: 'margin-top:10px; margin-bottom:0;' }, [
+    createElement('button', {
+      class: 'sg-action-btn',
+      title: 'Save Benchmarker data',
+      'aria-label': 'Save Benchmarker data',
+      html: `${actionIcon('download')}<span>Save</span>`,
+      onclick: handleExportData
+    }),
+    createElement('button', {
+      class: 'sg-action-btn',
+      title: 'Import previous Benchmarker data',
+      'aria-label': 'Import Benchmarker data',
+      html: `${actionIcon('upload')}<span>Import</span>`,
+      onclick: () => fileInput.click()
+    }),
+    createElement('button', {
+      class: 'sg-btn-danger',
+      text: 'Reset',
+      onclick: resetCurrentAssignmentData
+    })
+  ])
+);
+
+body.appendChild(importExportDetails);
+
+   
     panel.appendChild(body);
-  }
-
-  function shouldIgnoreKeys(target) {
-    if (!target) return false;
-    const tag = target.tagName?.toLowerCase();
-    return (
-      tag === 'input' ||
-      tag === 'textarea' ||
-      tag === 'select' ||
-      target.isContentEditable
-    );
-  }
-
-  function handleKeydown(e) {
-    if (shouldIgnoreKeys(e.target)) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    if (e.key === '1') { e.preventDefault(); updateStudentBucket('hd'); return; }
-    if (e.key === '2') { e.preventDefault(); updateStudentBucket('distinction'); return; }
-    if (e.key === '3') { e.preventDefault(); updateStudentBucket('credit'); return; }
-    if (e.key === '4') { e.preventDefault(); updateStudentBucket('pass'); return; }
-    if (e.key === '5') { e.preventDefault(); updateStudentBucket('fail'); return; }
-    if (e.key === '6') { e.preventDefault(); updateStudentBucket('no_submission'); return; }
-    if (e.key === '[') { e.preventDefault(); navigateInFilter(-1); return; }
-    if (e.key === ']') { e.preventDefault(); navigateInFilter(1); return; }
   }
 
   function init() {
@@ -1252,7 +1698,6 @@ body.appendChild(bucketButtons);
     };
 
     tryRender();
-    document.addEventListener('keydown', handleKeydown, true);
     setTimeout(renderPanel, 1500);
     setTimeout(renderPanel, 3500);
 
@@ -1280,5 +1725,74 @@ body.appendChild(bucketButtons);
     startObserver();
   }
 
+  function ensureAssessmentHelpersRegistry() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+    window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+    window.AssessmentHelpers.register = function register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+    };
+    window.VisCommHelpers = window.AssessmentHelpers;
+    return window.AssessmentHelpers;
+  }
+
+  function getRegisteredPanel() {
+    return document.getElementById(PANEL_ID);
+  }
+
+  function showRegisteredPanel(render = renderPanel) {
+    render?.();
+    const panel = getRegisteredPanel();
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  }
+
+  function hideRegisteredPanel() {
+    const panel = getRegisteredPanel();
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
+  }
+
+  function isRegisteredPanelOpen() {
+    const panel = getRegisteredPanel();
+    if (!panel) return false;
+    const style = window.getComputedStyle(panel);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function toggleRegisteredPanel(render = renderPanel) {
+    if (isRegisteredPanelOpen()) hideRegisteredPanel();
+    else showRegisteredPanel(render);
+  }
+
+  function registerAssessmentHelper() {
+    const registry = ensureAssessmentHelpersRegistry();
+
+    registry.register({
+      id: HELPER_ID,
+      name: HELPER_NAME,
+      panelId: PANEL_ID,
+      panelIds: [PANEL_ID],
+      show() {
+        showRegisteredPanel(renderPanel);
+      },
+      hide: hideRegisteredPanel,
+      toggle() {
+        toggleRegisteredPanel(renderPanel);
+      },
+      isOpen: isRegisteredPanelOpen
+    });
+  }
+
+  registerAssessmentHelper();
   init();
 })();

@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader Copy Paster
+// @name         DEV Assessment Helpers - Copy/Paster
 // @namespace    AssessmentHelpers
 // @version      1.0.0
-// @description  Floating assignment-specific comment snippet panel for Canvas SpeedGrader
+// @description  Assessment Helpers panel for reusable Canvas SpeedGrader comment snippets
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
@@ -1674,13 +1674,13 @@ padding: 4px 8px;
   class: 'cp-head',
   style: collapsed ? 'border-bottom:0;' : ''
 }, [
-      createElement('div', { text: 'Copy + Paster' }),
+      createElement('div', { text: 'Copy/Paster' }),
       createElement('div', { class: 'cp-head-buttons' }, [
         createElement('button', {
           class: 'cp-panel-toggle',
           type: 'button',
           title: collapsed ? 'Expand' : 'Minimise',
-          'aria-label': collapsed ? 'Expand Copy + Paster' : 'Minimise Copy + Paster',
+          'aria-label': collapsed ? 'Expand Copy/Paster' : 'Minimise Copy/Paster',
           html: iconSvg(collapsed ? 'maximize' : 'minimize'),
           onclick: () => updateCollapsed(!collapsed)
         })

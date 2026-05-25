@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader Slider
+// @name         DEV Assessment Helpers - Rubric Slider
 // @namespace    AssessmentHelpers
-// @description  Adds a score slider to each criterion in Canvas SpeedGrader rubrics, scoped to the selected rating band
+// @description  Assessment Helpers control for tuning Canvas SpeedGrader rubric scores within rating bands
 // @version      1.1.0
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-slider.user.js
 // @include      https://*/courses/*/gradebook/speed_grader?*

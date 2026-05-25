@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader Benchmarker
+// @name         DEV Assessment Helpers - Benchmarker
 // @version      1.0.1
 // @namespace    AssessmentHelpers
-// @description  Local benchmarking overlay for Canvas SpeedGrader
+// @description  Assessment Helpers panel for sorting Canvas SpeedGrader students into benchmark buckets
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*

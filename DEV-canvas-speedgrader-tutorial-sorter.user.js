@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader Tutorial Sorter
+// @name         DEV Assessment Helpers - Tutorial Sorter
 // @namespace    AssessmentHelpers
 // @version      1.0.1
-// @description  Local tutorial grouping helper for Canvas SpeedGrader, with workbook import and dropdown-driven navigation
+// @description  Assessment Helpers panel for importing class rosters and navigating Canvas SpeedGrader by tutorial group
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-tutorial-sorter.user.js

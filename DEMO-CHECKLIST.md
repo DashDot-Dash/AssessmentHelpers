@@ -28,7 +28,7 @@ The DEV scripts intentionally keep local `File:///` `@require` lines so they sta
 ## Rubrics Page Demo
 
 1. Open a Canvas rubrics page.
-2. Confirm Rubric Library appears in the dock/page context.
+2. Confirm Rubric Builder appears in the dock/page context.
 3. Open the Rubric Builder, select criteria, set the rubric title, and export the Canvas CSV.
 
 ## Expected Dock Behaviour

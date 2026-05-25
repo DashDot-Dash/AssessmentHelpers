@@ -1,11 +1,14 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader Slider
-// @namespace    VisComm@UON
-// @description  Adds a score slider to each criterion in Canvas SpeedGrader rubrics, scoped to the selected rating band
-// @version      1.0.0
+// @name         Assessment Helpers - Rubric Slider
+// @namespace    AssessmentHelpers
+// @description  Assessment Helpers control for tuning Canvas SpeedGrader rubric scores within rating bands
+// @version      1.1.0
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
 // @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
 // @include      https://*/courses/*/gradebook/speed_grader?*
+// @match        *://*/courses/*/gradebook/speed_grader*
+// @match        *://*/courses/*/gradebook/speed_grader?*
+// @match        *://*/gradebook/speed_grader*
 // @grant        none
 // ==/UserScript==
 
@@ -18,6 +21,8 @@
   const ENHANCED_ATTR = 'data-jg-slider-enhanced';
   const WRAP_CLASS = 'jg-slider-wrap';
   const SLIDER_CLASS = 'jg-slider';
+  const commitTimers = new WeakMap();
+  const COMMIT_DELAY_MS = 80;
 
   // selectors
   const selectors = {
@@ -81,8 +86,9 @@
     const { wrap, slider } = createSlider();
     host.insertAdjacentElement('afterend', wrap);
 
-    slider.addEventListener('input', () => handleSliderInput(input, slider));
-    slider.addEventListener('change', () => handleSliderInput(input, slider));
+    slider.addEventListener('input', () => handleSliderInput(input, slider, false));
+    slider.addEventListener('change', () => handleSliderInput(input, slider, true));
+
     input.addEventListener('input', () => updateSliderFromInput(input, slider));
     input.addEventListener('change', () => updateSliderFromInput(input, slider));
 
@@ -162,8 +168,39 @@
     });
   }
 
-  function handleSliderInput(input, slider) {
+  function handleSliderInput(input, slider, immediateCommit) {
     updateCanvasInputValue(input, Number(slider.value));
+
+    if (immediateCommit) {
+      commitCanvasRubricInput(input);
+    } else {
+      scheduleCanvasCommit(input);
+    }
+  }
+
+  function scheduleCanvasCommit(input) {
+    const existing = commitTimers.get(input);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      commitCanvasRubricInput(input);
+      commitTimers.delete(input);
+    }, COMMIT_DELAY_MS);
+
+    commitTimers.set(input, timer);
+  }
+
+  function commitCanvasRubricInput(input) {
+    try {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+    } catch (e) {}
+
+    try {
+      input.blur();
+      input.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+      input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    } catch (e) {}
   }
 
   // data functions
@@ -183,7 +220,9 @@
     const buttons = getRatingButtons(criterionId);
 
     for (const btn of buttons) {
-      const selectedMarker = btn.querySelector(`[data-testid*="traditional-criterion-${criterionId}-ratings-"][data-testid$="-selected"]`);
+      const selectedMarker = btn.querySelector(
+        `[data-testid*="traditional-criterion-${criterionId}-ratings-"][data-testid$="-selected"]`
+      );
       if (selectedMarker) return btn;
 
       const sr = btn.querySelector(selectors.screenReaderContent);
@@ -247,7 +286,12 @@
     if (setter) setter.call(input, formatted);
     else input.value = formatted;
 
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      inputType: 'insertText',
+      data: formatted
+    }));
+
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
@@ -263,13 +307,13 @@
         max-width: 280px;
         flex-wrap: wrap;
       }
-      .${SLIDER_CLASS} {
-  width: 90px;
-  min-width: 90px;
-  flex: 0 0 90px;
-  accent-color: rgb(16, 144, 213);
-}
 
+      .${SLIDER_CLASS} {
+        width: 90px;
+        min-width: 90px;
+        flex: 0 0 90px;
+        accent-color: rgb(16, 144, 213);
+      }
 
       .${SLIDER_CLASS}:disabled {
         opacity: 0.45;

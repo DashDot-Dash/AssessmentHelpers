@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas Rubric Builder
+// @name         DEV Assessment Helpers - Rubric Builder
 // @namespace    AssessmentHelpers
 // @version      1.0.0
-// @description  Build Canvas rubric CSVs from a reusable criteria library
+// @description  Assessment Helpers panel for building Canvas rubric CSVs from reusable criteria
 // @match        https://*/courses/*/rubrics*
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-rubric-library-chooser.user.js
 // @grant        none

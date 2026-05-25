@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DEV Canvas SpeedGrader ETA
+// @name         DEV Assessment Helpers - ETA
 // @namespace    AssessmentHelpers
 // @version      1.0.0
-// @description  Estimate marking time remaining and log marking session data locally, with local group awareness
+// @description  Assessment Helpers panel for estimating Canvas SpeedGrader marking time and logging sessions
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-when-will-it-end.user.js
 // @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png

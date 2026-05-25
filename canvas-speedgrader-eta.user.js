@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         Canvas SpeedGrader When Will It End
-// @namespace    VisComm@UON
-// @version      1.0.0
-// @description  Estimate marking time remaining and log marking session data locally, with local group awareness
+// @name         Assessment Helpers - ETA
+// @namespace    AssessmentHelpers
+// @version      1.1.0
+// @description  Assessment Helpers panel for estimating Canvas SpeedGrader marking time and logging sessions
 // @match        https://*/courses/*/gradebook/speed_grader*
-// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-when-will-it-end.user.js
-// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-when-will-it-end.user.js
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
 // @resource     princeFacingRight https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png
 // @resource     princeFacingLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingLeft.png
 // @resource     princeDieLeft https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceDieLeft.png
@@ -20,6 +20,9 @@
   // Estimates SpeedGrader marking time and logs local session timing data.
 
   // constants/config
+  const HELPER_ID = 'eta';
+  const HELPER_NAME = 'ETA';
+  const HELPER_ALIASES = ['wwie'];
   const PANEL_ID = 'wwie-prince-panel';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_when_will_it_end_v1';
@@ -36,7 +39,14 @@
   const selectors = {
     panel: `#${PANEL_ID}`,
     selectedStudent: '[data-testid="selected-student"]',
-    studentSelectTrigger: '[data-testid="student-select-trigger"]'
+    studentSelectTrigger: [
+      '[data-testid="student-select-trigger"]',
+      'button[aria-haspopup="listbox"]',
+      'button[aria-haspopup="menu"]',
+      '[role="button"][aria-haspopup="listbox"]',
+      '[role="button"][aria-haspopup="menu"]',
+      '[role="combobox"]'
+    ].join(',')
   };
 
   // state
@@ -47,6 +57,8 @@
     lastRenderedSignature: '',
     tickInterval: null,
     navInterval: null,
+    contextInterval: null,
+    lastContextSignature: '',
     drag: null,
     princeWidget: null,
     lastProgressRatio: 0,
@@ -112,16 +124,45 @@
   }
 
   function getAssignmentNameFromPageText() {
-    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    const bodyClone = document.body?.cloneNode(true);
+    bodyClone?.querySelectorAll([
+      '#wwie-prince-panel',
+      '#assessment-helper-dock',
+      '#sg-benchmarker-panel',
+      '#chatster-lmg-panel',
+      '#vc-gradebridge-panel',
+      '#sg-copypaster-panel'
+    ].join(',')).forEach(el => el.remove());
+
+    const lines = String(bodyClone?.innerText || '').split(/\r?\n/);
     for (const line of lines) {
       const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
       if (match) {
         const cleaned = cleanAssignmentName(match[1]);
-        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+        if (
+          cleaned &&
+          !/^SpeedGrader$/i.test(cleaned) &&
+          !/^Students in\b/i.test(cleaned)
+        ) {
+          return cleaned;
+        }
       }
     }
     return '';
   }
+
+function formatClassAssignmentInfo(info = null) {
+  const metadata = info?.metadata || {};
+  const classInfo = info?.source === 'local_group'
+    ? [
+        [metadata.day, metadata.time].filter(Boolean).join(' '),
+        metadata.location
+      ].filter(Boolean).join(' · ')
+    : '';
+  const assignmentName = getAssignmentName();
+
+  return [classInfo, assignmentName].filter(Boolean).join(' | ');
+}
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
     return `${prefix}:${getAssignmentKey()}`;
@@ -241,18 +282,23 @@ function getCurrentStudentDisplayName() {
 }
 
 function getCurrentStudentKey() {
-  const displayName = getCurrentStudentDisplayName();
-  if (displayName) return `name:${normalizeName(displayName)}`;
-
   const url = new URL(window.location.href);
   const byParam =
     url.searchParams.get('student_id') ||
     url.searchParams.get('student_ids') ||
-    url.searchParams.get('user_id');
+    url.searchParams.get('user_id') ||
+    url.searchParams.get('anonymous_id');
 
   if (byParam) return `id:${byParam}`;
 
+  const displayName = getCurrentStudentDisplayName();
+  if (displayName) return `name:${normalizeName(displayName)}`;
+
   return 'unknown_student';
+}
+
+function isUsableStudentKey(key) {
+  return !!key && key !== 'unknown_student';
 }
 
 function getLocalGroupContext() {
@@ -293,6 +339,19 @@ function getLocalGroupContext() {
   } catch {
     return null;
   }
+}
+
+function getLocalGroupContextSignature() {
+  const context = getLocalGroupContext();
+  if (!context) return '';
+  return JSON.stringify({
+    course_key: context.course_key || '',
+    active_group_id: context.active_group_id || '',
+    current_index_in_group: context.current_index_in_group,
+    matched_count: context.matched_count,
+    remaining_in_group: context.remaining_in_group,
+    updated_at: context.updated_at || ''
+  });
 }
 
   function getStudentListInfo() {
@@ -431,9 +490,9 @@ function getDangerButtonCss() {
   return 'wwie-btn-danger';
 }
 
-function stat(label, value) {
+function stat(label, value, variant = '') {
   return `
-    <div class="wwie-stat">
+    <div class="wwie-stat ${variant ? `wwie-stat-${variant}` : ''}">
       <div class="wwie-stat-label">${escapeHtml(label)}</div>
       <div class="wwie-stat-value">${escapeHtml(String(value))}</div>
     </div>
@@ -581,7 +640,7 @@ function createPrinceProgressWidget() {
     right: ${config.paddingX}px;
     bottom: ${config.paddingBottom}px;
     height: ${config.barHeight}px;
-    background: #11151a;
+    background: #18181B;
     border-radius: 999px;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
   `;
@@ -866,17 +925,17 @@ async function celebrateTo(newProgress) {
   setSpriteX(oldX);
   setSpriteY(spriteBaseY);
 
-  await playClip(clips.drink, 95, 1);
+  await playClip(clips.drink, 120, 1);
 
-  await runClip(clips.runRight, oldX, runRightEndX, 900, 100);
-  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 80, 1);
+  await runClip(clips.runRight, oldX, runRightEndX, 1200, 120);
+  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 95, 1);
 
   setBarProgress(newProgress);
 
-  await runClip(clips.runLeft, barEndX, runLeftEndX, 700, 65);
-  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 80, 1);
+  await runClip(clips.runLeft, barEndX, runLeftEndX, 950, 85);
+  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 95, 1);
 
-  await playClip(clips.settleIdle, 120, 1);
+  await playClip(clips.settleIdle, 150, 1);
 
   currentProgress = newProgress;
   setSpriteX(finalStopX);
@@ -891,9 +950,13 @@ async function celebrateTo(newProgress) {
  return {
   el: widget,
   setProgress(progress) {
+    if (busy) return;
     placeAtProgress(progress);
   },
   celebrateTo,
+  isBusy() {
+    return busy;
+  },
   maybeCollapse(elapsedSeconds, medianSeconds) {
     if (
       busy ||
@@ -925,7 +988,7 @@ async function celebrateTo(newProgress) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #252b33;
+      background: #27272A;
       border-bottom: 1px solid rgba(255,255,255,0.06);
         position: relative;
   padding-left: 25px;
@@ -937,9 +1000,14 @@ async function celebrateTo(newProgress) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #d6a21d;
+  background: #D6A21D;
   border-radius: 0 2px 2px 0;
   }
+
+    #${PANEL_ID}.wwie-dragging {
+      opacity: 0.9;
+      user-select: none;
+    }
 
     #${PANEL_ID} .wwie-header--border {
       border-bottom:1px solid rgba(255,255,255,0.06);
@@ -951,7 +1019,7 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-muted {
       font-size:11px;
-      color:#9aa3af;
+      color:#A1A1AA;
     }
 
     #${PANEL_ID} .wwie-body {
@@ -965,8 +1033,19 @@ async function celebrateTo(newProgress) {
       gap:8px 12px;
     }
 
+    #${PANEL_ID} .wwie-stats-primary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    #${PANEL_ID} .wwie-stats-secondary {
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
     #${PANEL_ID} .wwie-stat {
-      background:#161a20;
+      background:#18181B;
       border:1px solid rgba(255,255,255,0.05);
       border-radius:10px;
       padding:8px 10px;
@@ -974,7 +1053,7 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-stat-label {
       font-size:11px;
-      color:#9aa3af;
+      color:#A1A1AA;
       margin-bottom:3px;
     }
 
@@ -982,6 +1061,62 @@ async function celebrateTo(newProgress) {
       font-weight:700;
       font-size:14px;
       color:#fff;
+    }
+
+    #${PANEL_ID} .wwie-stat-primary {
+      background:#27272A;
+      border-color:rgba(255,255,255,0.10);
+    }
+
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-label,
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-value {
+      color:#FAFAFA;
+    }
+
+    #${PANEL_ID} .wwie-stat-secondary {
+      background:#18181B;
+      border-color:rgba(255,255,255,0.04);
+    }
+
+    #${PANEL_ID} .wwie-stat-secondary .wwie-stat-value {
+      color:#E4E4E7;
+      font-size:13px;
+    }
+
+    #${PANEL_ID} .wwie-details {
+      margin-top: 8px;
+      background:#27272A;
+      border:1px solid rgba(255,255,255,0.05);
+      border-radius:10px;
+      padding:8px 10px;
+    }
+
+    #${PANEL_ID} .wwie-details summary {
+      cursor:pointer;
+      color:#A1A1AA;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:0.04em;
+      text-transform:uppercase;
+      list-style:none;
+    }
+
+    #${PANEL_ID} .wwie-details summary::-webkit-details-marker {
+      display:none;
+    }
+
+    #${PANEL_ID} .wwie-details summary::after {
+      content:"▸";
+      float:right;
+      color:#A1A1AA;
+    }
+
+    #${PANEL_ID} .wwie-details[open] summary {
+      margin-bottom:10px;
+    }
+
+    #${PANEL_ID} .wwie-details[open] summary::after {
+      content:"▾";
     }
 
     #${PANEL_ID} .wwie-button-row {
@@ -993,33 +1128,45 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-btn,
     #${PANEL_ID} .wwie-btn-quiet {
-      appearance:none;
-      -webkit-appearance:none;
-      border-radius:8px;
-      padding:4px 8px;
-      cursor:pointer;
-      font-size:11px;
-      font-weight:400;
-    }
-
-    #${PANEL_ID} .wwie-btn {
-      background:#11151a;
-      color:#f3f4f6;
-      border:1px solid rgba(255,255,255,0.08);
-    }
-
-    #${PANEL_ID} .wwie-btn:hover {
-      background:#171c22;
-    }
-
-    #${PANEL_ID} .wwie-btn-quiet {
-      background:#161a20;
-      color:#d5d9df;
+      background:#27272A;
+      color:#A1A1AA;
       border:1px solid rgba(255,255,255,0.06);
     }
 
     #${PANEL_ID} .wwie-btn-quiet:hover {
-      background:#1b2027;
+      background:#3F3F46;
+    }
+
+    #${PANEL_ID} .wwie-panel-toggle {
+      width: 28px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    #${PANEL_ID} .wwie-panel-toggle svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #${PANEL_ID} .wwie-icon-btn {
+      min-width: 36px;
+      display: inline-grid;
+      place-items: center;
+    }
+    #${PANEL_ID} .wwie-icon-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     #${PANEL_ID} .wwie-btn-danger {
   appearance:none;
@@ -1062,8 +1209,8 @@ function ensurePanel() {
     ${pos.left != null ? `left:${pos.left}px;` : 'right:18px;'}
     width: ${PANEL_WIDTH}px;
     z-index: ${Z_INDEX_BASE};
-    background: #1f2329;
-    color: #f3f4f6;
+    background: #18181B;
+    color: #FAFAFA;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.28);
@@ -1102,6 +1249,7 @@ function ensurePanel() {
         panelTop: rect.top
       };
 
+      panel.classList.add('wwie-dragging');
       document.body.style.cursor = 'grabbing';
       e.preventDefault();
     });
@@ -1124,6 +1272,7 @@ function ensurePanel() {
       const rect = panel.getBoundingClientRect();
       savePanelPosition(rect.left, rect.top);
       state.drag = null;
+      panel.classList.remove('wwie-dragging');
       document.body.style.cursor = '';
     });
 
@@ -1133,11 +1282,29 @@ function ensurePanel() {
     }
   }
 
+function panelToggleIcon(expand) {
+  const path = '<path d="M6 12h12"></path>';
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
+function actionIcon(name) {
+  const paths = {
+    download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || ''}</svg>`;
+}
+
 function renderPanel(force = false, options = {}) {
   const panel = ensurePanel();
   attachDragging(panel);
 
   const data = loadData();
+  if (force && state.princeWidget?.isBusy?.() && !data.minimized) {
+    updateCurrentElapsedDisplay();
+    window.setTimeout(() => renderPanel(true, options), 300);
+    return;
+  }
+
   const info = getStudentListInfo();
   const progressInfo = getProgressInfo(info, data);
 
@@ -1154,21 +1321,6 @@ function renderPanel(force = false, options = {}) {
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
   const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
 
-  const contextLabel =
-    info.source === 'local_group'
-      ? (info.groupName || 'Local group')
-      : info.source === 'canvas'
-        ? 'Whole cohort'
-        : 'Unknown set';
-
-const contextMeta =
-  info.source === 'local_group' && info.metadata
-    ? [
-        [info.metadata.day, info.metadata.time].filter(Boolean).join(' '),
-        info.metadata.location
-      ].filter(Boolean).join(' | ')
-    : '';
-
   const visibleDone = progressInfo.visibleDone;
 
   const signature = JSON.stringify({
@@ -1181,6 +1333,7 @@ const contextMeta =
     eta: Math.round(etaSeconds || 0),
     source: info.source,
     groupName: info.groupName,
+    displayContext: formatClassAssignmentInfo(info),
     total,
     done: visibleDone
   });
@@ -1202,8 +1355,8 @@ const contextMeta =
   if (data.minimized) {
     panel.innerHTML = `
       <div class="wwie-drag-handle wwie-header" style="align-items:center;">
-        <div class="wwie-title">When will it end?</div>
-        <button id="wwie-toggle" class="${getQuietButtonCss()}">Expand</button>
+        <div class="wwie-title">ETA</div>
+        <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Expand" aria-label="Expand ETA">${panelToggleIcon(true)}</button>
       </div>
     `;
     panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
@@ -1213,44 +1366,49 @@ const contextMeta =
  panel.innerHTML = `
   <div class="wwie-drag-handle wwie-header wwie-header--border">
     <div>
-      <div class="wwie-title">When will it end?</div>
+      <div class="wwie-title">ETA</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button id="wwie-toggle" class="${getQuietButtonCss()}">Minimise</button>
+      <button id="wwie-toggle" class="${getQuietButtonCss()} wwie-panel-toggle" title="Minimise" aria-label="Minimise ETA">${panelToggleIcon(false)}</button>
     </div>
   </div>
 
   <div class="wwie-body">
   <div class="wwie-muted" style="margin-bottom:8px;">
-    ${escapeHtml(getAssignmentName())}
+    ${escapeHtml(formatClassAssignmentInfo(info))}
   </div>
-  <div style="margin-top:8px;font-size:10px;color:#aeb6c2;padding:6px;">
-  ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
-    <div class="wwie-stats-grid">
-      ${stat('Completed', visibleDone)}
-      ${stat('Remaining to mark', remaining ?? '—')}
-      ${stat('Recent avg', formatDuration(rolling))}
-      ${stat('Median', formatDuration(med))}
-      ${stat('Time to complete', formatDuration(etaSeconds))}
-      ${stat('ETA', formatClock(finishAt))}
+  <div style="margin-top:8px;font-size:10px;color:#A1A1AA;padding:6px;">
+    <div class="wwie-stats-grid wwie-stats-primary">
+      ${stat('ETA', formatClock(finishAt), 'primary')}
+      ${stat('Completed', visibleDone, 'primary')}
+      ${stat('Remaining', remaining ?? '—', 'primary')}
     </div>
 
     <div id="wwie-prince-slot"></div>
 
-    <div class="wwie-muted" style="margin-top:6px;color:#8f98a3;">
-      Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
-      Logged entries: ${data.entries.length}<br>
-      Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
-    </div>
+    <details class="wwie-details">
+      <summary>Logging</summary>
+      <div class="wwie-stats-grid wwie-stats-secondary">
+        ${stat('Recent avg', formatDuration(rolling), 'secondary')}
+        ${stat('Median', formatDuration(med), 'secondary')}
+        ${stat('Time to complete', formatDuration(etaSeconds), 'secondary')}
+      </div>
 
-    <div class="wwie-button-row">
-      <button id="wwie-log" class="${getButtonCss()}">Log now</button>
-      <button id="wwie-export-csv" class="${getButtonCss()}">Export CSV</button>
-    </div>
+      <div class="wwie-muted" style="margin-top:6px;color:#A1A1AA;">
+        Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
+        Logged entries: ${data.entries.length}<br>
+        Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
+      </div>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-      <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
-    </div>
+      <div class="wwie-button-row">
+        <button id="wwie-log" class="${getButtonCss()}">Log now</button>
+        <button id="wwie-export-csv" class="${getButtonCss()} wwie-icon-btn" title="Export CSV" aria-label="Export CSV">${actionIcon('download')}</button>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
+      </div>
+    </details>
   </div>
 `;
 
@@ -1260,9 +1418,12 @@ if (princeSlot) {
   princeSlot.appendChild(state.princeWidget.el);
   state.princeWidget.setProgress(options.previousProgress ?? progressRatio);
   if (options.animateToProgress != null && options.animateToProgress > (options.previousProgress ?? progressRatio)) {
-    state.princeWidget.celebrateTo(options.animateToProgress);
+    state.princeWidget.celebrateTo(options.animateToProgress).then(() => {
+      state.lastProgressRatio = options.animateToProgress;
+    });
+  } else {
+    state.lastProgressRatio = progressRatio;
   }
-  state.lastProgressRatio = options.animateToProgress ?? progressRatio;
 }
   panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
   panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
@@ -1281,8 +1442,9 @@ if (princeSlot) {
     const data = defaultData();
     data.minimized = false;
     saveData(data);
-    state.currentStudentKey = getCurrentStudentKey();
-    state.currentStartTime = Date.now();
+    const currentKey = getCurrentStudentKey();
+    state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
+    state.currentStartTime = state.currentStudentKey ? Date.now() : null;
     renderPanel(true);
   }
 
@@ -1317,11 +1479,13 @@ if (princeSlot) {
   }
 
   function logCurrentStudentIfValid() {
+    if (!state.currentStartTime) return false;
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     return addEntry(elapsed, 'auto');
   }
 
   function handleLogNow() {
+    if (!state.currentStartTime) return;
     const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
     const previousProgress = state.lastProgressRatio;
     const ok = addEntry(elapsed, 'manual');
@@ -1382,6 +1546,7 @@ if (princeSlot) {
   const previousProgress = state.lastProgressRatio ?? previousProgressInfo.ratio;
 
   const newKey = getCurrentStudentKey();
+  if (!isUsableStudentKey(newKey)) return false;
 
   if (!state.currentStudentKey) {
     state.currentStudentKey = newKey;
@@ -1410,6 +1575,7 @@ if (princeSlot) {
   function startLoops() {
     if (state.navInterval) clearInterval(state.navInterval);
     if (state.tickInterval) clearInterval(state.tickInterval);
+    if (state.contextInterval) clearInterval(state.contextInterval);
 
     state.navInterval = setInterval(() => {
       if (location.href !== state.lastSeenUrl) {
@@ -1426,15 +1592,133 @@ if (princeSlot) {
     state.tickInterval = setInterval(() => {
       renderPanel(false);
     }, 1000);
+
+    state.lastContextSignature = getLocalGroupContextSignature();
+    state.contextInterval = setInterval(() => {
+      const signature = getLocalGroupContextSignature();
+      if (signature !== state.lastContextSignature) {
+        state.lastContextSignature = signature;
+        renderPanel(true);
+      }
+    }, 1200);
   }
 
   function init() {
-    if (document.getElementById(PANEL_ID)) return;
-    state.currentStudentKey = getCurrentStudentKey();
-    state.currentStartTime = Date.now();
+    if (!document.body) return false;
+    if (document.getElementById(PANEL_ID)) {
+      if (!state.navInterval || !state.tickInterval) startLoops();
+      return true;
+    }
+    const currentKey = getCurrentStudentKey();
+    state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
+    state.currentStartTime = state.currentStudentKey ? Date.now() : null;
     renderPanel(true);
     startLoops();
+    return true;
   }
 
-  setTimeout(init, 1800);
+  function scheduleInit() {
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    function tryInit() {
+      attempts += 1;
+      if (init()) return;
+      if (attempts < maxAttempts) setTimeout(tryInit, 500);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tryInit, { once: true });
+    } else {
+      setTimeout(tryInit, 0);
+    }
+
+    const observer = new MutationObserver(() => {
+      if (document.getElementById(PANEL_ID)) {
+        observer.disconnect();
+        return;
+      }
+      if (document.querySelector(selectors.selectedStudent) || document.querySelector(selectors.studentSelectTrigger)) {
+        init();
+        observer.disconnect();
+      }
+    });
+
+    if (document.documentElement) {
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      setTimeout(() => observer.disconnect(), 8000);
+    }
+  }
+
+  function ensureAssessmentHelpersRegistry() {
+    window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || { helpers: {} };
+    window.AssessmentHelpers.helpers = window.AssessmentHelpers.helpers || {};
+    window.AssessmentHelpers.register = function register(helper) {
+      if (!helper?.id) return;
+      this.helpers[helper.id] = helper;
+      (helper.aliases || []).forEach(alias => {
+        this.helpers[alias] = helper;
+      });
+      window.dispatchEvent(new CustomEvent('assessment-helper-registered', { detail: helper }));
+      window.dispatchEvent(new CustomEvent('viscomm-helper-registered', { detail: helper }));
+    };
+    window.VisCommHelpers = window.AssessmentHelpers;
+    return window.AssessmentHelpers;
+  }
+
+  function getRegisteredPanel() {
+    return document.getElementById(PANEL_ID);
+  }
+
+  function showRegisteredPanel(render = () => renderPanel(true)) {
+    render?.();
+    const panel = getRegisteredPanel();
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  }
+
+  function hideRegisteredPanel() {
+    const panel = getRegisteredPanel();
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
+  }
+
+  function isRegisteredPanelOpen() {
+    const panel = getRegisteredPanel();
+    if (!panel) return false;
+    const style = window.getComputedStyle(panel);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function toggleRegisteredPanel(render = () => renderPanel(true)) {
+    if (isRegisteredPanelOpen()) hideRegisteredPanel();
+    else showRegisteredPanel(render);
+  }
+
+  function registerAssessmentHelper() {
+    const registry = ensureAssessmentHelpersRegistry();
+
+    registry.register({
+      id: HELPER_ID,
+      aliases: HELPER_ALIASES,
+      name: HELPER_NAME,
+      panelId: PANEL_ID,
+      panelIds: [PANEL_ID],
+      show() {
+        showRegisteredPanel(init);
+      },
+      hide: hideRegisteredPanel,
+      toggle() {
+        toggleRegisteredPanel(init);
+      },
+      isOpen: isRegisteredPanelOpen
+    });
+  }
+
+  registerAssessmentHelper();
+  scheduleInit();
 })();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VisComm Helpers</title>
+  <title>Assessment Helpers</title>
   <style>
     :root {
       --bg: #eef1f4;
@@ -288,7 +288,7 @@
     <section class="hero">
       <div class="hero-top">
         <div>
-          <h1>VisComm Helpers</h1>
+          <h1>Assessment Helpers</h1>
           <p class="subtitle">
             A small set of browser tools to make marking, navigation and class admin in Canvas a bit less painful.
             Click a button below to install Tampermonkey as a browser extension. Sorry, not yet tested in Safari.
@@ -316,6 +316,17 @@
     <section id="helpers" class="grid">
       <article class="card">
         <div class="card-head">
+          <div class="icon">AH</div>
+          <div><h2>Dock</h2></div>
+        </div>
+        <p>One compact launcher for Assessment Helpers. Open, hide and use quick actions without hunting through the Tampermonkey menu.</p>
+        <div class="button-row">
+          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js" target="_blank" rel="noopener noreferrer">Install Dock</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
           <div class="icon">📊</div>
           <div><h2>Benchmarker</h2></div>
         </div>
@@ -330,7 +341,7 @@
           <div class="icon">🗂️</div>
           <div><h2>Tutorial Sorter</h2></div>
         </div>
-        <p>Import the .xls roster file from Allocate+ and you can navigate Speedgrader by tutorial group. Easy way to organise your marking. This panel can also export a .csv tutorial list for bulk import into Canvas so you can make real Canvas groups too! NOTE: you need to install this for <b>When Will It End?</b> to work properly</p>
+        <p>Import the .xls roster file from Allocate+ and you can navigate SpeedGrader by tutorial group. This panel can also export a .csv tutorial list for bulk import into Canvas so you can make real Canvas groups too. ETA can use the same active class for progress estimates.</p>
         <div class="button-row">
           <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-tutorial-sorter.user.js" target="_blank" rel="noopener noreferrer">Install Tutorial Sorter</a>
         </div>
@@ -339,11 +350,11 @@
       <article class="card">
         <div class="card-head">
           <div class="icon">🏃</div>
-          <div><h2>When Will It End?</h2></div>
+          <div><h2>ETA</h2></div>
         </div>
-        <p> Track your marking progress and see how long it will take to mark your classes. Bonus Prince of Persia motivational animation! The Prince will keel over if you exceed your median time! NOTE: to work you will also need to install the <b>Tutorial Sorter</b> helper and import your course roster from Allocate+</p>
+        <p>Track your marking progress and see how long it will take to mark your classes. Bonus Prince of Persia motivational animation. ETA works best with the <b>Tutorial Sorter</b> helper and an imported course roster from Allocate+.</p>
         <div class="button-row">
-          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-when-will-it-end.user.js" target="_blank" rel="noopener noreferrer">Install WWIE</a>
+          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js" target="_blank" rel="noopener noreferrer">Install ETA</a>
         </div>
       </article>
 
@@ -361,22 +372,33 @@
       <article class="card">
         <div class="card-head">
           <div class="icon">📋</div>
-          <div><h2>Copy Paster</h2></div>
+          <div><h2>Copy/Paster</h2></div>
         </div>
         <p>Comment like a boss! Click to insert your professional opinion. The cursor is always where you need it for copy/paste comments or individual words of wisdom. Export your best comments to import next time.</p>
         <div class="button-row">
-          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js" target="_blank" rel="noopener noreferrer">Install Copy Paster</a>
+          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js" target="_blank" rel="noopener noreferrer">Install Copy/Paster</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div class="icon">↔</div>
+          <div><h2>GradeBridge</h2></div>
+        </div>
+        <p>Pair two SpeedGrader assignments and switch between them while keeping the current student. Handy for moving quickly between connected submissions.</p>
+        <div class="button-row">
+          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-gradebridge.user.js" target="_blank" rel="noopener noreferrer">Install GradeBridge</a>
         </div>
       </article>
 
       <article class="card">
         <div class="card-head">
           <div class="icon">🏷️</div>
-          <div><h2>Rubric Chooser</h2></div>
+          <div><h2>Rubric Builder</h2></div>
         </div>
-        <p>Build rubric criteria from the VisComm rubrics, add your weightings and export a Canvas-ready CSV to send straight to Canvas. Never construct a criterion one at a time again.</p>
+        <p>Build rubric criteria from reusable rubrics, add your weightings and export a Canvas-ready CSV to send straight to Canvas. Never construct a criterion one at a time again.</p>
         <div class="button-row">
-          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-library-chooser.user.js" target="_blank" rel="noopener noreferrer">Install Rubric Chooser</a>
+          <a class="install-btn" href="https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js" target="_blank" rel="noopener noreferrer">Install Rubric Builder</a>
         </div>
       </article>
     </section>

@@ -1,13 +1,15 @@
 // ==UserScript==
-// @name         DEV Assessment Helpers - Dock
+// @name         Assessment Helpers - Dock
 // @namespace    AssessmentHelpers
-// @version      0.1.0
+// @version      1.0.0
 // @description  Assessment Helpers floating launcher for Canvas helper panels
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
 // @match        *://*/courses/*/rubrics*
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js
 // @grant        none
 // ==/UserScript==
 

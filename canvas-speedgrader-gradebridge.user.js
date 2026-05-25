@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         DEV Assessment Helpers - GradeBridge
+// @name         Assessment Helpers - GradeBridge
 // @namespace    AssessmentHelpers
-// @version      0.0.2
+// @version      1.0.0
 // @description  Assessment Helpers panel for switching between paired Canvas SpeedGrader assignments
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-speedgrader-gradebridger.user.js
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-gradebridge.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-gradebridge.user.js
 // @grant        none
 // ==/UserScript==
 
