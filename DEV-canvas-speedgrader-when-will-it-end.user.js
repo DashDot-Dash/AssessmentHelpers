@@ -460,9 +460,9 @@ function getDangerButtonCss() {
   return 'wwie-btn-danger';
 }
 
-function stat(label, value) {
+function stat(label, value, variant = '') {
   return `
-    <div class="wwie-stat">
+    <div class="wwie-stat ${variant ? `wwie-stat-${variant}` : ''}">
       <div class="wwie-stat-label">${escapeHtml(label)}</div>
       <div class="wwie-stat-value">${escapeHtml(String(value))}</div>
     </div>
@@ -895,17 +895,17 @@ async function celebrateTo(newProgress) {
   setSpriteX(oldX);
   setSpriteY(spriteBaseY);
 
-  await playClip(clips.drink, 95, 1);
+  await playClip(clips.drink, 120, 1);
 
-  await runClip(clips.runRight, oldX, runRightEndX, 900, 100);
-  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 80, 1);
+  await runClip(clips.runRight, oldX, runRightEndX, 1200, 120);
+  await playMovingThenStaticClip(clips.turnLeftAtEnd, runRightEndX, barEndX, 95, 1);
 
   setBarProgress(newProgress);
 
-  await runClip(clips.runLeft, barEndX, runLeftEndX, 700, 65);
-  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 80, 1);
+  await runClip(clips.runLeft, barEndX, runLeftEndX, 950, 85);
+  await playMovingThenStaticClip(clips.turnRightAtStart, runLeftEndX, finalStopX, 95, 1);
 
-  await playClip(clips.settleIdle, 120, 1);
+  await playClip(clips.settleIdle, 150, 1);
 
   currentProgress = newProgress;
   setSpriteX(finalStopX);
@@ -920,9 +920,13 @@ async function celebrateTo(newProgress) {
  return {
   el: widget,
   setProgress(progress) {
+    if (busy) return;
     placeAtProgress(progress);
   },
   celebrateTo,
+  isBusy() {
+    return busy;
+  },
   maybeCollapse(elapsedSeconds, medianSeconds) {
     if (
       busy ||
@@ -994,6 +998,17 @@ async function celebrateTo(newProgress) {
       gap:8px 12px;
     }
 
+    #${PANEL_ID} .wwie-stats-primary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    #${PANEL_ID} .wwie-stats-secondary {
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
     #${PANEL_ID} .wwie-stat {
       background:#18181B;
       border:1px solid rgba(255,255,255,0.05);
@@ -1011,6 +1026,62 @@ async function celebrateTo(newProgress) {
       font-weight:700;
       font-size:14px;
       color:#fff;
+    }
+
+    #${PANEL_ID} .wwie-stat-primary {
+      background:#27272A;
+      border-color:rgba(255,255,255,0.10);
+    }
+
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-label,
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-value {
+      color:#FAFAFA;
+    }
+
+    #${PANEL_ID} .wwie-stat-secondary {
+      background:#18181B;
+      border-color:rgba(255,255,255,0.04);
+    }
+
+    #${PANEL_ID} .wwie-stat-secondary .wwie-stat-value {
+      color:#E4E4E7;
+      font-size:13px;
+    }
+
+    #${PANEL_ID} .wwie-details {
+      margin-top: 8px;
+      background:#27272A;
+      border:1px solid rgba(255,255,255,0.05);
+      border-radius:10px;
+      padding:8px 10px;
+    }
+
+    #${PANEL_ID} .wwie-details summary {
+      cursor:pointer;
+      color:#A1A1AA;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:0.04em;
+      text-transform:uppercase;
+      list-style:none;
+    }
+
+    #${PANEL_ID} .wwie-details summary::-webkit-details-marker {
+      display:none;
+    }
+
+    #${PANEL_ID} .wwie-details summary::after {
+      content:"▸";
+      float:right;
+      color:#A1A1AA;
+    }
+
+    #${PANEL_ID} .wwie-details[open] summary {
+      margin-bottom:10px;
+    }
+
+    #${PANEL_ID} .wwie-details[open] summary::after {
+      content:"▾";
     }
 
     #${PANEL_ID} .wwie-button-row {
@@ -1193,6 +1264,12 @@ function renderPanel(force = false, options = {}) {
   attachDragging(panel);
 
   const data = loadData();
+  if (force && state.princeWidget?.isBusy?.() && !data.minimized) {
+    updateCurrentElapsedDisplay();
+    window.setTimeout(() => renderPanel(true, options), 300);
+    return;
+  }
+
   const info = getStudentListInfo();
   const progressInfo = getProgressInfo(info, data);
 
@@ -1281,31 +1358,37 @@ const contextMeta =
   </div>
   <div style="margin-top:8px;font-size:10px;color:#A1A1AA;padding:6px;">
   ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
-    <div class="wwie-stats-grid">
-      ${stat('Completed', visibleDone)}
-      ${stat('Remaining to mark', remaining ?? '—')}
-      ${stat('Recent avg', formatDuration(rolling))}
-      ${stat('Median', formatDuration(med))}
-      ${stat('Time to complete', formatDuration(etaSeconds))}
-      ${stat('ETA', formatClock(finishAt))}
+    <div class="wwie-stats-grid wwie-stats-primary">
+      ${stat('ETA', formatClock(finishAt), 'primary')}
+      ${stat('Completed', visibleDone, 'primary')}
+      ${stat('Remaining', remaining ?? '—', 'primary')}
     </div>
 
     <div id="wwie-prince-slot"></div>
 
-    <div class="wwie-muted" style="margin-top:6px;color:#A1A1AA;">
-      Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
-      Logged entries: ${data.entries.length}<br>
-      Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
-    </div>
+    <details class="wwie-details">
+      <summary>Logging</summary>
+      <div class="wwie-stats-grid wwie-stats-secondary">
+        ${stat('Recent avg', formatDuration(rolling), 'secondary')}
+        ${stat('Median', formatDuration(med), 'secondary')}
+        ${stat('Time to complete', formatDuration(etaSeconds), 'secondary')}
+      </div>
 
-    <div class="wwie-button-row">
-      <button id="wwie-log" class="${getButtonCss()}">Log now</button>
-      <button id="wwie-export-csv" class="${getButtonCss()} wwie-icon-btn" title="Export CSV" aria-label="Export CSV">${actionIcon('download')}</button>
-    </div>
+      <div class="wwie-muted" style="margin-top:6px;color:#A1A1AA;">
+        Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
+        Logged entries: ${data.entries.length}<br>
+        Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
+      </div>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-      <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
-    </div>
+      <div class="wwie-button-row">
+        <button id="wwie-log" class="${getButtonCss()}">Log now</button>
+        <button id="wwie-export-csv" class="${getButtonCss()} wwie-icon-btn" title="Export CSV" aria-label="Export CSV">${actionIcon('download')}</button>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
+      </div>
+    </details>
   </div>
 `;
 
@@ -1315,9 +1398,12 @@ if (princeSlot) {
   princeSlot.appendChild(state.princeWidget.el);
   state.princeWidget.setProgress(options.previousProgress ?? progressRatio);
   if (options.animateToProgress != null && options.animateToProgress > (options.previousProgress ?? progressRatio)) {
-    state.princeWidget.celebrateTo(options.animateToProgress);
+    state.princeWidget.celebrateTo(options.animateToProgress).then(() => {
+      state.lastProgressRatio = options.animateToProgress;
+    });
+  } else {
+    state.lastProgressRatio = progressRatio;
   }
-  state.lastProgressRatio = options.animateToProgress ?? progressRatio;
 }
   panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
   panel.querySelector('#wwie-toggle')?.addEventListener('click', handleToggleMinimize);
