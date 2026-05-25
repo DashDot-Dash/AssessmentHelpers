@@ -225,6 +225,52 @@
     return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   }
 
+  function rectsOverlap(a, b, margin = 8) {
+    return !(
+      a.right + margin < b.left ||
+      a.left - margin > b.right ||
+      a.bottom + margin < b.top ||
+      a.top - margin > b.bottom
+    );
+  }
+
+  function nudgePanelAwayFromDock(panel) {
+    const dock = document.getElementById(DOCK_ID);
+    if (!panel || !dock || panel === dock || !isPanelVisible(panel)) return;
+
+    const dockRect = dock.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    if (!dockRect.width || !dockRect.height || !panelRect.width || !panelRect.height) return;
+    if (!rectsOverlap(panelRect, dockRect, 10)) return;
+
+    const margin = 12;
+    const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - panelRect.height - margin);
+    let nextLeft = dockRect.left - panelRect.width - margin;
+    let nextTop = panelRect.top;
+
+    if (nextLeft < margin) {
+      nextLeft = Math.min(maxLeft, Math.max(margin, dockRect.right + margin));
+    }
+
+    if (nextLeft + panelRect.width > window.innerWidth - margin) {
+      nextLeft = Math.min(maxLeft, Math.max(margin, panelRect.left));
+      nextTop = dockRect.bottom + margin;
+      if (nextTop + panelRect.height > window.innerHeight - margin) {
+        nextTop = dockRect.top - panelRect.height - margin;
+      }
+    }
+
+    panel.style.left = `${Math.min(maxLeft, Math.max(margin, nextLeft))}px`;
+    panel.style.top = `${Math.min(maxTop, Math.max(margin, nextTop))}px`;
+    panel.style.right = 'auto';
+  }
+
+  function nudgeHelperPanelAwayFromDock(helper) {
+    window.setTimeout(() => nudgePanelAwayFromDock(getHelperPanel(helper)), 0);
+    window.setTimeout(() => nudgePanelAwayFromDock(getHelperPanel(helper)), 160);
+  }
+
   function hiddenMap() {
     return loadUi().hidden || {};
   }
@@ -965,10 +1011,14 @@
                     panel.dataset.vcHelperDockHidden = '0';
                     delete panel.dataset.vcHelperDockPreviousDisplay;
                   }
+                  nudgeHelperPanelAwayFromDock(helper);
                 } catch (err) {
                   console.warn('[Assessment Helpers Dock] Registered helper show failed', helper.id, err);
                   const panel = getHelperPanel(helper);
-                  if (panel) panel.style.removeProperty('display');
+                  if (panel) {
+                    panel.style.removeProperty('display');
+                    nudgePanelAwayFromDock(panel);
+                  }
                 }
                 renderDock();
                 window.setTimeout(renderDock, 120);
@@ -979,7 +1029,9 @@
             const panel = helper ? getHelperPanel(helper) : null;
             if (!helper || !panel) return;
 
-            setHelperHidden(helper, isPanelVisible(panel));
+            const wasVisible = isPanelVisible(panel);
+            setHelperHidden(helper, wasVisible);
+            if (!wasVisible) nudgeHelperPanelAwayFromDock(helper);
           } catch (err) {
             console.warn('[Assessment Helpers Dock] Helper toggle failed', err);
           }
