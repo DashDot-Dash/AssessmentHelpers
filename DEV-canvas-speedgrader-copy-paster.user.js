@@ -234,15 +234,62 @@
   }
 
   function getAssignmentNameFromPageText() {
-    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    const bodyClone = document.body?.cloneNode(true);
+    bodyClone?.querySelectorAll([
+      '#sg-copypaster-panel',
+      '#assessment-helper-dock',
+      '#sg-benchmarker-panel',
+      '#chatster-lmg-panel',
+      '#vc-gradebridge-panel',
+      '#wwie-prince-panel'
+    ].join(',')).forEach(el => el.remove());
+
+    const lines = String(bodyClone?.innerText || '').split(/\r?\n/);
     for (const line of lines) {
       const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
       if (match) {
         const cleaned = cleanAssignmentName(match[1]);
-        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+        if (
+          cleaned &&
+          !/^SpeedGrader$/i.test(cleaned) &&
+          !/^Students in\b/i.test(cleaned)
+        ) {
+          return cleaned;
+        }
       }
     }
     return '';
+  }
+
+  function getLocalGroupContext() {
+    try {
+      const raw = localStorage.getItem('chatster_tutorial_sorter_context_v11');
+      if (!raw) return null;
+
+      const context = JSON.parse(raw);
+      if (!context) return null;
+
+      const currentCourseKey = getCourseId();
+      if (context.course_key && context.course_key !== currentCourseKey) return null;
+
+      return context;
+    } catch {
+      return null;
+    }
+  }
+
+  function formatClassAssignmentInfo() {
+    const context = getLocalGroupContext();
+    const metadata = context?.metadata || {};
+    const classInfo = context?.active_group_id
+      ? [
+          [metadata.day, metadata.time].filter(Boolean).join(' '),
+          metadata.location
+        ].filter(Boolean).join(' · ')
+      : '';
+    const assignmentName = getAssignmentName();
+
+    return [classInfo, assignmentName].filter(Boolean).join(' | ');
   }
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
@@ -814,7 +861,7 @@ function handleImportData(file) {
       upload: '<path d="M12 16v-12"></path><path d="M7 9l5 -5l5 5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
       download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>',
       minimize: '<path d="M6 12h12"></path>',
-      maximize: '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
+      maximize: '<path d="M6 12h12"></path>'
     };
 
     return `
@@ -857,7 +904,7 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID}.dragging {
-      opacity: 0.92;
+      opacity: 0.9;
       user-select: none;
     }
 
@@ -1046,10 +1093,10 @@ function handleImportData(file) {
       padding: 5px 8px;
       border-left: 4px solid #D6A21D;
       border-radius: 6px;
-      background: rgba(255,255,255,0.05);
+      background: #3F3F46;
       font-size: 11px;
       font-weight: 700;
-      color: #E4E4E7;
+      color: #FAFAFA;
     }
 
     #${PANEL_ID} .cp-band-buttons {
@@ -1074,8 +1121,8 @@ function handleImportData(file) {
 
     #${PANEL_ID} .cp-band-button.active {
       color: #18181B;
-      background: #E4E4E7;
-      border-color: #E4E4E7;
+      background: #D6A21D;
+      border-color: #D6A21D;
       outline: none;
     }
 
@@ -1163,12 +1210,14 @@ function handleImportData(file) {
 
     #${PANEL_ID} .cp-icon-btn-primary {
       width: 34px;
-      background: #2f7d32;
-      color: #FAFAFA;
+      background: #D6A21D;
+      color: #18181B;
+      border-color: #D6A21D;
     }
 
     #${PANEL_ID} .cp-icon-btn-primary:hover {
-      background: #38943c;
+      background: #E0B13A;
+      color: #18181B;
     }
 
     #${PANEL_ID} .cp-icon-btn-danger {
@@ -1218,27 +1267,29 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-action-primary {
-      color: #95d59b;
-      background: #18181B;
-      border-color: rgba(47,125,50,0.42);
+      color: #18181B;
+      background: #D6A21D;
+      border-color: #D6A21D;
     }
 
     #${PANEL_ID} .cp-action-primary:hover {
-      background: rgba(47,125,50,0.16);
-      border-color: rgba(56,148,60,0.72);
+      background: #E0B13A;
+      border-color: #E0B13A;
+      color: #18181B;
     }
 
 #${PANEL_ID} .cp-btn-primary {
 padding: 4px 8px;
-  background: #2f7d32;
-  color: #FAFAFA;
+  background: #D6A21D;
+  color: #18181B;
   font-size: 11pt;
  
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid #D6A21D;
 }
 
 #${PANEL_ID} .cp-btn-primary:hover {
-  background: #38943c;
+  background: #E0B13A;
+  color: #18181B;
 }
 
     #${PANEL_ID} .cp-btn-wide {
@@ -1272,12 +1323,14 @@ padding: 4px 8px;
       display: none;
     }
 
-    #${PANEL_ID} details.cp-import-export {
+    #${PANEL_ID} details.cp-import-export,
+    #${PANEL_ID} details.cp-mode-details {
       border-top: 1px solid rgba(255,255,255,0.06);
       padding-top: 10px;
     }
 
-    #${PANEL_ID} details.cp-import-export summary {
+    #${PANEL_ID} details.cp-import-export summary,
+    #${PANEL_ID} details.cp-mode-details summary {
       cursor: pointer;
       color: #A1A1AA;
       font-size: 12px;
@@ -1655,7 +1708,7 @@ body.appendChild(
     class: 'cp-row cp-small',
     style: 'background:#18181B;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
   }, [
-    `Assignment: ${getAssignmentName()}`
+    formatClassAssignmentInfo()
   ])
 );
 
@@ -1736,13 +1789,12 @@ body.appendChild(
 );
 
     body.appendChild(
-      createElement('div', { class: 'cp-row cp-small' }, [
-        'Append mode adds below existing text. Replace mode overwrites it. Continue writing focuses the comment editor.'
-      ])
-    );
-
-    body.appendChild(
-      createElement('div', { class: 'cp-row cp-grid' }, [
+      createElement('details', { class: 'cp-row cp-mode-details' }, [
+        createElement('summary', { text: 'Mode' }),
+        createElement('div', { class: 'cp-row cp-small', style: 'margin-top:10px;' }, [
+          'Append adds below existing text. Replace overwrites it.'
+        ]),
+        createElement('div', { class: 'cp-row cp-grid', style: 'margin-bottom:0;' }, [
         createElement('button', {
           class: mode === 'append' ? 'active' : '',
           text: 'Append mode',
@@ -1753,6 +1805,7 @@ body.appendChild(
           text: 'Replace mode',
           onclick: () => updateMode('replace')
         })
+      ])
       ])
     );
 
@@ -1869,13 +1922,18 @@ body.appendChild(
   function showRegisteredPanel(render = renderPanel) {
     render?.();
     const panel = getRegisteredPanel();
-    panel?.style.removeProperty('display');
-    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
   }
 
   function hideRegisteredPanel() {
     const panel = getRegisteredPanel();
-    if (panel) panel.style.display = 'none';
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
   }
 
   function isRegisteredPanelOpen() {

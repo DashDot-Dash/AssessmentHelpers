@@ -33,7 +33,7 @@
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5v14l8 -7l-8 -7" /><path d="M14 5v14l8 -7l-8 -7" /></svg>',
     switch: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 16h10" /><path d="M11 16l4 4" /><path d="M11 16l4 -4" /><path d="M13 8h-10" /><path d="M13 8l-4 4" /><path d="M13 8l-4 -4" /></svg>',
     minimize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg>',
-    maximize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3" /><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6" /><path d="M12 8h4v4" /><path d="M16 8l-5 5" /></svg>'
+    maximize: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg>'
   };
 
   window.AssessmentHelpers = window.AssessmentHelpers || window.VisCommHelpers || {
@@ -467,7 +467,7 @@
         right: 18px;
         top: 132px;
         z-index: ${Z_INDEX_BASE};
-        width: 190px;
+        width: 152px;
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 14px;
         background: #18181B;
@@ -479,7 +479,7 @@
       }
 
       #${DOCK_ID}.is-dragging {
-        opacity: 0.94;
+        opacity: 0.9;
         transition: none;
       }
 
@@ -493,8 +493,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        padding: 10px 10px 10px 25px;
+        gap: 6px;
+        padding: 9px 8px 9px 23px;
         background: #27272A;
         border-bottom: 1px solid rgba(255,255,255,0.06);
         cursor: grab;
@@ -514,7 +514,7 @@
 
       #${DOCK_ID} .vc-dock-title {
         min-width: 0;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 750;
         white-space: nowrap;
       }
@@ -524,8 +524,8 @@
         place-items: center;
         border: 0;
         border-radius: 8px;
-        width: 28px;
-        height: 26px;
+        width: 26px;
+        height: 24px;
         padding: 0;
         background: rgba(255,255,255,0.05);
         color: #FAFAFA;
@@ -584,8 +584,8 @@
 
       #${DOCK_ID} .vc-dock-list {
         display: grid;
-        gap: 7px;
-        padding: 10px;
+        gap: 9px;
+        padding: 8px;
       }
 
       #${DOCK_ID} .vc-dock-list + .vc-dock-unavailable {
@@ -596,12 +596,12 @@
         width: 100%;
         min-width: 0;
         display: grid;
-        grid-template-columns: 24px minmax(0, 1fr);
+        grid-template-columns: 20px minmax(0, 1fr);
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         border: 0;
         border-radius: 9px;
-        padding: 8px 9px;
+        padding: 7px 8px;
         background: #27272A;
         color: #FAFAFA;
         text-align: left;
@@ -616,8 +616,8 @@
       }
 
       #${DOCK_ID} .vc-dock-helper.is-active {
-        background: #E4E4E7;
-        color: #18181B;
+        background: #3F3F46;
+        color: #FAFAFA;
       }
 
       #${DOCK_ID} .vc-dock-helper:disabled {
@@ -627,20 +627,17 @@
 
       #${DOCK_ID} .vc-dock-helper-card {
         display: grid;
-        gap: 6px;
+        gap: 7px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 4px;
       }
 
       #${DOCK_ID} .vc-dock-helper-card.has-actions {
         position: relative;
-        gap: 7px;
+        gap: 8px;
         border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 10px;
-        padding: 5px;
         background: rgba(255,255,255,0.06);
-      }
-
-      #${DOCK_ID} .vc-dock-helper-card.has-actions .vc-dock-helper {
-        border-bottom: 5px solid #D6A21D;
       }
 
       #${DOCK_ID} .vc-dock-action-row {
@@ -655,22 +652,21 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 5px;
+        gap: 4px;
         border: 0;
-        border-bottom: 5px solid #D6A21D;
         border-radius: 8px;
-        padding: 6px 7px;
-        background: #27272A;
-        color: #FAFAFA;
-        font-size: 11px;
+        padding: 6px 5px;
+        background: #D6A21D;
+        color: #18181B;
+        font-size: 10.5px;
         font-weight: 750;
         line-height: 1;
         cursor: pointer;
       }
 
       #${DOCK_ID} .vc-dock-action:hover:not(:disabled) {
-        background: #3F3F46;
-        color: #FAFAFA;
+        background: #E0B13A;
+        color: #18181B;
       }
 
       #${DOCK_ID} .vc-dock-action:disabled {
@@ -679,8 +675,8 @@
       }
 
       #${DOCK_ID} .vc-dock-action svg {
-        width: 14px;
-        height: 14px;
+        width: 13px;
+        height: 13px;
         flex: 0 0 auto;
         fill: none;
         stroke: currentColor;
@@ -743,8 +739,8 @@
       }
 
       #${DOCK_ID} .vc-dock-icon svg {
-        width: 17px;
-        height: 17px;
+        width: 16px;
+        height: 16px;
         fill: none;
         stroke: currentColor;
         stroke-width: 2;
@@ -757,6 +753,8 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 11px;
+        line-height: 1.15;
       }
     `;
     document.head.appendChild(style);
@@ -952,7 +950,7 @@
         <div class="vc-dock-list">
           ${activeHelpers.length
             ? activeHelpers.map(renderHelperButton).join('')
-            : '<div class="vc-dock-empty">Open a helper or expand Other helpers.</div>'}
+            : '<div class="vc-dock-empty">Choose a helper.</div>'}
         </div>
         ${inactiveHelpers.length ? `
           <details class="vc-dock-unavailable" ${unavailableOpen ? 'open' : ''}>

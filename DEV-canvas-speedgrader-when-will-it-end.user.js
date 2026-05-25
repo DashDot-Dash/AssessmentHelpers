@@ -123,16 +123,45 @@
   }
 
   function getAssignmentNameFromPageText() {
-    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    const bodyClone = document.body?.cloneNode(true);
+    bodyClone?.querySelectorAll([
+      '#wwie-prince-panel',
+      '#assessment-helper-dock',
+      '#sg-benchmarker-panel',
+      '#chatster-lmg-panel',
+      '#vc-gradebridge-panel',
+      '#sg-copypaster-panel'
+    ].join(',')).forEach(el => el.remove());
+
+    const lines = String(bodyClone?.innerText || '').split(/\r?\n/);
     for (const line of lines) {
       const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
       if (match) {
         const cleaned = cleanAssignmentName(match[1]);
-        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+        if (
+          cleaned &&
+          !/^SpeedGrader$/i.test(cleaned) &&
+          !/^Students in\b/i.test(cleaned)
+        ) {
+          return cleaned;
+        }
       }
     }
     return '';
   }
+
+function formatClassAssignmentInfo(info = null) {
+  const metadata = info?.metadata || {};
+  const classInfo = info?.source === 'local_group'
+    ? [
+        [metadata.day, metadata.time].filter(Boolean).join(' '),
+        metadata.location
+      ].filter(Boolean).join(' · ')
+    : '';
+  const assignmentName = getAssignmentName();
+
+  return [classInfo, assignmentName].filter(Boolean).join(' | ');
+}
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
     return `${prefix}:${getAssignmentKey()}`;
@@ -974,6 +1003,11 @@ async function celebrateTo(newProgress) {
   border-radius: 0 2px 2px 0;
   }
 
+    #${PANEL_ID}.wwie-dragging {
+      opacity: 0.9;
+      user-select: none;
+    }
+
     #${PANEL_ID} .wwie-header--border {
       border-bottom:1px solid rgba(255,255,255,0.06);
     }
@@ -1214,6 +1248,7 @@ function ensurePanel() {
         panelTop: rect.top
       };
 
+      panel.classList.add('wwie-dragging');
       document.body.style.cursor = 'grabbing';
       e.preventDefault();
     });
@@ -1236,6 +1271,7 @@ function ensurePanel() {
       const rect = panel.getBoundingClientRect();
       savePanelPosition(rect.left, rect.top);
       state.drag = null;
+      panel.classList.remove('wwie-dragging');
       document.body.style.cursor = '';
     });
 
@@ -1246,9 +1282,7 @@ function ensurePanel() {
   }
 
 function panelToggleIcon(expand) {
-  const path = expand
-    ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-    : '<path d="M6 12h12"></path>';
+  const path = '<path d="M6 12h12"></path>';
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
 }
 
@@ -1286,21 +1320,6 @@ function renderPanel(force = false, options = {}) {
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
   const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
 
-  const contextLabel =
-    info.source === 'local_group'
-      ? (info.groupName || 'Local group')
-      : info.source === 'canvas'
-        ? 'Whole cohort'
-        : 'Unknown set';
-
-const contextMeta =
-  info.source === 'local_group' && info.metadata
-    ? [
-        [info.metadata.day, info.metadata.time].filter(Boolean).join(' '),
-        info.metadata.location
-      ].filter(Boolean).join(' | ')
-    : '';
-
   const visibleDone = progressInfo.visibleDone;
 
   const signature = JSON.stringify({
@@ -1313,6 +1332,7 @@ const contextMeta =
     eta: Math.round(etaSeconds || 0),
     source: info.source,
     groupName: info.groupName,
+    displayContext: formatClassAssignmentInfo(info),
     total,
     done: visibleDone
   });
@@ -1354,10 +1374,9 @@ const contextMeta =
 
   <div class="wwie-body">
   <div class="wwie-muted" style="margin-bottom:8px;">
-    ${escapeHtml(getAssignmentName())}
+    ${escapeHtml(formatClassAssignmentInfo(info))}
   </div>
   <div style="margin-top:8px;font-size:10px;color:#A1A1AA;padding:6px;">
-  ${contextMeta ? `<br>${escapeHtml(contextMeta)}` : ''}
     <div class="wwie-stats-grid wwie-stats-primary">
       ${stat('ETA', formatClock(finishAt), 'primary')}
       ${stat('Completed', visibleDone, 'primary')}
@@ -1653,13 +1672,18 @@ if (princeSlot) {
   function showRegisteredPanel(render = () => renderPanel(true)) {
     render?.();
     const panel = getRegisteredPanel();
-    panel?.style.removeProperty('display');
-    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
   }
 
   function hideRegisteredPanel() {
     const panel = getRegisteredPanel();
-    if (panel) panel.style.display = 'none';
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
   }
 
   function isRegisteredPanelOpen() {

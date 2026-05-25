@@ -23,6 +23,8 @@
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_speedgrader_benchmarker_v1';
   const LEGACY_STORAGE_PREFIX = 'sgBenchmarker_v06';
+  const TUTORIAL_GROUPS_KEY = 'chatster_tutorial_sorter_groups_v11';
+  const TUTORIAL_ACTIVE_GROUP_KEY = 'chatster_tutorial_sorter_active_group_v11';
 
   const BUCKETS = [
     { id: 'hd', label: 'HD', color: '#2e7d32' },
@@ -149,12 +151,28 @@
   }
 
   function getAssignmentNameFromPageText() {
-    const lines = String(document.body?.innerText || '').split(/\r?\n/);
+    const bodyClone = document.body?.cloneNode(true);
+    bodyClone?.querySelectorAll([
+      '#sg-benchmarker-panel',
+      '#assessment-helper-dock',
+      '#chatster-lmg-panel',
+      '#vc-gradebridge-panel',
+      '#sg-copypaster-panel',
+      '#wwie-prince-panel'
+    ].join(',')).forEach(el => el.remove());
+
+    const lines = String(bodyClone?.innerText || '').split(/\r?\n/);
     for (const line of lines) {
       const match = cleanText(line).match(/^(.{3,140}?)\s+[A-Z]{4}\d{4}\b/);
       if (match) {
         const cleaned = cleanAssignmentName(match[1]);
-        if (cleaned && !/^SpeedGrader$/i.test(cleaned)) return cleaned;
+        if (
+          cleaned &&
+          !/^SpeedGrader$/i.test(cleaned) &&
+          !/^Students in\b/i.test(cleaned)
+        ) {
+          return cleaned;
+        }
       }
     }
     return '';
@@ -426,6 +444,90 @@ function clickStudentInOpenMenu(targetStudent) {
     localStorage.setItem(getStorageKey(), JSON.stringify(store));
   }
 
+  function canonicalStudentId(value) {
+    return String(value || '').trim();
+  }
+
+  function getCurrentCourseCode() {
+    const textCandidates = [
+      document.title,
+      getElement('h1')?.textContent || '',
+      getElement('[aria-label*="breadcrumb"]')?.textContent || '',
+      getElement('#breadcrumbs')?.textContent || '',
+      getElement('[data-testid*="course"]')?.textContent || '',
+      document.body?.innerText?.slice(0, 12000) || ''
+    ];
+
+    for (const text of textCandidates) {
+      const match = String(text || '').match(/\b([A-Z]{4}\d{4})\b/);
+      if (match) return match[1];
+    }
+
+    return 'unknown_course';
+  }
+
+  function normalizeCourseCode(value) {
+    const match = String(value || '').toUpperCase().match(/\b([A-Z]{4}\d{4})\b/);
+    return match ? match[1] : getCurrentCourseCode();
+  }
+
+  function loadTutorialSorterData() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(TUTORIAL_GROUPS_KEY));
+      return raw && typeof raw === 'object' ? raw : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getActiveTutorialGroup() {
+    const data = loadTutorialSorterData();
+    if (!data?.courses) return null;
+
+    const courseCode = normalizeCourseCode('');
+    const bucket = data.courses[courseCode] || Object.values(data.courses)[0];
+    if (!bucket?.classes) return null;
+
+    const activeClassKey = bucket.activeClassKey || localStorage.getItem(TUTORIAL_ACTIVE_GROUP_KEY);
+    return bucket.classes[activeClassKey] || Object.values(bucket.classes)[0] || null;
+  }
+
+  function getTutorialRosterStudents() {
+    const group = getActiveTutorialGroup();
+    if (!group?.students?.length) return [];
+
+    return group.students.map((student, index) => {
+      const rawId = canonicalStudentId(
+        student.user_id ||
+        student.student_number ||
+        student.login_id ||
+        student.id ||
+        ''
+      );
+      const name = student.name || student.canvas_name || `Student ${index + 1}`;
+      const id = rawId || `tutorial:${group.id || group.classKey || 'class'}:${normalizeName(name) || index}`;
+
+      return {
+        id,
+        name,
+        source: 'tutorial-sorter',
+        classLabel: group.label || group.name || 'Selected tutorial',
+        tutorialIndex: index
+      };
+    });
+  }
+
+  function formatClassAssignmentInfo(group = getActiveTutorialGroup()) {
+    const metadata = group?.metadata || {};
+    const classInfo = [
+      [metadata.day || group?.day, metadata.time || group?.time].filter(Boolean).join(' '),
+      metadata.location || group?.location
+    ].filter(Boolean).join(' · ');
+    const assignmentName = getAssignmentName();
+
+    return [classInfo, assignmentName].filter(Boolean).join(' | ');
+  }
+
   function ensureCurrentStudentTracked() {
     const studentId = getStudentId();
     if (!studentId) return;
@@ -568,6 +670,20 @@ function updateSectionOpen(sectionName, open) {
     const store = loadStore();
     const seen = new Set();
     const out = [];
+    const tutorialRoster = getTutorialRosterStudents();
+
+    for (const rosterStudent of tutorialRoster) {
+      const stored = store.students?.[rosterStudent.id] || {};
+      seen.add(rosterStudent.id);
+      out.push({
+        ...rosterStudent,
+        ...stored,
+        id: rosterStudent.id,
+        name: stored.name || rosterStudent.name,
+        source: rosterStudent.source,
+        classLabel: rosterStudent.classLabel
+      });
+    }
 
     for (const id of store.order || []) {
       if (store.students[id] && !seen.has(id)) {
@@ -607,12 +723,7 @@ function updateSectionOpen(sectionName, open) {
     }
 
     counts.all =
-      counts.hd +
-      counts.distinction +
-      counts.credit +
-      counts.pass +
-      counts.fail +
-      counts.no_submission;
+      getStudentsArray().length;
 
     return counts;
   }
@@ -638,7 +749,7 @@ function updateSectionOpen(sectionName, open) {
 
 async function navigateToStudent(studentId) {
   const store = loadStore();
-  const record = store.students?.[studentId];
+  const record = store.students?.[studentId] || getStudentsArray().find(s => String(s.id) === String(studentId));
   const targetName = record?.name || '';
 
   if (String(getStudentId() || '') === String(studentId || '')) {
@@ -716,6 +827,28 @@ function getTutorialSorterNavigationAction(direction) {
 }
 
 async function navigateInSelectedTutorial(direction) {
+  const roster = getTutorialRosterStudents();
+  if (roster.length) {
+    const currentId = getStudentId();
+    const currentName = normalizeName(getStudentName());
+    let idx = roster.findIndex(student => String(student.id) === String(currentId));
+
+    if (idx === -1 && currentName) {
+      idx = roster.findIndex(student => normalizeName(student.name) === currentName);
+    }
+
+    if (idx === -1) {
+      idx = direction < 0 ? roster.length - 1 : 0;
+    } else {
+      idx += direction < 0 ? -1 : 1;
+      if (idx < 0) idx = roster.length - 1;
+      if (idx >= roster.length) idx = 0;
+    }
+
+    await navigateToStudent(roster[idx].id);
+    return;
+  }
+
   const action = getTutorialSorterNavigationAction(direction);
   if (!action || action.disabled) {
     alert('Select a tutorial in Tutorial Sorter first.');
@@ -793,9 +926,7 @@ async function navigateInSelectedTutorial(direction) {
   }
 
   function panelToggleIcon(expanded) {
-    const path = expanded
-      ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-      : '<path d="M6 12h12"></path>';
+    const path = '<path d="M6 12h12"></path>';
     return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
   }
 
@@ -831,7 +962,7 @@ async function navigateInSelectedTutorial(direction) {
     }
 
     #${PANEL_ID}.dragging {
-      opacity: 0.92;
+      opacity: 0.9;
       user-select: none;
     }
 
@@ -1033,6 +1164,14 @@ async function navigateInSelectedTutorial(direction) {
       justify-content: center;
       gap: 6px;
       font-weight: 650;
+      background: #D6A21D;
+      color: #18181B;
+      border-color: #D6A21D;
+    }
+
+    #${PANEL_ID} .sg-tutorial-nav button:hover {
+      background: #E0B13A;
+      color: #18181B;
     }
 
     #${PANEL_ID} button {
@@ -1284,6 +1423,7 @@ handle.addEventListener('mousedown', (e) => {
     const activeFilter = getActiveFilter();
     const counts = countByBucket();
     const collapsed = getCollapsed();
+    const activeTutorialGroup = getActiveTutorialGroup();
 
     panel.innerHTML = '';
 
@@ -1342,7 +1482,7 @@ const head = createElement('div', {
     studentSection.appendChild(
       createElement('div', {
         class: 'sg-small',
-        text: getAssignmentName()
+        text: formatClassAssignmentInfo(activeTutorialGroup)
       })
     );
     body.appendChild(studentSection);
@@ -1459,7 +1599,9 @@ if (studentListOpen) {
   listSection.appendChild(
     createElement('div', {
       class: 'sg-small',
-      text: `Students in "${activeFilter}" queue`
+      text: activeTutorialGroup
+        ? `Students in ${activeTutorialGroup.label || activeTutorialGroup.name || 'selected tutorial'}`
+        : `Students in "${activeFilter}" queue`
     })
   );
 
@@ -1605,13 +1747,18 @@ body.appendChild(importExportDetails);
   function showRegisteredPanel(render = renderPanel) {
     render?.();
     const panel = getRegisteredPanel();
-    panel?.style.removeProperty('display');
-    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
   }
 
   function hideRegisteredPanel() {
     const panel = getRegisteredPanel();
-    if (panel) panel.style.display = 'none';
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
   }
 
   function isRegisteredPanelOpen() {

@@ -1121,22 +1121,42 @@ function getStudentMenuItems() {
 
     const clicked = await openAndSelectStudentFromMenu(student);
     if (!clicked) {
-      alert(`Could not find "${student.name}" in the Canvas student menu.`);
+      console.warn('Tutorial Sorter: skipping student not found in Canvas menu', {
+        name: student.name,
+        canvas_name: student.canvas_name
+      });
       return false;
     }
 
     return true;
   }
 
-  async function goToGroupStudentAtIndex(activeGroup, index) {
+  async function goToGroupStudentAtIndex(activeGroup, index, direction = 1) {
     if (!activeGroup) return false;
     if (!Number.isInteger(index)) return false;
-    if (index < 0 || index >= activeGroup.students.length) return false;
+    if (!activeGroup.students.length) return false;
 
-    const student = activeGroup.students[index];
-    if (!student) return false;
+    const step = direction < 0 ? -1 : 1;
+    const startIndex = Math.min(activeGroup.students.length - 1, Math.max(0, index));
 
-    return await goToStudentByGroupMatch({ student });
+    for (
+      let candidateIndex = startIndex;
+      candidateIndex >= 0 && candidateIndex < activeGroup.students.length;
+      candidateIndex += step
+    ) {
+      const student = activeGroup.students[candidateIndex];
+      if (!student) continue;
+
+      const found = await goToStudentByGroupMatch({ student });
+      if (found) return true;
+    }
+
+    console.warn('Tutorial Sorter: no available Canvas students found in navigation direction', {
+      group: activeGroup.label || activeGroup.name,
+      startIndex,
+      direction: step
+    });
+    return false;
   }
 
   function getActiveGroupNavigationContext() {
@@ -1168,16 +1188,17 @@ function getStudentMenuItems() {
   async function goToRelativeGroupStudent(delta) {
     const { activeGroup, currentIndexInGroup } = getActiveGroupNavigationContext();
     if (!activeGroup || !activeGroup.students.length) return false;
+    const direction = delta < 0 ? -1 : 1;
 
     if (currentIndexInGroup < 0) {
-      return await goToGroupStudentAtIndex(activeGroup, 0);
+      return await goToGroupStudentAtIndex(activeGroup, 0, 1);
     }
 
     const nextIndex = Math.min(
       activeGroup.students.length - 1,
       Math.max(0, currentIndexInGroup + delta)
     );
-    return await goToGroupStudentAtIndex(activeGroup, nextIndex);
+    return await goToGroupStudentAtIndex(activeGroup, nextIndex, direction);
   }
 
   function matchGroupToCurrentCanvas(group) {
@@ -1217,6 +1238,11 @@ function addStyles() {
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
+    }
+
+    .chatster-ui-panel.chatster-ui-dragging {
+      opacity: 0.9;
+      user-select: none;
     }
 
     .chatster-ui-header {
@@ -1442,6 +1468,14 @@ function addStyles() {
       justify-content: center;
       gap: 6px;
       font-weight: 650;
+      background: #D6A21D;
+      color: #18181B;
+      border-color: #D6A21D;
+    }
+
+    .chatster-ui-nav-block .chatster-ui-btn:hover {
+      background: #E0B13A;
+      color: #18181B;
     }
 
     .chatster-ui-nav-block svg {
@@ -1580,6 +1614,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
         panelTop: rect.top
       };
 
+      panel.classList.add('chatster-ui-dragging');
       document.body.style.cursor = 'grabbing';
       e.preventDefault();
     });
@@ -1600,6 +1635,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
     document.addEventListener('mouseup', () => {
       if (!state.drag) return;
       state.drag = null;
+      panel.classList.remove('chatster-ui-dragging');
       document.body.style.cursor = '';
       clampPanelToViewport(panel);
     });
@@ -1610,9 +1646,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
   }
 
   function panelToggleIcon(expand) {
-    const path = expand
-      ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-      : '<path d="M6 12h12"></path>';
+    const path = '<path d="M6 12h12"></path>';
     return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
   }
 
@@ -1769,6 +1803,32 @@ if (!handle || !panel.contains(handle) || clickable) return;
   ${minimized ? '' : `
   <div class="chatster-ui-body">
 
+    ${groups.length ? '' : `
+      <div
+        id="chatster-lmg-dropzone"
+        class="chatster-ui-dropzone"
+        style="
+          border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
+          background:${state.isDropActive ? '#3F3F46' : '#18181B'};
+          color:${state.isDropActive ? '#fff' : '#A1A1AA'};
+        "
+      >
+        <div style="font-weight:700;">Drop class file here</div>
+        <div class="chatster-ui-muted" style="margin-top:4px;">
+          Use Allocate+ roster export file
+        </div>
+        <div class="chatster-ui-wrap chatster-ui-row--center" style="margin-top:10px;">
+          <button id="chatster-lmg-import" class="chatster-ui-btn chatster-ui-icon-btn" title="Import class file" aria-label="Import class file">${actionIcon('upload')}</button>
+        </div>
+        <input
+          id="chatster-lmg-file"
+          type="file"
+          accept=".xlsx,.xls,.xlsm,.csv,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          style="display:none;"
+        >
+      </div>
+    `}
+
     <div class="chatster-ui-section">
       ${fieldLabel('Active class')}
       <select id="chatster-lmg-select" class="chatster-ui-select">
@@ -1820,7 +1880,6 @@ if (!handle || !panel.contains(handle) || clickable) return;
         <summary>Student List</summary>
         <div class="chatster-ui-student-list">
           ${activeGroup.students.map((s, idx) => {
-            const userRef = canonicalStudentId(s.user_id || s.student_number || s.login_id || '');
             return `
               <button
                 type="button"
@@ -1829,9 +1888,6 @@ if (!handle || !panel.contains(handle) || clickable) return;
                 title="Jump to this student in SpeedGrader"
               >
                 <div>${escapeHtml(s.name)}</div>
-                <div class="chatster-ui-student-sub">
-                  ${userRef ? `${escapeHtml(userRef)}` : '—'}
-                </div>
               </button>
             `;
           }).join('')}
@@ -1842,30 +1898,32 @@ if (!handle || !panel.contains(handle) || clickable) return;
     <details class="chatster-ui-details" style="margin-top:14px;">
       <summary>Import / Export</summary>
 
-      <div
-        id="chatster-lmg-dropzone"
-        class="chatster-ui-dropzone"
-        style="
-          border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-          background:${state.isDropActive ? '#3F3F46' : '#18181B'};
-          color:${state.isDropActive ? '#fff' : '#A1A1AA'};
-        "
-      >
-        <div style="font-weight:700;">Drop class file here</div>
-        <div class="chatster-ui-muted" style="margin-top:4px;">
-          Use Allocate+ roster export file
-        </div>
-      </div>
-
-      <div class="chatster-ui-wrap chatster-ui-section-lg">
-        <button id="chatster-lmg-import" class="chatster-ui-btn chatster-ui-icon-btn" title="Import class file" aria-label="Import class file">${actionIcon('upload')}</button>
-        <input
-          id="chatster-lmg-file"
-          type="file"
-          accept=".xlsx,.xls,.xlsm,.csv,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          style="display:none;"
+      ${groups.length ? `
+        <div
+          id="chatster-lmg-dropzone"
+          class="chatster-ui-dropzone"
+          style="
+            border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
+            background:${state.isDropActive ? '#3F3F46' : '#18181B'};
+            color:${state.isDropActive ? '#fff' : '#A1A1AA'};
+          "
         >
-      </div>
+          <div style="font-weight:700;">Drop another class file here</div>
+          <div class="chatster-ui-muted" style="margin-top:4px;">
+            Use Allocate+ roster export file
+          </div>
+        </div>
+
+        <div class="chatster-ui-wrap chatster-ui-section-lg">
+          <button id="chatster-lmg-import" class="chatster-ui-btn chatster-ui-icon-btn" title="Import class file" aria-label="Import class file">${actionIcon('upload')}</button>
+          <input
+            id="chatster-lmg-file"
+            type="file"
+            accept=".xlsx,.xls,.xlsm,.csv,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            style="display:none;"
+          >
+        </div>
+      ` : ''}
 
       ${state.lastImportSummary ? `
         <div class="chatster-ui-summary chatster-ui-muted">
@@ -1909,28 +1967,11 @@ if (!handle || !panel.contains(handle) || clickable) return;
 
 if (minimized) {
   panel.querySelector('#chatster-lmg-prev')?.addEventListener('click', async () => {
-    if (!activeGroup || !activeGroup.students.length) return;
-
-    if (currentIndexInGroup < 0) {
-      await goToGroupStudentAtIndex(activeGroup, 0);
-      return;
-    }
-
-    await goToGroupStudentAtIndex(activeGroup, Math.max(0, currentIndexInGroup - 1));
+    await goToRelativeGroupStudent(-1);
   });
 
   panel.querySelector('#chatster-lmg-next')?.addEventListener('click', async () => {
-    if (!activeGroup || !activeGroup.students.length) return;
-
-    if (currentIndexInGroup < 0) {
-      await goToGroupStudentAtIndex(activeGroup, 0);
-      return;
-    }
-
-    await goToGroupStudentAtIndex(
-      activeGroup,
-      Math.min(activeGroup.students.length - 1, currentIndexInGroup + 1)
-    );
+    await goToRelativeGroupStudent(1);
   });
 
   return;
@@ -1979,28 +2020,11 @@ if (minimized) {
     });
 
     panel.querySelector('#chatster-lmg-prev')?.addEventListener('click', async () => {
-      if (!activeGroup || !activeGroup.students.length) return;
-
-      if (currentIndexInGroup < 0) {
-        await goToGroupStudentAtIndex(activeGroup, 0);
-        return;
-      }
-
-      await goToGroupStudentAtIndex(activeGroup, Math.max(0, currentIndexInGroup - 1));
+      await goToRelativeGroupStudent(-1);
     });
 
     panel.querySelector('#chatster-lmg-next')?.addEventListener('click', async () => {
-      if (!activeGroup || !activeGroup.students.length) return;
-
-      if (currentIndexInGroup < 0) {
-        await goToGroupStudentAtIndex(activeGroup, 0);
-        return;
-      }
-
-      await goToGroupStudentAtIndex(
-        activeGroup,
-        Math.min(activeGroup.students.length - 1, currentIndexInGroup + 1)
-      );
+      await goToRelativeGroupStudent(1);
     });
 
     panel.querySelectorAll('.chatster-lmg-student-jump').forEach(btn => {
@@ -2042,13 +2066,18 @@ if (minimized) {
   function showRegisteredPanel(render = init) {
     render?.();
     const panel = getRegisteredPanel();
-    panel?.style.removeProperty('display');
-    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    panel.style.removeProperty('display');
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
   }
 
   function hideRegisteredPanel() {
     const panel = getRegisteredPanel();
-    if (panel) panel.style.display = 'none';
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '1';
+    panel.style.display = 'none';
   }
 
   function isRegisteredPanelOpen() {

@@ -683,10 +683,15 @@ function updateStatus() {
     removeLauncherButton();
     renderModal();
     const panel = getRegisteredPanel();
-    if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+    if (!panel) return;
+    panel.dataset.vcHelperDockHidden = '0';
+    delete panel.dataset.vcHelperDockPreviousDisplay;
+    if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
   }
 
   function hideRegisteredPanel() {
+    const panel = getRegisteredPanel();
+    if (panel) panel.dataset.vcHelperDockHidden = '1';
     handleCloseModal();
   }
 

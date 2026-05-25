@@ -304,9 +304,7 @@ function bringPanelToFront(panel) {
 }
 
 function panelToggleIcon(expand) {
-  const path = expand
-    ? '<path d="M3 17a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1l0 -3"></path><path d="M4 12v-6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-6"></path><path d="M12 8h4v4"></path><path d="M16 8l-5 5"></path>'
-    : '<path d="M6 12h12"></path>';
+  const path = '<path d="M6 12h12"></path>';
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${path}</svg>`;
 }
 
@@ -492,7 +490,7 @@ function clearSavedAssignmentAnchor() {
 
 function getFirstAssignmentStatusText(firstAssignment) {
   if (!firstAssignment?.assignmentId) {
-    return 'Connect this assignment, then navigate to another SpeedGrader assignment to complete the connection.';
+    return 'To fast switch between assignments, select this assignment then navigate to another SpeedGrader assignment to complete the connection.';
   }
 
   const assignmentName = getAssignmentDisplayName(
@@ -899,7 +897,7 @@ function renderPanel() {
         </div>
       </div>
     ` : `
-      <div class="vc-gradebridge-empty">Not Connected yet. Use Manage Connections to set up fast switching between assignments.</div>
+      <div class="vc-gradebridge-empty">Not Connected yet.</div>
     `}
     <details class="vc-gradebridge-manage" ${pair ? '' : 'open'}>
       <summary>Manage Connections</summary>
@@ -1000,7 +998,7 @@ function renderPanel() {
 
       #vc-gradebridge-panel.vc-gradebridge-dragging {
         transition: none;
-        opacity: 0.94;
+        opacity: 0.9;
       }
 
       #vc-gradebridge-panel.vc-gradebridge-dragging .vc-gradebridge-header {
@@ -1044,7 +1042,7 @@ function renderPanel() {
         border: 0;
         border-radius: 10px;
         padding: 9px 10px;
-        background: #E4E4E7;
+        background: #D6A21D;
         color: #18181B;
         font-size: 13px;
         font-weight: 650;
@@ -1052,7 +1050,7 @@ function renderPanel() {
       }
 
       .vc-gradebridge-button:hover {
-        background: #E4E4E7;
+        background: #E0B13A;
       }
 
       .vc-gradebridge-empty {
@@ -1121,12 +1119,12 @@ function renderPanel() {
 
       .vc-gradebridge-assignment-card-target {
         cursor: pointer;
-        background: #E4E4E7 !important;
+        background: #D6A21D !important;
         color: #18181B !important;
       }
 
       .vc-gradebridge-assignment-card-target:hover {
-        background: #E4E4E7 !important;
+        background: #E0B13A !important;
       }
 
       .vc-gradebridge-assignment-tag {
@@ -1397,13 +1395,18 @@ function getRegisteredPanel() {
 function showRegisteredPanel(render = renderPanel) {
   render?.();
   const panel = getRegisteredPanel();
-  panel?.style.removeProperty('display');
-  if (panel && typeof bringPanelToFront === 'function') bringPanelToFront(panel);
+  if (!panel) return;
+  panel.dataset.vcHelperDockHidden = '0';
+  delete panel.dataset.vcHelperDockPreviousDisplay;
+  panel.style.removeProperty('display');
+  if (typeof bringPanelToFront === 'function') bringPanelToFront(panel);
 }
 
 function hideRegisteredPanel() {
   const panel = getRegisteredPanel();
-  if (panel) panel.style.display = 'none';
+  if (!panel) return;
+  panel.dataset.vcHelperDockHidden = '1';
+  panel.style.display = 'none';
 }
 
 function isRegisteredPanelOpen() {
