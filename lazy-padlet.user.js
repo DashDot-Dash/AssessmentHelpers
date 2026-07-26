@@ -4,6 +4,8 @@
 // @version      1.2.0
 // @description  Adds click-to-view Padlet portals for Padlet links in Canvas.
 // @match        https://*.instructure.com/*
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-padlet.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-padlet.user.js
 // @grant        none
 // ==/UserScript==
 

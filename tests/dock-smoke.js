@@ -5,12 +5,12 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SPEEDGRADER_URL = 'https://canvas.test/courses/42/gradebook/speed_grader?assignment_id=100&student_id=1';
 const SCRIPT_FILES = [
-  'DEV-canvas-viscomm-helper-dock.user.js',
-  'DEV-canvas-speedgrader-copy-paster.user.js',
-  'DEV-canvas-speedgrader-benchmarker.user.js',
-  'DEV-canvas-speedgrader-tutorial-sorter.user.js',
-  'DEV-canvas-speedgrader-gradebridger.user.js',
-  'DEV-canvas-speedgrader-when-will-it-end.user.js'
+  'canvas-assessment-helper-dock.user.js',
+  'canvas-speedgrader-copy-paster.user.js',
+  'canvas-speedgrader-benchmarker.user.js',
+  'canvas-speedgrader-tutorial-sorter.user.js',
+  'canvas-speedgrader-gradebridge.user.js',
+  'canvas-speedgrader-eta.user.js'
 ];
 
 function readScript(file) {
