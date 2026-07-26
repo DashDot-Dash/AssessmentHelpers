@@ -45,3 +45,21 @@ https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-spe
 ## Rubric slider
 If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category. 
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
+
+## lazyP5
+Turns p5.js Web Editor links in Canvas SpeedGrader into optional, click-to-run sketch previews.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-p5.user.js
+
+## LazyPadlet
+Turns Padlet board and individual-post links in Canvas into optional, click-to-view portals.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-padlet.user.js
+
+## Development
+
+The `main` branch is production: Tampermonkey update URLs point directly to its
+canonical `*.user.js` files. Development happens on short-lived `feature/*`,
+`fix/*`, or `chore/*` branches.
+
+Run `npm run dev:loaders` to generate local, metadata-only Tampermonkey loaders
+inside the ignored `.local/` directory. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for setup, testing, and release instructions.

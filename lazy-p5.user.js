@@ -6,11 +6,10 @@
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
 // @match        *://*/gradebook/speed_grader*
-// @require      File:///Users/jbs939/Projects/AssessmentHelpers/DEV-lazyP5.user.js
+// @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-p5.user.js
+// @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-p5.user.js
 // @grant        none
-
 // ==/UserScript==
-
 
 (() => {
   'use strict';

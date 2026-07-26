@@ -2,12 +2,16 @@
   "name": "assessmenthelpers",
   "version": "1.0.0",
   "description": "Assessment Helpers are a suite of Tampermonkey userscripts for Canvas to help with assessment, groups and setting up rubrics.  Userscripts appear only on pages they are coded for and add functionality",
-  "main": "DEV-canvas-speedgrader-gradebridger.user.js",
+  "main": "canvas-assessment-helper-dock.user.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test:dock": "node tests/dock-smoke.js"
+    "check:userscripts": "node scripts/check-userscripts.mjs",
+    "dev:loaders": "node scripts/create-dev-loaders.mjs",
+    "test": "npm run check:userscripts && npm run test:dock && npm run test:lazy",
+    "test:dock": "node tests/dock-smoke.js",
+    "test:lazy": "node tests/lazy-viewers-smoke.js"
   },
   "repository": {
     "type": "git",
