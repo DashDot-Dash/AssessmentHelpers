@@ -4,7 +4,7 @@
 // @version      1.0.0
 // @description  Assessment Helpers panel for building Canvas rubric CSVs from reusable criteria
 // @match        https://*/courses/*/rubrics*
-// @require      File:///Users/jbs939/Desktop/AssessmentHelpers/DEV-canvas-rubric-library-chooser.user.js
+// @require      File:///Users/jbs939/Projects/AssessmentHelpers/DEV-canvas-rubric-library-chooser.user.js
 // @grant        none
 // ==/UserScript==
 
