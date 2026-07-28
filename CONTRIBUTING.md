@@ -82,7 +82,6 @@ The following commands are available:
 ```bash
 npm run check:userscripts
 npm run test:dock
-npm run test:lazy
 npm test
 ```
 
@@ -117,8 +116,8 @@ After merging, optionally create an immutable Git tag, for example:
 ```bash
 git switch main
 git pull --ff-only
-git tag lazy-padlet-v1.2.0
-git push origin lazy-padlet-v1.2.0
+git tag benchmarker-v1.1.0
+git push origin benchmarker-v1.1.0
 ```
 
 In GitHub repository settings, protect `main` and require the `test` status

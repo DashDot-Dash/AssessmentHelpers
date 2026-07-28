@@ -9,9 +9,8 @@
   "scripts": {
     "check:userscripts": "node scripts/check-userscripts.mjs",
     "dev:loaders": "node scripts/create-dev-loaders.mjs",
-    "test": "npm run check:userscripts && npm run test:dock && npm run test:lazy",
-    "test:dock": "node tests/dock-smoke.js",
-    "test:lazy": "node tests/lazy-viewers-smoke.js"
+    "test": "npm run check:userscripts && npm run test:dock",
+    "test:dock": "node tests/dock-smoke.js"
   },
   "repository": {
     "type": "git",
