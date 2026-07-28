@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Rubric Builder
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.2.0
 // @description  Assessment Helpers panel for building Canvas rubric CSVs from reusable criteria
 // @match        https://*/courses/*/rubrics*
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
@@ -19,6 +19,7 @@
   const HELPER_NAME = 'Rubric Builder';
   const PANEL_ID = 'jj-rubric-overlay';
   const LAUNCHER_ID = 'jj-rubric-library-btn';
+  const LAUNCHER_STYLE_ID = 'jj-rubric-library-btn-style';
   const Z_INDEX_BASE = 100000;
   const STORAGE_PREFIX = 'canvas_rubric_library_chooser_v1';
   const LEGACY_POSITION_KEYS = {
@@ -265,6 +266,69 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
     }
   }
 
+function addLauncherStyles() {
+  if (document.getElementById(LAUNCHER_STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = LAUNCHER_STYLE_ID;
+  style.textContent = `
+    /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+       This block adopts design/proposals/0002 §A (yellow accent) and §B (cool grey ramp),
+       matching the same v2 values already shipped across the rest of the suite. Intentionally
+       diverges from dock.tokens.css until the rest of the suite catches up — see
+       design/tokens/README.md on scripts coexisting on different token versions.
+       Scope: the launcher button's own id, not :root. Only the floating launcher gets this
+       treatment for now — the modal it opens is a distinct light-theme surface, left as-is. */
+    #${LAUNCHER_ID} {
+      --ah-shell: #1d272d;
+      --ah-header: #37424A;
+      --ah-control-hover: #49555E;
+      --ah-control-active: #49555E;
+      --ah-surface: rgba(255,255,255,0.06);
+      --ah-border: rgba(255,255,255,0.08);
+      --ah-border-soft: rgba(255,255,255,0.06);
+      --ah-border-card: rgba(255,255,255,0.12);
+      --ah-toggle: rgba(255,255,255,0.05);
+      --ah-toggle-hover: rgba(255,255,255,0.14);
+      --ah-text: #E7ECEF;
+      --ah-muted: #949DA5;
+      --ah-accent: #F5C518;
+      --ah-accent-hover: #FFD53E;
+      --ah-accent-ink: #0F1416;
+      --ah-radius-lg: 14px;
+      --ah-radius-md: 10px;
+      --ah-radius-sm: 9px;
+      --ah-radius-xs: 8px;
+      --ah-space-1: 4px;
+      --ah-space-2: 6px;
+      --ah-space-3: 8px;
+      --ah-space-4: 12px;
+      --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+      --ah-disabled-opacity: 0.42;
+      --ah-stripe-width: 12px;
+      --ah-z: ${Z_INDEX_BASE};
+    }
+    /* /AH-TOKENS */
+
+    #${LAUNCHER_ID}::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--ah-stripe-width);
+      background: var(--ah-accent);
+      border-radius: 8px 0 0 8px;
+    }
+
+    #${LAUNCHER_ID}:hover {
+      background: var(--ah-control-hover);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function createLauncherButton() {
   if (window.AssessmentHelpers?.helpers?.[HELPER_ID]) {
     removeLauncherButton();
@@ -272,6 +336,8 @@ function createLauncherButton() {
   }
 
   if (document.querySelector(selectors.launcher)) return;
+
+  addLauncherStyles();
 
   const btn = document.createElement('button');
   btn.id = LAUNCHER_ID;
@@ -286,13 +352,14 @@ function createLauncherButton() {
     top: ${savedY || '20px'};
     left: ${savedX || '20px'};
     z-index: ${Z_INDEX_BASE};
-    padding: 10px 12px;
-    background: #27272A;
-    color: white;
-    border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 12px 10px 24px;
+    background: var(--ah-header);
+    color: var(--ah-text);
+    border: 1px solid var(--ah-border);
     border-radius: 8px;
     cursor: grab;
     font-size: 13px;
+    font-weight: 400;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     user-select: none;
   `;

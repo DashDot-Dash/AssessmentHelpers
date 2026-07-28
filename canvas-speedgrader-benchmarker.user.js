@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Assessment Helpers - Benchmarker
-// @version      1.1.0
+// @version      1.3.0
 // @namespace    AssessmentHelpers
 // @description  Assessment Helpers panel for sorting Canvas SpeedGrader students into benchmark buckets
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -403,7 +403,7 @@ function clickStudentInOpenMenu(targetStudent) {
   }
 
   function bucketColor(bucketId) {
-    return bucketById(bucketId)?.color || '#3F3F46';
+    return bucketById(bucketId)?.color || 'var(--ah-control-hover)';
   }
 
   function getStorageKey(prefix = STORAGE_PREFIX) {
@@ -947,19 +947,58 @@ async function navigateInSelectedTutorial(direction) {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+       This block adopts design/proposals/0002 §A (yellow accent), §B (cool grey ramp) and
+       §C (active/focus state fixes) ahead of the rest of the suite. Intentionally diverges
+       from dock.tokens.css until the other scripts (starting with the dock) catch up — see
+       design/tokens/README.md on scripts coexisting on different token versions.
+       Scope: this script's own root element id. Never declare on :root — that
+       leaks into Canvas and collides with the other helper scripts. */
+    #${PANEL_ID} {
+      --ah-shell: #1d272d;
+      --ah-header: #37424A;
+      --ah-control-hover: #49555E;
+      --ah-control-active: #49555E;
+      --ah-surface: rgba(255,255,255,0.06);
+      --ah-border: rgba(255,255,255,0.08);
+      --ah-border-soft: rgba(255,255,255,0.06);
+      --ah-border-card: rgba(255,255,255,0.12);
+      --ah-toggle: rgba(255,255,255,0.05);
+      --ah-toggle-hover: rgba(255,255,255,0.14);
+      --ah-text: #E7ECEF;
+      --ah-muted: #949DA5;
+      --ah-accent: #F5C518;
+      --ah-accent-hover: #FFD53E;
+      --ah-accent-ink: #0F1416;
+      --ah-radius-lg: 14px;
+      --ah-radius-md: 10px;
+      --ah-radius-sm: 9px;
+      --ah-radius-xs: 8px;
+      --ah-space-1: 4px;
+      --ah-space-2: 6px;
+      --ah-space-3: 8px;
+      --ah-space-4: 12px;
+      --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+      --ah-disabled-opacity: 0.42;
+      --ah-stripe-width: 12px;
+      --ah-z: 2147483000;
+    }
+    /* /AH-TOKENS */
+
     #${PANEL_ID} {
       position: fixed;
       top: 20px;
       right: 20px;
       width: 340px;
       z-index: ${Z_INDEX_BASE};
-      background: #18181B;
-      color: #FAFAFA;
+      background: var(--ah-shell);
+      color: var(--ah-text);
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       overflow: hidden;
       font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--ah-border);
     }
 
     #${PANEL_ID}.dragging {
@@ -977,8 +1016,8 @@ async function navigateInSelectedTutorial(direction) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #27272A;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-header);
+      border-bottom: 1px solid var(--ah-border-soft);
         position: relative;
   padding-left: 25px;
     }
@@ -990,7 +1029,7 @@ async function navigateInSelectedTutorial(direction) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #D6A21D;
+  background: var(--ah-accent);
   border-radius: 0 2px 2px 0;
 }
 
@@ -1018,7 +1057,8 @@ async function navigateInSelectedTutorial(direction) {
     }
 
     #${PANEL_ID} .sg-head-title {
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 400;
     }
 
     #${PANEL_ID} .sg-body {
@@ -1033,8 +1073,8 @@ async function navigateInSelectedTutorial(direction) {
       margin-bottom: 12px;
       padding: 10px;
       border-radius: 10px;
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
     }
 
     #${PANEL_ID} .sg-section-toggle {
@@ -1046,10 +1086,10 @@ async function navigateInSelectedTutorial(direction) {
   padding: 0 0 8px 0;
   margin: 0 0 8px 0;
   border: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--ah-border);
   border-radius: 0;
   background: transparent;
-  color: #FAFAFA;
+  color: var(--ah-text);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1062,7 +1102,7 @@ async function navigateInSelectedTutorial(direction) {
 }
 
 #${PANEL_ID} .sg-section-toggle-label {
-  color: #A1A1AA;
+  color: var(--ah-muted);
 }
 
 #${PANEL_ID} .sg-section-toggle-icon {
@@ -1071,15 +1111,15 @@ async function navigateInSelectedTutorial(direction) {
 }
       #${PANEL_ID} .sg-details {
       margin-top: 12px;
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       border-radius: 10px;
       padding: 8px 10px;
     }
 
     #${PANEL_ID} .sg-details summary {
       cursor: pointer;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -1095,7 +1135,7 @@ async function navigateInSelectedTutorial(direction) {
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       margin-bottom: 8px;
     }
 
@@ -1131,7 +1171,7 @@ async function navigateInSelectedTutorial(direction) {
       color: #fff;
       white-space: nowrap;
       flex: 0 0 auto;
-      border: 1px solid rgba(255,255,255,0.12);
+      border: 1px solid var(--ah-border-card);
     }
 
     #${PANEL_ID} .sg-grid {
@@ -1165,14 +1205,14 @@ async function navigateInSelectedTutorial(direction) {
       justify-content: center;
       gap: 6px;
       font-weight: 650;
-      background: #D6A21D;
-      color: #18181B;
-      border-color: #D6A21D;
+      background: var(--ah-accent);
+      color: var(--ah-accent-ink);
+      border-color: var(--ah-accent);
     }
 
     #${PANEL_ID} .sg-tutorial-nav button:hover {
-      background: #E0B13A;
-      color: #18181B;
+      background: var(--ah-accent-hover);
+      color: var(--ah-accent-ink);
     }
 
     #${PANEL_ID} button {
@@ -1181,21 +1221,26 @@ async function navigateInSelectedTutorial(direction) {
       border-radius: 8px;
       padding: 4px 8px;
       cursor: pointer;
-      background: #18181B;
-      color: #FAFAFA;
+      background: var(--ah-shell);
+      color: var(--ah-text);
       font-size: 12px;
       font-weight: 400;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--ah-border);
     }
 
     #${PANEL_ID} button:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
       filter: none;
     }
 
     #${PANEL_ID} button.active {
-      outline: 2px solid rgba(255,255,255,0.22);
+      outline: 2px solid var(--ah-accent);
       outline-offset: 0;
+    }
+
+    #${PANEL_ID} button:focus-visible {
+      outline: 2px solid var(--ah-accent);
+      outline-offset: 2px;
     }
 
     #${PANEL_ID} .sg-icon-btn {
@@ -1227,7 +1272,7 @@ async function navigateInSelectedTutorial(direction) {
 
     #${PANEL_ID} .sg-small {
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .sg-counts {
@@ -1242,18 +1287,18 @@ async function navigateInSelectedTutorial(direction) {
       gap: 8px;
       padding: 6px 8px;
       border-radius: 8px;
-      background: #3F3F46;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-control-hover);
+      border: 1px solid var(--ah-toggle);
       border-left: 9px solid transparent;
       cursor: pointer;
     }
 
     #${PANEL_ID} .sg-count-chip:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
     }
 
     #${PANEL_ID} .sg-count-chip.active {
-      outline: 2px solid rgba(255,255,255,0.22);
+      outline: 2px solid var(--ah-accent);
       outline-offset: 0;
     }
 
@@ -1265,8 +1310,8 @@ async function navigateInSelectedTutorial(direction) {
       max-height: 220px;
       overflow: auto;
       border-radius: 10px;
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       padding: 6px;
       margin-top: 8px;
     }
@@ -1279,15 +1324,15 @@ async function navigateInSelectedTutorial(direction) {
       border-radius: 6px;
       cursor: pointer;
       border-left: 9px solid transparent;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .sg-item:hover {
-      background: rgba(255,255,255,0.08);
+      background: var(--ah-border);
     }
 
     #${PANEL_ID} .sg-item.current {
-      background: rgba(255,255,255,0.12);
+      background: var(--ah-border-card);
       color: #fff;
     }
 
@@ -1301,7 +1346,7 @@ async function navigateInSelectedTutorial(direction) {
     #${PANEL_ID} .sg-item-bucket {
       font-size: 11px;
       white-space: nowrap;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} input[type="file"] {
@@ -1315,9 +1360,9 @@ async function navigateInSelectedTutorial(direction) {
   padding: 0;
   overflow: hidden;
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--ah-border);
   border-bottom: 5px solid transparent;
-  background: #27272A;
+  background: var(--ah-header);
   min-height: 34px;
 }
 
@@ -1340,7 +1385,7 @@ async function navigateInSelectedTutorial(direction) {
     #${PANEL_ID} .sg-btn-danger {
       background: #8b1e2d;
       color: #fff2f4;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--ah-border);
     }
 
     #${PANEL_ID} .sg-btn-danger:hover {
@@ -1473,10 +1518,10 @@ const head = createElement('div', {
 
     studentTop.lastChild.style.background = currentBucket
       ? bucketColor(currentBucket)
-      : '#27272A';
+      : 'var(--ah-header)';
     studentTop.lastChild.style.borderColor = currentBucket
       ? bucketColor(currentBucket)
-      : '#3F3F46';
+      : 'var(--ah-control-hover)';
 
     studentSection.appendChild(createElement('div', { class: 'sg-section-title', text: 'Current Student' }));
     studentSection.appendChild(studentTop);

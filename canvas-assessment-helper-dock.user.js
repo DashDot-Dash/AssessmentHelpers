@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Dock
 // @namespace    AssessmentHelpers
-// @version      1.0.0
+// @version      1.2.0
 // @description  Assessment Helpers floating launcher for Canvas helper panels
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -464,18 +464,58 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+         This block adopts design/proposals/0002 §A (yellow accent), §B (cool grey ramp) and
+         §C (active/focus state fixes), matching the same v2 block already shipped in
+         canvas-speedgrader-benchmarker.user.js @ 1.2.0. Intentionally diverges from
+         dock.tokens.css until the rest of the suite catches up — see
+         design/tokens/README.md on scripts coexisting on different token versions.
+         Scope: this script's own root element id. Never declare on :root — that
+         leaks into Canvas and collides with the other helper scripts. */
+      #${DOCK_ID} {
+        --ah-shell: #1d272d;
+        --ah-header: #37424A;
+        --ah-control-hover: #49555E;
+        --ah-control-active: #49555E;
+        --ah-surface: rgba(255,255,255,0.06);
+        --ah-border: rgba(255,255,255,0.08);
+        --ah-border-soft: rgba(255,255,255,0.06);
+        --ah-border-card: rgba(255,255,255,0.12);
+        --ah-toggle: rgba(255,255,255,0.05);
+        --ah-toggle-hover: rgba(255,255,255,0.14);
+        --ah-text: #E7ECEF;
+        --ah-muted: #949DA5;
+        --ah-accent: #F5C518;
+        --ah-accent-hover: #FFD53E;
+        --ah-accent-ink: #0F1416;
+        --ah-radius-lg: 14px;
+        --ah-radius-md: 10px;
+        --ah-radius-sm: 9px;
+        --ah-radius-xs: 8px;
+        --ah-space-1: 4px;
+        --ah-space-2: 6px;
+        --ah-space-3: 8px;
+        --ah-space-4: 12px;
+        --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+        --ah-disabled-opacity: 0.42;
+        --ah-stripe-width: 12px;
+        --ah-z: ${Z_INDEX_BASE};
+      }
+      /* /AH-TOKENS */
+
       #${DOCK_ID} {
         position: fixed;
         right: 18px;
         top: 132px;
         z-index: ${Z_INDEX_BASE};
         width: 152px;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 14px;
-        background: #18181B;
-        color: #FAFAFA;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.30);
-        font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        border: 1px solid var(--ah-border);
+        border-radius: var(--ah-radius-lg);
+        background: var(--ah-shell);
+        color: var(--ah-text);
+        box-shadow: var(--ah-shadow);
+        font: var(--ah-font);
         overflow: hidden;
         user-select: none;
       }
@@ -497,8 +537,8 @@
         justify-content: space-between;
         gap: 6px;
         padding: 9px 8px 9px 23px;
-        background: #27272A;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        background: var(--ah-header);
+        border-bottom: 1px solid var(--ah-border-soft);
         cursor: grab;
         touch-action: none;
       }
@@ -510,33 +550,35 @@
         top: 0;
         bottom: 0;
         width: 12px;
-        background: #D6A21D;
+        background: var(--ah-accent);
         border-radius: 0 2px 2px 0;
       }
 
       #${DOCK_ID} .vc-dock-title {
         min-width: 0;
-        font-size: 11px;
-        font-weight: 750;
+        font-size: 13px;
+        font-weight: 400;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       #${DOCK_ID} .vc-dock-toggle {
         display: grid;
         place-items: center;
-        border: 0;
+        border: 1px solid var(--ah-border);
         border-radius: 8px;
         width: 26px;
         height: 24px;
         padding: 0;
-        background: rgba(255,255,255,0.05);
-        color: #FAFAFA;
+        background: var(--ah-shell);
+        color: var(--ah-text);
         cursor: pointer;
       }
 
       #${DOCK_ID} .vc-dock-toggle:hover {
-        background: rgba(255,255,255,0.14);
-        color: #FAFAFA;
+        background: var(--ah-control-hover);
+        color: var(--ah-text);
       }
 
       #${DOCK_ID} .vc-dock-toggle svg {
@@ -556,8 +598,8 @@
         gap: 6px;
         border: 0;
         padding: 10px 12px 10px 18px;
-        background: #27272A;
-        color: #FAFAFA;
+        background: var(--ah-header);
+        color: var(--ah-text);
         font-size: 13px;
         font-weight: 800;
         cursor: pointer;
@@ -581,7 +623,7 @@
         top: 0;
         bottom: 0;
         width: 12px;
-        background: #D6A21D;
+        background: var(--ah-accent);
       }
 
       #${DOCK_ID} .vc-dock-list {
@@ -591,7 +633,7 @@
       }
 
       #${DOCK_ID} .vc-dock-list + .vc-dock-unavailable {
-        border-top: 1px solid rgba(255,255,255,0.08);
+        border-top: 1px solid var(--ah-border);
       }
 
       #${DOCK_ID} .vc-dock-helper {
@@ -604,8 +646,8 @@
         border: 0;
         border-radius: 9px;
         padding: 7px 8px;
-        background: #27272A;
-        color: #FAFAFA;
+        background: var(--ah-header);
+        color: var(--ah-text);
         text-align: left;
         font: inherit;
         font-weight: 700;
@@ -613,18 +655,26 @@
       }
 
       #${DOCK_ID} .vc-dock-helper:hover:not(:disabled) {
-        background: #3F3F46;
-        color: #FAFAFA;
+        background: var(--ah-control-hover);
+        color: var(--ah-text);
       }
 
       #${DOCK_ID} .vc-dock-helper.is-active {
-        background: #3F3F46;
-        color: #FAFAFA;
+        background: transparent;
+        box-shadow: inset 0 0 0 2px var(--ah-accent);
+        color: var(--ah-text);
       }
 
       #${DOCK_ID} .vc-dock-helper:disabled {
         cursor: default;
-        opacity: 0.42;
+        opacity: var(--ah-disabled-opacity);
+      }
+
+      #${DOCK_ID} .vc-dock-helper:focus-visible,
+      #${DOCK_ID} .vc-dock-action:focus-visible,
+      #${DOCK_ID} .vc-dock-toggle:focus-visible {
+        outline: 2px solid var(--ah-accent);
+        outline-offset: 2px;
       }
 
       #${DOCK_ID} .vc-dock-helper-card {
@@ -638,8 +688,8 @@
       #${DOCK_ID} .vc-dock-helper-card.has-actions {
         position: relative;
         gap: 8px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--ah-border-card);
+        background: var(--ah-border-soft);
       }
 
       #${DOCK_ID} .vc-dock-action-row {
@@ -658,8 +708,8 @@
         border: 0;
         border-radius: 8px;
         padding: 6px 5px;
-        background: #D6A21D;
-        color: #18181B;
+        background: var(--ah-accent);
+        color: var(--ah-accent-ink);
         font-size: 10.5px;
         font-weight: 750;
         line-height: 1;
@@ -667,13 +717,13 @@
       }
 
       #${DOCK_ID} .vc-dock-action:hover:not(:disabled) {
-        background: #E0B13A;
-        color: #18181B;
+        background: var(--ah-accent-hover);
+        color: var(--ah-accent-ink);
       }
 
       #${DOCK_ID} .vc-dock-action:disabled {
         cursor: default;
-        opacity: 0.42;
+        opacity: var(--ah-disabled-opacity);
       }
 
       #${DOCK_ID} .vc-dock-action svg {
@@ -690,8 +740,8 @@
       #${DOCK_ID} .vc-dock-empty {
         padding: 9px 10px;
         border-radius: 9px;
-        background: rgba(255,255,255,0.06);
-        color: #A1A1AA;
+        background: var(--ah-border-soft);
+        color: var(--ah-muted);
         font-size: 12px;
         line-height: 1.3;
       }
@@ -706,7 +756,7 @@
         justify-content: space-between;
         gap: 8px;
         padding: 8px 10px;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         font-weight: 750;
         cursor: pointer;
@@ -719,7 +769,7 @@
 
       #${DOCK_ID} .vc-dock-unavailable summary::after {
         content: "▸";
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
       }
 
@@ -944,7 +994,7 @@
 
       dock.innerHTML = `
         <div class="vc-dock-header">
-          <div class="vc-dock-title">Assessment Helpers</div>
+          <div class="vc-dock-title">Helper Dock</div>
           <button type="button" class="vc-dock-toggle" title="Minimise" aria-label="Minimise dock">
             ${ICONS.minimize}
           </button>
@@ -952,11 +1002,11 @@
         <div class="vc-dock-list">
           ${activeHelpers.length
             ? activeHelpers.map(renderHelperButton).join('')
-            : '<div class="vc-dock-empty">Choose a helper.</div>'}
+            : '<div class="vc-dock-empty">...</div>'}
         </div>
         ${inactiveHelpers.length ? `
           <details class="vc-dock-unavailable" ${unavailableOpen ? 'open' : ''}>
-            <summary>Other helpers <span>${inactiveHelpers.length}</span></summary>
+            <summary>Helpers<span>${inactiveHelpers.length}</span></summary>
             <div class="vc-dock-unavailable-list">
               ${inactiveHelpers.map(renderHelperButton).join('')}
             </div>

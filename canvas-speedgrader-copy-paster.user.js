@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Copy/Paster
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.2.0
 // @description  Assessment Helpers panel for reusable Canvas SpeedGrader comment snippets
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
@@ -889,15 +889,56 @@ function handleImportData(file) {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+       This block adopts design/proposals/0002 §A (yellow accent), §B (cool grey ramp) and
+       §C (active/focus state fixes), matching the same v2 values already shipped in
+       canvas-speedgrader-benchmarker.user.js @ 1.2.0, canvas-assessment-helper-dock.user.js
+       @ 1.1.0, and canvas-speedgrader-gradebridge.user.js @ 1.1.0. Intentionally diverges
+       from dock.tokens.css until the rest of the suite catches up — see
+       design/tokens/README.md on scripts coexisting on different token versions.
+       Scope: this script's own root element id. Never declare on :root — that
+       leaks into Canvas and collides with the other helper scripts. */
+    #${PANEL_ID} {
+      --ah-shell: #1d272d;
+      --ah-header: #37424A;
+      --ah-control-hover: #49555E;
+      --ah-control-active: #49555E;
+      --ah-surface: rgba(255,255,255,0.06);
+      --ah-border: rgba(255,255,255,0.08);
+      --ah-border-soft: rgba(255,255,255,0.06);
+      --ah-border-card: rgba(255,255,255,0.12);
+      --ah-toggle: rgba(255,255,255,0.05);
+      --ah-toggle-hover: rgba(255,255,255,0.14);
+      --ah-text: #E7ECEF;
+      --ah-muted: #949DA5;
+      --ah-accent: #F5C518;
+      --ah-accent-hover: #FFD53E;
+      --ah-accent-ink: #0F1416;
+      --ah-radius-lg: 14px;
+      --ah-radius-md: 10px;
+      --ah-radius-sm: 9px;
+      --ah-radius-xs: 8px;
+      --ah-space-1: 4px;
+      --ah-space-2: 6px;
+      --ah-space-3: 8px;
+      --ah-space-4: 12px;
+      --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+      --ah-disabled-opacity: 0.42;
+      --ah-stripe-width: 12px;
+      --ah-z: ${Z_INDEX_BASE};
+    }
+    /* /AH-TOKENS */
+
     #${PANEL_ID} {
       position: fixed;
       top: 80px;
       left: 20px;
       width: 510px;
       z-index: ${Z_INDEX_BASE};
-      background: #18181B;
-      color: #FAFAFA;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--ah-shell);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       overflow: hidden;
@@ -919,8 +960,8 @@ function handleImportData(file) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #27272A;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-header);
+      border-bottom: 1px solid var(--ah-border-soft);
         position: relative;
   padding-left: 25px;
     }
@@ -931,7 +972,7 @@ function handleImportData(file) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #D6A21D;
+  background: var(--ah-accent);
   border-radius: 0 2px 2px 0;
 }
 
@@ -969,7 +1010,7 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-small {
      
       font-size:11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .cp-grid {
@@ -999,19 +1040,24 @@ function handleImportData(file) {
   cursor: pointer;
   font-size: 11px;
   
-  background: #18181B;
-  color: #FAFAFA;
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--ah-shell);
+  color: var(--ah-text);
+  border: 1px solid var(--ah-border);
 }
 
     #${PANEL_ID} button:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
       filter: none;
     }
 
     #${PANEL_ID} button.active {
-      outline: 2px solid rgba(255,255,255,0.22);
+      outline: 2px solid var(--ah-accent);
       outline-offset: 0;
+    }
+
+    #${PANEL_ID} button:focus-visible {
+      outline: 2px solid var(--ah-accent);
+      outline-offset: 2px;
     }
 
     #${PANEL_ID} input[type="text"],
@@ -1019,9 +1065,9 @@ function handleImportData(file) {
     #${PANEL_ID} select {
       width: 100%;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: #18181B;
-      color: #FAFAFA;
+      border: 1px solid var(--ah-border);
+      background: var(--ah-shell);
+      color: var(--ah-text);
       padding: 8px 10px;
     }
 
@@ -1034,7 +1080,7 @@ function handleImportData(file) {
       display: block;
       margin-bottom: 4px;
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .cp-check {
@@ -1042,7 +1088,7 @@ function handleImportData(file) {
       align-items: center;
       gap: 8px;
       margin: 0;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .cp-check input {
@@ -1052,8 +1098,8 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-list {
       overflow: auto;
       border-radius: 10px;
-      background: #18181B;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-shell);
+      border: 1px solid var(--ah-toggle);
       padding: 6px;
     }
 
@@ -1092,12 +1138,12 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-section-title {
       margin: 2px 0 8px;
       padding: 5px 8px;
-      border-left: 4px solid #D6A21D;
+      border-left: 4px solid var(--ah-accent);
       border-radius: 6px;
-      background: #3F3F46;
+      background: var(--ah-control-hover);
       font-size: 11px;
       font-weight: 700;
-      color: #FAFAFA;
+      color: var(--ah-text);
     }
 
     #${PANEL_ID} .cp-band-buttons {
@@ -1111,8 +1157,8 @@ function handleImportData(file) {
       padding: 3px 7px;
       border-radius: 999px;
       font-size: 10px;
-      color: #A1A1AA;
-      background: #27272A;
+      color: var(--ah-muted);
+      background: var(--ah-header);
       border: 1px solid rgba(143,145,148,0.25);
     }
 
@@ -1121,17 +1167,17 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-band-button.active {
-      color: #18181B;
-      background: #D6A21D;
-      border-color: #D6A21D;
+      color: var(--ah-accent-ink);
+      background: var(--ah-accent);
+      border-color: var(--ah-accent);
       outline: none;
     }
 
     #${PANEL_ID} .cp-item {
       padding: 10px;
       border-radius: 10px;
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       margin-bottom: 8px;
     }
 
@@ -1154,12 +1200,12 @@ function handleImportData(file) {
     #${PANEL_ID} .cp-item-meta {
       margin-top: 2px;
       font-size: 10px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .cp-item-text {
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       white-space: pre-wrap;
       margin-bottom: 8px;
     }
@@ -1196,7 +1242,7 @@ function handleImportData(file) {
       justify-content: center;
       padding: 0;
       border-radius: 7px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     #${PANEL_ID} .cp-icon-btn svg {
@@ -1211,14 +1257,14 @@ function handleImportData(file) {
 
     #${PANEL_ID} .cp-icon-btn-primary {
       width: 34px;
-      background: #D6A21D;
-      color: #18181B;
-      border-color: #D6A21D;
+      background: var(--ah-accent);
+      color: var(--ah-accent-ink);
+      border-color: var(--ah-accent);
     }
 
     #${PANEL_ID} .cp-icon-btn-primary:hover {
-      background: #E0B13A;
-      color: #18181B;
+      background: var(--ah-accent-hover);
+      color: var(--ah-accent-ink);
     }
 
     #${PANEL_ID} .cp-icon-btn-danger {
@@ -1258,39 +1304,39 @@ function handleImportData(file) {
 
     #${PANEL_ID} .cp-action-secondary {
       color: #E4E4E7;
-      background: #27272A;
+      background: var(--ah-header);
       border-color: rgba(143,145,148,0.32);
     }
 
     #${PANEL_ID} .cp-action-secondary:hover {
-      background: rgba(255,255,255,0.05);
+      background: var(--ah-toggle);
       border-color: rgba(143,145,148,0.65);
     }
 
     #${PANEL_ID} .cp-action-primary {
-      color: #18181B;
-      background: #D6A21D;
-      border-color: #D6A21D;
+      color: var(--ah-accent-ink);
+      background: var(--ah-accent);
+      border-color: var(--ah-accent);
     }
 
     #${PANEL_ID} .cp-action-primary:hover {
-      background: #E0B13A;
-      border-color: #E0B13A;
-      color: #18181B;
+      background: var(--ah-accent-hover);
+      border-color: var(--ah-accent-hover);
+      color: var(--ah-accent-ink);
     }
 
 #${PANEL_ID} .cp-btn-primary {
 padding: 4px 8px;
-  background: #D6A21D;
-  color: #18181B;
+  background: var(--ah-accent);
+  color: var(--ah-accent-ink);
   font-size: 11pt;
  
-  border: 1px solid #D6A21D;
+  border: 1px solid var(--ah-accent);
 }
 
 #${PANEL_ID} .cp-btn-primary:hover {
-  background: #E0B13A;
-  color: #18181B;
+  background: var(--ah-accent-hover);
+  color: var(--ah-accent-ink);
 }
 
     #${PANEL_ID} .cp-btn-wide {
@@ -1301,19 +1347,19 @@ padding: 4px 8px;
     #${PANEL_ID} .cp-btn-small {
       padding: 4px 8px;
       font-size: 11px;
-      background: #18181B;
-      color: #A1A1AA;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-shell);
+      color: var(--ah-muted);
+      border: 1px solid var(--ah-border-soft);
     }
 
     #${PANEL_ID} .cp-btn-small:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
     }
 
     #${PANEL_ID} .cp-btn-danger {
       background: #8b1e2d;
       color: #fff2f4;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--ah-border);
     }
 
     #${PANEL_ID} .cp-btn-danger:hover {
@@ -1326,14 +1372,14 @@ padding: 4px 8px;
 
     #${PANEL_ID} details.cp-import-export,
     #${PANEL_ID} details.cp-mode-details {
-      border-top: 1px solid rgba(255,255,255,0.06);
+      border-top: 1px solid var(--ah-border-soft);
       padding-top: 10px;
     }
 
     #${PANEL_ID} details.cp-import-export summary,
     #${PANEL_ID} details.cp-mode-details summary {
       cursor: pointer;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       font-size: 12px;
       list-style-position: inside;
     }
@@ -1707,7 +1753,7 @@ padding: 4px 8px;
 body.appendChild(
   createElement('div', {
     class: 'cp-row cp-small',
-    style: 'background:#18181B;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;'
+    style: 'background:var(--ah-shell);border:1px solid var(--ah-toggle);border-radius:10px;padding:10px;'
   }, [
     formatClassAssignmentInfo()
   ])

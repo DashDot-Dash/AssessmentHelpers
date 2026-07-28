@@ -1,0 +1,36 @@
+/* AH-TOKENS v1 — generated from design/tokens/tokens.json — do not edit by hand
+   Scope: replace the selector with THIS script's own root element id.
+   Never declare these on :root — that leaks into Canvas and collides with
+   the other helper scripts. */
+
+#assessment-helper-dock {
+  --ah-shell: #18181B;
+  --ah-header: #27272A;
+  --ah-control-hover: #3F3F46;
+  --ah-control-active: #3F3F46;
+  --ah-surface: rgba(255,255,255,0.06);
+  --ah-border: rgba(255,255,255,0.08);
+  --ah-border-soft: rgba(255,255,255,0.06);
+  --ah-border-card: rgba(255,255,255,0.12);
+  --ah-toggle: rgba(255,255,255,0.05);
+  --ah-toggle-hover: rgba(255,255,255,0.14);
+  --ah-text: #FAFAFA;
+  --ah-muted: #A1A1AA;
+  --ah-accent: #D6A21D;
+  --ah-accent-hover: #E0B13A;
+  --ah-accent-ink: #18181B;
+  --ah-radius-lg: 14px;
+  --ah-radius-md: 10px;
+  --ah-radius-sm: 9px;
+  --ah-radius-xs: 8px;
+  --ah-space-1: 4px;
+  --ah-space-2: 6px;
+  --ah-space-3: 8px;
+  --ah-space-4: 12px;
+  --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+  --ah-disabled-opacity: 0.42;
+  --ah-stripe-width: 12px;
+  --ah-z: 2147483000;
+}
+/* /AH-TOKENS */

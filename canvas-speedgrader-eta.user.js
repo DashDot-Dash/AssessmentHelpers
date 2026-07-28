@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - ETA
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.3.0
 // @description  Assessment Helpers panel for estimating Canvas SpeedGrader marking time and logging sessions
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
@@ -640,9 +640,9 @@ function createPrinceProgressWidget() {
     right: ${config.paddingX}px;
     bottom: ${config.paddingBottom}px;
     height: ${config.barHeight}px;
-    background: #18181B;
+    background: var(--ah-shell);
     border-radius: 999px;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    box-shadow: inset 0 0 0 1px var(--ah-border);
   `;
 
   const fill = document.createElement('div');
@@ -988,8 +988,8 @@ async function celebrateTo(newProgress) {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #27272A;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-header);
+      border-bottom: 1px solid var(--ah-border-soft);
         position: relative;
   padding-left: 25px;
     }
@@ -1000,7 +1000,7 @@ async function celebrateTo(newProgress) {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #D6A21D;
+  background: var(--ah-accent);
   border-radius: 0 2px 2px 0;
   }
 
@@ -1010,16 +1010,17 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-header--border {
-      border-bottom:1px solid rgba(255,255,255,0.06);
+      border-bottom:1px solid var(--ah-border-soft);
     }
 
     #${PANEL_ID} .wwie-title {
-      font-weight:700;
+      font-size: 13px;
+      font-weight: 400;
     }
 
     #${PANEL_ID} .wwie-muted {
       font-size:11px;
-      color:#A1A1AA;
+      color:var(--ah-muted);
     }
 
     #${PANEL_ID} .wwie-body {
@@ -1045,15 +1046,15 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-stat {
-      background:#18181B;
-      border:1px solid rgba(255,255,255,0.05);
+      background:var(--ah-shell);
+      border:1px solid var(--ah-toggle);
       border-radius:10px;
       padding:8px 10px;
     }
 
     #${PANEL_ID} .wwie-stat-label {
       font-size:11px;
-      color:#A1A1AA;
+      color:var(--ah-muted);
       margin-bottom:3px;
     }
 
@@ -1064,17 +1065,17 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-stat-primary {
-      background:#27272A;
+      background:var(--ah-header);
       border-color:rgba(255,255,255,0.10);
     }
 
     #${PANEL_ID} .wwie-stat-primary .wwie-stat-label,
     #${PANEL_ID} .wwie-stat-primary .wwie-stat-value {
-      color:#FAFAFA;
+      color:var(--ah-text);
     }
 
     #${PANEL_ID} .wwie-stat-secondary {
-      background:#18181B;
+      background:var(--ah-shell);
       border-color:rgba(255,255,255,0.04);
     }
 
@@ -1085,15 +1086,15 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-details {
       margin-top: 8px;
-      background:#27272A;
-      border:1px solid rgba(255,255,255,0.05);
+      background:var(--ah-header);
+      border:1px solid var(--ah-toggle);
       border-radius:10px;
       padding:8px 10px;
     }
 
     #${PANEL_ID} .wwie-details summary {
       cursor:pointer;
-      color:#A1A1AA;
+      color:var(--ah-muted);
       font-size:11px;
       font-weight:700;
       letter-spacing:0.04em;
@@ -1108,7 +1109,7 @@ async function celebrateTo(newProgress) {
     #${PANEL_ID} .wwie-details summary::after {
       content:"▸";
       float:right;
-      color:#A1A1AA;
+      color:var(--ah-muted);
     }
 
     #${PANEL_ID} .wwie-details[open] summary {
@@ -1128,13 +1129,13 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-btn,
     #${PANEL_ID} .wwie-btn-quiet {
-      background:#27272A;
-      color:#A1A1AA;
-      border:1px solid rgba(255,255,255,0.06);
+      background:var(--ah-header);
+      color:var(--ah-muted);
+      border:1px solid var(--ah-border-soft);
     }
 
     #${PANEL_ID} .wwie-btn-quiet:hover {
-      background:#3F3F46;
+      background:var(--ah-control-hover);
     }
 
     #${PANEL_ID} .wwie-panel-toggle {
@@ -1143,6 +1144,13 @@ async function celebrateTo(newProgress) {
       padding: 0;
       display: grid;
       place-items: center;
+      background: var(--ah-shell);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
+    }
+
+    #${PANEL_ID} .wwie-panel-toggle:hover {
+      background: var(--ah-control-hover);
     }
 
     #${PANEL_ID} .wwie-panel-toggle svg {
@@ -1178,7 +1186,7 @@ async function celebrateTo(newProgress) {
   font-weight:400;
   background:#8b1e2d;
   color:#fff2f4;
-  border:1px solid rgba(255,255,255,0.08);
+  border:1px solid var(--ah-border);
 }
 
 #${PANEL_ID} .wwie-btn-danger:hover {
@@ -1204,14 +1212,53 @@ function ensurePanel() {
 
   const pos = getPanelPosition();
   panel.style.cssText = `
+    /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+       This block adopts design/proposals/0002 §A (yellow accent), §B (cool grey ramp) and
+       §C (active/focus state fixes), matching the same v2 values already shipped in
+       canvas-speedgrader-benchmarker.user.js @ 1.2.0, canvas-assessment-helper-dock.user.js
+       @ 1.1.0, canvas-speedgrader-gradebridge.user.js @ 1.1.0, and
+       canvas-speedgrader-copy-paster.user.js @ 1.2.0. Intentionally diverges from
+       dock.tokens.css until the rest of the suite catches up — see
+       design/tokens/README.md on scripts coexisting on different token versions.
+       Declared inline here (not in the addStyles() stylesheet) because this element IS
+       #${PANEL_ID} — the custom properties still resolve for every descendant rule below. */
+    --ah-shell: #1d272d;
+    --ah-header: #37424A;
+    --ah-control-hover: #49555E;
+    --ah-control-active: #49555E;
+    --ah-surface: rgba(255,255,255,0.06);
+    --ah-border: rgba(255,255,255,0.08);
+    --ah-border-soft: rgba(255,255,255,0.06);
+    --ah-border-card: rgba(255,255,255,0.12);
+    --ah-toggle: rgba(255,255,255,0.05);
+    --ah-toggle-hover: rgba(255,255,255,0.14);
+    --ah-text: #E7ECEF;
+    --ah-muted: #949DA5;
+    --ah-accent: #F5C518;
+    --ah-accent-hover: #FFD53E;
+    --ah-accent-ink: #0F1416;
+    --ah-radius-lg: 14px;
+    --ah-radius-md: 10px;
+    --ah-radius-sm: 9px;
+    --ah-radius-xs: 8px;
+    --ah-space-1: 4px;
+    --ah-space-2: 6px;
+    --ah-space-3: 8px;
+    --ah-space-4: 12px;
+    --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+    --ah-disabled-opacity: 0.42;
+    --ah-stripe-width: 12px;
+    --ah-z: ${Z_INDEX_BASE};
+
     position: fixed;
     top: ${pos.top != null ? `${pos.top}px` : '80px'};
     ${pos.left != null ? `left:${pos.left}px;` : 'right:18px;'}
     width: ${PANEL_WIDTH}px;
     z-index: ${Z_INDEX_BASE};
-    background: #18181B;
-    color: #FAFAFA;
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--ah-shell);
+    color: var(--ah-text);
+    border: 1px solid var(--ah-border);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.28);
     font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

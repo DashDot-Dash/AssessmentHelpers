@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LazyPadlet - Padlet Viewer for Canvas
 // @namespace    https://github.com/DashDot-Dash/AssessmentHelpers
-// @version      1.2.0
+// @version      1.6.0
 // @description  Adds click-to-view Padlet portals for Padlet links in Canvas.
 // @match        https://*.instructure.com/*
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/lazy-padlet.user.js
@@ -720,7 +720,7 @@
     status.className = 'lazypadlet-status';
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
-    status.textContent = 'Viewer is stopped.';
+    status.textContent = '';
 
     card.append(
       header,
@@ -751,6 +751,7 @@
     function createIframe() {
       removeIframe();
       collapsed = false;
+      card.classList.add('is-open');
       viewport.hidden = false;
       collapseButton.textContent = 'Collapse';
       collapseButton.setAttribute(
@@ -813,11 +814,12 @@
     function stopViewing() {
       removeIframe();
       collapsed = false;
+      card.classList.remove('is-open');
       viewport.hidden = true;
       secondaryControls.hidden = true;
       viewButton.disabled = false;
       viewButton.textContent = isPost ? 'View post' : 'View Padlet';
-      status.textContent = 'Viewer stopped.';
+      status.textContent = '';
     }
 
     function toggleCollapsed() {
@@ -890,20 +892,63 @@
     const style = document.createElement('style');
     style.id = 'lazypadlet-styles';
     style.textContent = `
+      /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+         This block adopts design/proposals/0002 §A (yellow accent) and §B (cool grey ramp),
+         matching the same v2 values already shipped across the rest of the suite (Benchmarker
+         @ 1.3.0, Dock @ 1.2.0, GradeBridge @ 1.2.0, Copy/Paster @ 1.2.0, ETA @ 1.3.0, Tutorial
+         Sorter @ 1.3.0, lazy-p5 @ 1.2.0). Intentionally diverges from dock.tokens.css until the
+         rest of the suite catches up — see design/tokens/README.md on scripts coexisting on
+         different token versions.
+         Scope: .lazypadlet-card, not #id or :root. Unlike the panel-based helpers, several of
+         these cards can exist on one page at once (one per Padlet link) — there is no single
+         root element to hang an id on, so every card instance carries its own copy of these
+         custom properties, same as the id-scoped pattern elsewhere. */
+      .lazypadlet-card {
+        --ah-shell: #1d272d;
+        --ah-header: #37424A;
+        --ah-control-hover: #49555E;
+        --ah-control-active: #49555E;
+        --ah-surface: rgba(255,255,255,0.06);
+        --ah-border: rgba(255,255,255,0.08);
+        --ah-border-soft: rgba(255,255,255,0.06);
+        --ah-border-card: rgba(255,255,255,0.12);
+        --ah-toggle: rgba(255,255,255,0.05);
+        --ah-toggle-hover: rgba(255,255,255,0.14);
+        --ah-text: #E7ECEF;
+        --ah-muted: #949DA5;
+        --ah-accent: #F5C518;
+        --ah-accent-hover: #FFD53E;
+        --ah-accent-ink: #0F1416;
+        --ah-radius-lg: 14px;
+        --ah-radius-md: 10px;
+        --ah-radius-sm: 9px;
+        --ah-radius-xs: 8px;
+        --ah-space-1: 4px;
+        --ah-space-2: 6px;
+        --ah-space-3: 8px;
+        --ah-space-4: 12px;
+        --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+        --ah-disabled-opacity: 0.42;
+        --ah-stripe-width: 12px;
+        --ah-z: 1;
+      }
+      /* /AH-TOKENS */
+
       .lazypadlet-card {
         box-sizing: border-box;
         display: block;
         width: min(100%, 1100px);
         margin: 0.65rem 0 0.9rem;
         padding: 0.65rem;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-left: 4px solid #D6A21D;
+        border: 1px solid var(--ah-border);
         border-radius: 10px;
-        background: #18181B;
-        color: #FAFAFA;
+        background: var(--ah-shell);
+        color: var(--ah-text);
         box-shadow: 0 8px 24px rgba(0,0,0,0.22);
-        font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font: var(--ah-font);
         text-align: left;
+        overflow: hidden;
       }
 
       .lazypadlet-card,
@@ -912,23 +957,42 @@
       }
 
       .lazypadlet-card .lazypadlet-header {
+        position: relative;
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 0.6rem;
-        margin-bottom: 0.5rem;
+        margin: -0.65rem -0.65rem 0.5rem -0.65rem;
+        padding: 10px 12px 10px 24px;
+        background: var(--ah-header);
+        border-bottom: 1px solid var(--ah-border-soft);
+      }
+
+      .lazypadlet-card .lazypadlet-header::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 12px;
+        background: var(--ah-accent);
+        transition: opacity 120ms ease;
+      }
+
+      .lazypadlet-card.is-open .lazypadlet-header::before {
+        opacity: 0;
       }
 
       .lazypadlet-card .lazypadlet-label {
-        color: #FAFAFA;
+        color: var(--ah-text);
         font-size: 12px;
-        font-weight: 750;
+        font-weight: 400;
       }
 
       .lazypadlet-card .lazypadlet-identity {
         min-width: 0;
         overflow: hidden;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -959,7 +1023,7 @@
         padding: 4px 8px;
         border: 1px solid rgba(143,145,148,0.32);
         border-radius: 7px;
-        background: #27272A;
+        background: var(--ah-header);
         color: #E4E4E7;
         font: inherit;
         font-size: 11px;
@@ -971,25 +1035,25 @@
 
       .lazypadlet-card .lazypadlet-button:hover:not(:disabled) {
         border-color: rgba(143,145,148,0.65);
-        background: #3F3F46;
-        color: #FAFAFA;
+        background: var(--ah-control-hover);
+        color: var(--ah-text);
         text-decoration: none;
       }
 
       .lazypadlet-card .lazypadlet-button-primary {
-        border-color: #D6A21D;
-        background: #D6A21D;
-        color: #18181B;
+        border-color: var(--ah-accent);
+        background: var(--ah-accent);
+        color: var(--ah-accent-ink);
       }
 
       .lazypadlet-card .lazypadlet-button-primary:hover:not(:disabled) {
-        border-color: #E0B13A;
-        background: #E0B13A;
-        color: #18181B;
+        border-color: var(--ah-accent-hover);
+        background: var(--ah-accent-hover);
+        color: var(--ah-accent-ink);
       }
 
       .lazypadlet-card .lazypadlet-button:focus-visible {
-        outline: 2px solid #E0B13A;
+        outline: 2px solid var(--ah-accent-hover);
         outline-offset: 2px;
       }
 
@@ -1003,9 +1067,9 @@
         min-height: 260px;
         margin-top: 0.55rem;
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid var(--ah-border-card);
         border-radius: 6px;
-        background: #27272A;
+        background: var(--ah-header);
       }
 
       .lazypadlet-card .lazypadlet-iframe {
@@ -1020,8 +1084,13 @@
       .lazypadlet-card .lazypadlet-status {
         min-height: 1.2em;
         margin-top: 0.5rem;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
+      }
+
+      .lazypadlet-card .lazypadlet-status:empty {
+        min-height: 0;
+        margin-top: 0;
       }
 
       @media (max-width: 600px) {
@@ -1033,6 +1102,7 @@
           align-items: flex-start;
           flex-direction: column;
           gap: 0.2rem;
+          margin: -0.6rem -0.6rem 0.5rem -0.6rem;
         }
 
         .lazypadlet-card .lazypadlet-iframe {

@@ -81,12 +81,13 @@ async function main() {
       document.querySelector('#padlet-post').dataset.lazypadletCardId
     );
 
-    function styles(card, button) {
+    function styles(card, header, button) {
       const cardStyle = getComputedStyle(card);
+      const stripeStyle = getComputedStyle(header, '::before');
       const buttonStyle = getComputedStyle(button);
       return {
         background: cardStyle.backgroundColor,
-        accent: cardStyle.borderLeftColor,
+        accent: stripeStyle.backgroundColor,
         buttonBackground: buttonStyle.backgroundColor,
         buttonHeight: button.getBoundingClientRect().height
       };
@@ -109,10 +110,12 @@ async function main() {
         ),
       p5Styles: styles(
         p5Card,
+        p5Card.querySelector('.lazyP5-header'),
         p5Card.querySelector('.lazyP5-button-primary')
       ),
       padletStyles: styles(
         padletCard,
+        padletCard.querySelector('.lazypadlet-header'),
         padletCard.querySelector('.lazypadlet-button-primary')
       )
     };
@@ -138,9 +141,9 @@ async function main() {
     LazyPadlet: initial.padletStyles
   })) {
     if (
-      styles.background !== 'rgb(24, 24, 27)' ||
-      styles.accent !== 'rgb(214, 162, 29)' ||
-      styles.buttonBackground !== 'rgb(214, 162, 29)' ||
+      styles.background !== 'rgb(29, 39, 45)' ||
+      styles.accent !== 'rgb(245, 197, 24)' ||
+      styles.buttonBackground !== 'rgb(245, 197, 24)' ||
       styles.buttonHeight > 28
     ) {
       throw new Error(`${name} does not match the suite theme.`);

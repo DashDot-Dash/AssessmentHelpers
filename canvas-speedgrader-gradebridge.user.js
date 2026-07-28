@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - GradeBridge
 // @namespace    AssessmentHelpers
-// @version      1.0.0
+// @version      1.2.0
 // @description  Assessment Helpers panel for switching between paired Canvas SpeedGrader assignments
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -947,6 +947,48 @@ function renderPanel() {
     const style = document.createElement('style');
     style.id = 'vc-gradebridge-styles';
     style.textContent = `
+      /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+         This block adopts design/proposals/0002 §A (yellow accent) and §B (cool grey ramp),
+         matching the same v2 values already shipped in canvas-speedgrader-benchmarker.user.js
+         @ 1.2.0 and canvas-assessment-helper-dock.user.js @ 1.1.0. Intentionally diverges from
+         dock.tokens.css until the rest of the suite catches up — see design/tokens/README.md
+         on scripts coexisting on different token versions.
+         Scope: #vc-gradebridge-panel only. Never declare on :root — that leaks into Canvas
+         and collides with the other helper scripts. Note: #vc-gradebridge-quiet-overlay is
+         appended to document.body as a sibling of the panel, not a descendant, so it cannot
+         see these custom properties — its colors are intentionally left as literals below. */
+      #vc-gradebridge-panel {
+        --ah-shell: #1d272d;
+        --ah-header: #37424A;
+        --ah-control-hover: #49555E;
+        --ah-control-active: #49555E;
+        --ah-surface: rgba(255,255,255,0.06);
+        --ah-border: rgba(255,255,255,0.08);
+        --ah-border-soft: rgba(255,255,255,0.06);
+        --ah-border-card: rgba(255,255,255,0.12);
+        --ah-toggle: rgba(255,255,255,0.05);
+        --ah-toggle-hover: rgba(255,255,255,0.14);
+        --ah-text: #E7ECEF;
+        --ah-muted: #949DA5;
+        --ah-accent: #F5C518;
+        --ah-accent-hover: #FFD53E;
+        --ah-accent-ink: #0F1416;
+        --ah-radius-lg: 14px;
+        --ah-radius-md: 10px;
+        --ah-radius-sm: 9px;
+        --ah-radius-xs: 8px;
+        --ah-space-1: 4px;
+        --ah-space-2: 6px;
+        --ah-space-3: 8px;
+        --ah-space-4: 12px;
+        --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+        --ah-disabled-opacity: 0.42;
+        --ah-stripe-width: 12px;
+        --ah-z: 2147483000;
+      }
+      /* /AH-TOKENS */
+
       #vc-gradebridge-panel {
         position: fixed;
         right: 18px;
@@ -954,11 +996,11 @@ function renderPanel() {
         z-index: 999999;
         width: 340px;
         border-radius: 14px;
-        background: #18181B;
-        color: #FAFAFA;
+        background: var(--ah-shell);
+        color: var(--ah-text);
         box-shadow: 0 10px 30px rgba(0,0,0,0.35);
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid var(--ah-border);
         overflow: hidden;
       }
 
@@ -969,7 +1011,7 @@ function renderPanel() {
         justify-content: space-between;
         gap: 10px;
         padding: 10px 12px 10px 25px;
-        background: #27272A;
+        background: var(--ah-header);
         cursor: grab;
         user-select: none;
         touch-action: none;
@@ -983,16 +1025,16 @@ function renderPanel() {
         bottom: 0;
         width: 12px;
         border-radius: 0 2px 2px 0;
-        background: #D6A21D;
+        background: var(--ah-accent);
       }
 
       .vc-gradebridge-header--border {
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        border-bottom: 1px solid var(--ah-border-soft);
       }
 
       .vc-gradebridge-title {
-        font-size: 14px;
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 400;
         line-height: 1.2;
         min-width: 0;
       }
@@ -1009,19 +1051,19 @@ function renderPanel() {
       .vc-gradebridge-header-button {
         display: grid;
         place-items: center;
-        border: 0;
+        border: 1px solid var(--ah-border);
         border-radius: 8px;
         width: 28px;
         height: 26px;
         padding: 0;
-        background: rgba(255,255,255,0.05);
-        color: #FAFAFA;
+        background: var(--ah-shell);
+        color: var(--ah-text);
         cursor: pointer;
       }
 
       .vc-gradebridge-header-button:hover {
-        background: rgba(255,255,255,0.14);
-        color: #FAFAFA;
+        background: var(--ah-control-hover);
+        color: var(--ah-text);
       }
 
       .vc-gradebridge-header-button svg {
@@ -1043,29 +1085,29 @@ function renderPanel() {
         border: 0;
         border-radius: 10px;
         padding: 9px 10px;
-        background: #D6A21D;
-        color: #18181B;
+        background: var(--ah-accent);
+        color: var(--ah-accent-ink);
         font-size: 13px;
         font-weight: 650;
         cursor: pointer;
       }
 
       .vc-gradebridge-button:hover {
-        background: #E0B13A;
+        background: var(--ah-accent-hover);
       }
 
       .vc-gradebridge-empty {
         padding: 9px 10px;
         border-radius: 10px;
-        background: #27272A;
-        color: #A1A1AA;
+        background: var(--ah-header);
+        color: var(--ah-muted);
         font-size: 12px;
         line-height: 1.3;
       }
 
       .vc-gradebridge-status {
         margin-top: 8px;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         line-height: 1.3;
       }
@@ -1083,7 +1125,7 @@ function renderPanel() {
 
       .vc-gradebridge-section-label {
         margin: 2px 0 3px;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.02em;
@@ -1108,24 +1150,24 @@ function renderPanel() {
       }
 
       .vc-gradebridge-assignment-card-current * {
-        color: #FAFAFA !important;
-        -webkit-text-fill-color: #FAFAFA !important;
+        color: var(--ah-text) !important;
+        -webkit-text-fill-color: var(--ah-text) !important;
       }
 
       .vc-gradebridge-assignment-card-current {
         cursor: default;
-        background: rgba(255,255,255,0.05) !important;
-        color: #FAFAFA !important;
+        background: var(--ah-toggle) !important;
+        color: var(--ah-text) !important;
       }
 
       .vc-gradebridge-assignment-card-target {
         cursor: pointer;
-        background: #D6A21D !important;
-        color: #18181B !important;
+        background: var(--ah-accent) !important;
+        color: var(--ah-accent-ink) !important;
       }
 
       .vc-gradebridge-assignment-card-target:hover {
-        background: #E0B13A !important;
+        background: var(--ah-accent-hover) !important;
       }
 
       .vc-gradebridge-assignment-tag {
@@ -1133,7 +1175,7 @@ function renderPanel() {
         max-width: 100%;
         padding: 2px 6px;
         border-radius: 999px;
-        background: rgba(255,255,255,0.12);
+        background: var(--ah-border-card);
         color: inherit;
         font-size: 9.5px;
         font-weight: 750;
@@ -1157,12 +1199,12 @@ function renderPanel() {
 
       .vc-gradebridge-manage {
         margin-top: 10px;
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--ah-border-soft);
         padding-top: 9px;
       }
 
       .vc-gradebridge-manage summary {
-        color: #FAFAFA;
+        color: var(--ah-text);
         cursor: pointer;
         font-size: 12px;
         font-weight: 700;
@@ -1175,7 +1217,7 @@ function renderPanel() {
 
       .vc-gradebridge-manage summary::after {
         content: " ▾";
-        color: #A1A1AA;
+        color: var(--ah-muted);
       }
 
       .vc-gradebridge-manage[open] summary {
@@ -1184,14 +1226,14 @@ function renderPanel() {
 
       .vc-gradebridge-anchor {
         margin-bottom: 8px;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         line-height: 1.3;
       }
 
       .vc-gradebridge-instructions {
         margin-bottom: 8px;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         font-size: 11px;
         line-height: 1.35;
       }
@@ -1209,12 +1251,12 @@ function renderPanel() {
 
       .vc-gradebridge-secondary {
         margin-top: 6px;
-        background: #27272A;
-        color: #FAFAFA;
+        background: var(--ah-header);
+        color: var(--ah-text);
       }
 
       .vc-gradebridge-secondary:hover {
-        background: #3F3F46;
+        background: var(--ah-control-hover);
       }
 
       .vc-gradebridge-secondary:disabled {
@@ -1223,7 +1265,7 @@ function renderPanel() {
       }
 
       .vc-gradebridge-secondary:disabled:hover {
-        background: #27272A;
+        background: var(--ah-header);
       }
 
       .vc-gradebridge-confirmed:disabled {
@@ -1246,13 +1288,13 @@ function renderPanel() {
       .vc-gradebridge-link {
         margin-top: 6px;
         background: transparent;
-        color: #A1A1AA;
+        color: var(--ah-muted);
         text-align: left;
       }
 
       .vc-gradebridge-link:hover {
-        color: #FAFAFA;
-        background: rgba(255,255,255,0.05);
+        color: var(--ah-text);
+        background: var(--ah-toggle);
       }
 
       #vc-gradebridge-quiet-overlay {

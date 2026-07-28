@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assessment Helpers — Dock reference (as shipped)</title>
+<style>
+  /* AH-TOKENS v1 — generated from design/tokens/tokens.json — do not edit by hand
+     In a userscript this block is scoped to that script's own root id.
+     Here it is scoped to .ah-dock so the page can show two instances. */
+  .ah-dock {
+    --ah-shell: #18181B;
+    --ah-header: #27272A;
+    --ah-control-hover: #3F3F46;
+    --ah-control-active: #3F3F46;
+    --ah-surface: rgba(255,255,255,0.06);
+    --ah-border: rgba(255,255,255,0.08);
+    --ah-border-soft: rgba(255,255,255,0.06);
+    --ah-border-card: rgba(255,255,255,0.12);
+    --ah-toggle: rgba(255,255,255,0.05);
+    --ah-toggle-hover: rgba(255,255,255,0.14);
+    --ah-text: #FAFAFA;
+    --ah-muted: #A1A1AA;
+    --ah-accent: #D6A21D;
+    --ah-accent-hover: #E0B13A;
+    --ah-accent-ink: #18181B;
+    --ah-radius-lg: 14px;
+    --ah-radius-md: 10px;
+    --ah-radius-sm: 9px;
+    --ah-radius-xs: 8px;
+    --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+    --ah-disabled-opacity: 0.42;
+    --ah-stripe-width: 12px;
+    --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  /* /AH-TOKENS */
+
+  /* ── Dock CSS — lifted from canvas-assessment-helper-dock.user.js, hex swapped for var() ── */
+  .ah-dock {
+    width: 152px;
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius-lg);
+    background: var(--ah-shell);
+    color: var(--ah-text);
+    box-shadow: var(--ah-shadow);
+    font: var(--ah-font);
+    overflow: hidden;
+    user-select: none;
+  }
+  .ah-dock.is-minimized { width: auto; border-radius: 10px 0 0 10px; }
+  .ah-dock .vc-dock-header {
+    position: relative; display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; padding: 9px 8px 9px 23px;
+    background: var(--ah-header); border-bottom: 1px solid var(--ah-border-soft);
+    cursor: grab; touch-action: none;
+  }
+  .ah-dock .vc-dock-header::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: var(--ah-stripe-width); background: var(--ah-accent); border-radius: 0 2px 2px 0;
+  }
+  .ah-dock .vc-dock-title { min-width: 0; font-size: 11px; font-weight: 750; white-space: nowrap; }
+  .ah-dock .vc-dock-toggle {
+    display: grid; place-items: center; border: 0; border-radius: var(--ah-radius-xs);
+    width: 26px; height: 24px; padding: 0;
+    background: var(--ah-toggle); color: var(--ah-text); cursor: pointer;
+  }
+  .ah-dock .vc-dock-toggle:hover { background: var(--ah-toggle-hover); }
+  .ah-dock .vc-dock-toggle svg { width: 16px; height: 16px; }
+  .ah-dock .vc-dock-tab {
+    position: relative; display: flex; align-items: center; gap: 6px; border: 0;
+    padding: 10px 12px 10px 18px; background: var(--ah-header); color: var(--ah-text);
+    font-size: 13px; font-weight: 800; cursor: pointer; touch-action: none;
+  }
+  .ah-dock .vc-dock-tab::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: var(--ah-stripe-width); background: var(--ah-accent);
+  }
+  .ah-dock .vc-dock-tab svg { width: 15px; height: 15px; }
+  .ah-dock .vc-dock-list { display: grid; gap: 9px; padding: 8px; }
+  .ah-dock .vc-dock-list + .vc-dock-unavailable { border-top: 1px solid var(--ah-border); }
+  .ah-dock .vc-dock-helper {
+    width: 100%; min-width: 0; display: grid; grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center; gap: 6px; border: 0; border-radius: var(--ah-radius-sm);
+    padding: 7px 8px; background: var(--ah-header); color: var(--ah-text);
+    text-align: left; font: inherit; font-weight: 700; cursor: pointer;
+  }
+  .ah-dock .vc-dock-helper:hover:not(:disabled) { background: var(--ah-control-hover); }
+  .ah-dock .vc-dock-helper.is-active { background: var(--ah-control-active); }
+  .ah-dock .vc-dock-helper:disabled { cursor: default; opacity: var(--ah-disabled-opacity); }
+  .ah-dock .vc-dock-helper-card {
+    display: grid; gap: 7px; border: 1px solid transparent;
+    border-radius: var(--ah-radius-md); padding: 4px;
+  }
+  .ah-dock .vc-dock-helper-card.has-actions {
+    position: relative; gap: 8px;
+    border: 1px solid var(--ah-border-card); background: var(--ah-surface);
+  }
+  .ah-dock .vc-dock-action-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 6px; padding: 0 1px;
+  }
+  .ah-dock .vc-dock-action {
+    min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px;
+    border: 0; border-radius: var(--ah-radius-xs); padding: 6px 5px;
+    background: var(--ah-accent); color: var(--ah-accent-ink);
+    font-size: 10.5px; font-weight: 750; line-height: 1; cursor: pointer;
+  }
+  .ah-dock .vc-dock-action:hover:not(:disabled) { background: var(--ah-accent-hover); }
+  .ah-dock .vc-dock-action:disabled { cursor: default; opacity: var(--ah-disabled-opacity); }
+  .ah-dock .vc-dock-action svg { width: 13px; height: 13px; flex: 0 0 auto; }
+  .ah-dock .vc-dock-empty {
+    padding: 9px 10px; border-radius: var(--ah-radius-sm); background: var(--ah-surface);
+    color: var(--ah-muted); font-size: 12px; line-height: 1.3;
+  }
+  .ah-dock .vc-dock-unavailable { padding: 0; }
+  .ah-dock .vc-dock-unavailable summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px; color: var(--ah-muted); font-size: 11px; font-weight: 750;
+    cursor: pointer; list-style: none;
+  }
+  .ah-dock .vc-dock-unavailable summary::-webkit-details-marker { display: none; }
+  .ah-dock .vc-dock-unavailable summary::after { content: "\25B8"; color: var(--ah-muted); font-size: 11px; }
+  .ah-dock .vc-dock-unavailable[open] summary::after { content: "\25BE"; }
+  .ah-dock .vc-dock-unavailable-list { display: grid; gap: 7px; padding: 0 10px 10px; }
+  .ah-dock .vc-dock-icon { display: grid; place-items: center; text-align: center; line-height: 1; }
+  .ah-dock .vc-dock-icon svg { width: 16px; height: 16px; }
+  .ah-dock .vc-dock-name {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; line-height: 1.15;
+  }
+  .ah-dock svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Reference page chrome — NOT part of the component ── */
+  body { margin: 0; background: #f4f4f5; color: #27272a; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+  .lede { margin: 0 0 8px; color: #52525b; max-width: 62ch; }
+  .stamp { margin: 0 0 40px; font-size: 12px; color: #71717a; font-variant-numeric: tabular-nums; }
+  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #71717a; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid #e4e4e7; }
+  section { margin-bottom: 48px; }
+  .specimens { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; }
+  .specimen { display: grid; gap: 10px; justify-items: start; }
+  .caption { font-size: 12px; color: #71717a; }
+  .caption b { color: #27272a; font-weight: 600; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .sw { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #e4e4e7; border-radius: 8px; background: #fff; }
+  .chip { width: 40px; height: 40px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
+  .sw code { font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: #27272a; display: block; }
+  .sw span { font-size: 11px; color: #71717a; }
+  .note { padding: 12px 14px; border: 1px solid #e4e4e7; border-left: 3px solid #D6A21D; border-radius: 4px; background: #fff; color: #52525b; font-size: 13px; max-width: 70ch; }
+  a { color: #8a6712; }
+  a:hover { color: #D6A21D; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Dock — visual reference</h1>
+  <p class="lede">The dock exactly as it renders today. This is the artefact to diff against: if a change makes the dock stop matching this page, either the change is wrong or this page needs regenerating.</p>
+  <p class="stamp">Recorded from canvas-assessment-helper-dock.user.js @ 1.0.0 · main · 2026-07-27</p>
+
+  <section>
+    <h2>States</h2>
+    <div class="specimens">
+      <div class="specimen">
+        <div class="ah-dock">
+          <div class="vc-dock-header">
+            <div class="vc-dock-title">Assessment Helpers</div>
+            <button type="button" class="vc-dock-toggle" title="Minimise" aria-label="Minimise dock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+          </div>
+          <div class="vc-dock-list">
+            <div class="vc-dock-helper-card">
+              <button type="button" class="vc-dock-helper">
+                <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"/><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2"/><path d="M9 12l.01 0"/><path d="M13 12l2 0"/><path d="M9 16l.01 0"/><path d="M13 16l2 0"/></svg></span>
+                <span class="vc-dock-name">Copy/Paster</span>
+              </button>
+            </div>
+            <div class="vc-dock-helper-card">
+              <button type="button" class="vc-dock-helper is-active">
+                <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20l-3 1v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227h16v2.172a2 2 0 0 1 -.586 1.414l-4.414 4.414v3"/><path d="M16 19h6"/><path d="M19 16v6"/></svg></span>
+                <span class="vc-dock-name">Benchmarker</span>
+              </button>
+            </div>
+            <div class="vc-dock-helper-card has-actions">
+              <button type="button" class="vc-dock-helper">
+                <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.183 6.117a6 6 0 1 0 4.511 3.986"/><path d="M14.813 17.883a6 6 0 1 0 -4.496 -3.954"/></svg></span>
+                <span class="vc-dock-name">GradeBridge</span>
+              </button>
+              <div class="vc-dock-action-row">
+                <button type="button" class="vc-dock-action" title="Switch"><svg viewBox="0 0 24 24"><path d="M11 16h10"/><path d="M11 16l4 4"/><path d="M11 16l4 -4"/><path d="M13 8h-10"/><path d="M13 8l-4 4"/><path d="M13 8l-4 -4"/></svg><span>Switch</span></button>
+              </div>
+            </div>
+            <div class="vc-dock-helper-card has-actions">
+              <button type="button" class="vc-dock-helper">
+                <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 16a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2"/><path d="M10 16a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2"/><path d="M17 16a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2"/><path d="M5 11v-3a3 3 0 0 1 3 -3h8a3 3 0 0 1 3 3v3"/><path d="M16.5 8.5l2.5 2.5l2.5 -2.5"/></svg></span>
+                <span class="vc-dock-name">Tutorial Sorter</span>
+              </button>
+              <div class="vc-dock-action-row">
+                <button type="button" class="vc-dock-action" title="Prev"><svg viewBox="0 0 24 24"><path d="M21 5v14l-8 -7l8 -7"/><path d="M10 5v14l-8 -7l8 -7"/></svg><span>Prev</span></button>
+                <button type="button" class="vc-dock-action" title="Next"><svg viewBox="0 0 24 24"><path d="M3 5v14l8 -7l-8 -7"/><path d="M14 5v14l8 -7l-8 -7"/></svg><span>Next</span></button>
+              </div>
+            </div>
+          </div>
+          <details class="vc-dock-unavailable">
+            <summary>Other helpers <span>2</span></summary>
+            <div class="vc-dock-unavailable-list">
+              <div class="vc-dock-helper-card">
+                <button type="button" class="vc-dock-helper" disabled>
+                  <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 7h11"/><path d="M6.5 17h11"/><path d="M6 20v-2a6 6 0 1 1 12 0v2a1 1 0 0 1 -1 1h-10a1 1 0 0 1 -1 -1"/><path d="M6 4v2a6 6 0 1 0 12 0v-2a1 1 0 0 0 -1 -1h-10a1 1 0 0 0 -1 1"/></svg></span>
+                  <span class="vc-dock-name">ETA</span>
+                </button>
+              </div>
+              <div class="vc-dock-helper-card">
+                <button type="button" class="vc-dock-helper" disabled>
+                  <span class="vc-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0"/><path d="M2.5 21h8l-4 -7l-4 7"/><path d="M14 3l7 7"/><path d="M14 10l7 -7"/><path d="M14 14h7v7h-7l0 -7"/></svg></span>
+                  <span class="vc-dock-name">Rubric Builder</span>
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="caption"><b>Expanded.</b> Benchmarker active, two helpers with quick actions, Other helpers collapsed.</div>
+      </div>
+
+      <div class="specimen">
+        <div class="ah-dock">
+          <div class="vc-dock-header">
+            <div class="vc-dock-title">Assessment Helpers</div>
+            <button type="button" class="vc-dock-toggle" title="Minimise" aria-label="Minimise dock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+          </div>
+          <div class="vc-dock-list">
+            <div class="vc-dock-empty">Choose a helper.</div>
+          </div>
+        </div>
+        <div class="caption"><b>Empty.</b> No helper open, configured, or actionable.</div>
+      </div>
+
+      <div class="specimen">
+        <div class="ah-dock is-minimized">
+          <button type="button" class="vc-dock-tab" title="Open Assessment Helpers" aria-label="Open Assessment Helpers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg><span>AH</span></button>
+        </div>
+        <div class="caption"><b>Minimised.</b> Docks to the right edge — hence the flat right corners.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Colour</h2>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#18181B"></div><div><code>--ah-shell</code><span>#18181B</span></div></div>
+      <div class="sw"><div class="chip" style="background:#27272A"></div><div><code>--ah-header</code><span>#27272A</span></div></div>
+      <div class="sw"><div class="chip" style="background:#3F3F46"></div><div><code>--ah-control-hover</code><span>#3F3F46</span></div></div>
+      <div class="sw"><div class="chip" style="background:#D6A21D"></div><div><code>--ah-accent</code><span>#D6A21D</span></div></div>
+      <div class="sw"><div class="chip" style="background:#E0B13A"></div><div><code>--ah-accent-hover</code><span>#E0B13A</span></div></div>
+      <div class="sw"><div class="chip" style="background:#FAFAFA"></div><div><code>--ah-text</code><span>#FAFAFA</span></div></div>
+      <div class="sw"><div class="chip" style="background:#A1A1AA"></div><div><code>--ah-muted</code><span>#A1A1AA</span></div></div>
+      <div class="sw"><div class="chip" style="background:#18181B"></div><div><code>--ah-accent-ink</code><span>#18181B · on accent only</span></div></div>
+    </div>
+    <p class="note" style="margin-top:16px">Alpha tokens (<code>--ah-surface</code>, <code>--ah-border</code>, <code>--ah-toggle</code>) are white at 5–12% and only read correctly over <code>--ah-shell</code>. They are not swatchable in isolation.</p>
+  </section>
+
+  <section>
+    <h2>Known gaps</h2>
+    <p class="note">Hover and active resolve to the same <code>#3F3F46</code>, so an open helper looks identical to a hovered one. There is no focus ring on any control. Both are recorded in <code>proposals/0002</code>, not fixed here — this page records what ships.</p>
+  </section>
+</div>
+</body>
+</html>

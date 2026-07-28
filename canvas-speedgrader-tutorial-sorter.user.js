@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Tutorial Sorter
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.3.0
 // @description  Assessment Helpers panel for importing class rosters and navigating Canvas SpeedGrader by tutorial group
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
@@ -1229,12 +1229,54 @@ function addStyles() {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    /* AH-TOKENS v2 — NOT the recorded suite baseline in design/tokens/tokens.json (still v1).
+       This block adopts design/proposals/0002 §A (yellow accent) and §B (cool grey ramp),
+       matching the same v2 values already shipped in canvas-speedgrader-benchmarker.user.js
+       @ 1.2.0, canvas-assessment-helper-dock.user.js @ 1.1.0,
+       canvas-speedgrader-gradebridge.user.js @ 1.1.0, canvas-speedgrader-copy-paster.user.js
+       @ 1.2.0, and canvas-speedgrader-eta.user.js @ 1.2.0. Intentionally diverges from
+       dock.tokens.css until the rest of the suite catches up — see
+       design/tokens/README.md on scripts coexisting on different token versions.
+       Scope: this script's own root element id, not the .chatster-ui-panel class alone —
+       never declare on :root, that leaks into Canvas and collides with the other scripts. */
+    #${PANEL_ID} {
+      --ah-shell: #1d272d;
+      --ah-header: #37424A;
+      --ah-control-hover: #49555E;
+      --ah-control-active: #49555E;
+      --ah-surface: rgba(255,255,255,0.06);
+      --ah-border: rgba(255,255,255,0.08);
+      --ah-border-soft: rgba(255,255,255,0.06);
+      --ah-border-card: rgba(255,255,255,0.12);
+      --ah-toggle: rgba(255,255,255,0.05);
+      --ah-toggle-hover: rgba(255,255,255,0.14);
+      --ah-text: #E7ECEF;
+      --ah-muted: #949DA5;
+      --ah-accent: #F5C518;
+      --ah-accent-hover: #FFD53E;
+      --ah-accent-ink: #0F1416;
+      --ah-radius-lg: 14px;
+      --ah-radius-md: 10px;
+      --ah-radius-sm: 9px;
+      --ah-radius-xs: 8px;
+      --ah-space-1: 4px;
+      --ah-space-2: 6px;
+      --ah-space-3: 8px;
+      --ah-space-4: 12px;
+      --ah-font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ah-shadow: 0 10px 30px rgba(0,0,0,0.30);
+      --ah-disabled-opacity: 0.42;
+      --ah-stripe-width: 12px;
+      --ah-z: ${Z_INDEX_BASE};
+    }
+    /* /AH-TOKENS */
+
     .chatster-ui-panel {
       width: 340px;
       z-index: ${Z_INDEX_BASE};
-      background: #18181B;
-      color: #FAFAFA;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--ah-shell);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
       font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1252,8 +1294,8 @@ function addStyles() {
       justify-content: space-between;
       padding: 10px 12px;
       cursor: grab;
-      background: #27272A;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-header);
+      border-bottom: 1px solid var(--ah-border-soft);
         position: relative;
   padding-left: 25px;
     }
@@ -1265,16 +1307,17 @@ function addStyles() {
   top: 0px;
   bottom: 0px;
   width: 12px;
-  background: #D6A21D;
+  background: var(--ah-accent);
   border-radius: 0 2px 2px 0;
   }
 
     .chatster-ui-header--border {
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid var(--ah-border-soft);
     }
 
     .chatster-ui-title {
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 400;
     }
 
     .chatster-ui-body {
@@ -1282,15 +1325,15 @@ function addStyles() {
     }
 
     .chatster-ui-details {
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       border-radius: 10px;
       padding: 8px 10px;
     }
 
     .chatster-ui-details summary {
       cursor: pointer;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -1313,13 +1356,13 @@ function addStyles() {
     }
 
     .chatster-ui-btn {
-      background: #27272A;
-      color: #FAFAFA;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--ah-header);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
     }
 
     .chatster-ui-btn:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
     }
 
     .chatster-ui-icon-btn {
@@ -1340,13 +1383,13 @@ function addStyles() {
     }
 
     .chatster-ui-btn-quiet {
-      background: #27272A;
-      color: #A1A1AA;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-header);
+      color: var(--ah-muted);
+      border: 1px solid var(--ah-border-soft);
     }
 
     .chatster-ui-btn-quiet:hover {
-      background: #3F3F46;
+      background: var(--ah-control-hover);
     }
 
     .chatster-ui-panel-toggle {
@@ -1355,6 +1398,13 @@ function addStyles() {
       padding: 0;
       display: grid;
       place-items: center;
+      background: var(--ah-shell);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
+    }
+
+    .chatster-ui-panel-toggle:hover {
+      background: var(--ah-control-hover);
     }
 
     .chatster-ui-panel-toggle svg {
@@ -1370,7 +1420,7 @@ function addStyles() {
     .chatster-ui-btn-danger {
       background: #8b1e2d;
       color: #fff2f4;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--ah-border);
     }
 
     .chatster-ui-btn-danger:hover {
@@ -1379,37 +1429,37 @@ function addStyles() {
 
     .chatster-ui-muted {
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
     }
 
     .chatster-ui-field-label {
       display: block;
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       margin-bottom: 4px;
     }
 
     .chatster-ui-select,
     .chatster-ui-input {
       width: 100%;
-      background: #18181B;
-      color: #FAFAFA;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--ah-shell);
+      color: var(--ah-text);
+      border: 1px solid var(--ah-border);
       border-radius: 8px;
       padding: 8px;
       box-sizing: border-box;
     }
 
     .chatster-ui-card {
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       border-radius: 10px;
       padding: 10px;
     }
 
     .chatster-ui-stat {
-      background: #27272A;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: var(--ah-header);
+      border: 1px solid var(--ah-toggle);
       border-radius: 10px;
       padding: 8px 10px;
     }
@@ -1457,8 +1507,8 @@ function addStyles() {
       gap: 8px;
       padding: 8px;
       border-radius: 10px;
-      background: #18181B;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--ah-shell);
+      border: 1px solid var(--ah-border-soft);
       margin-bottom: 10px;
     }
 
@@ -1469,14 +1519,14 @@ function addStyles() {
       justify-content: center;
       gap: 6px;
       font-weight: 650;
-      background: #D6A21D;
-      color: #18181B;
-      border-color: #D6A21D;
+      background: var(--ah-accent);
+      color: var(--ah-accent-ink);
+      border-color: var(--ah-accent);
     }
 
     .chatster-ui-nav-block .chatster-ui-btn:hover {
-      background: #E0B13A;
-      color: #18181B;
+      background: var(--ah-accent-hover);
+      color: var(--ah-accent-ink);
     }
 
     .chatster-ui-nav-block svg {
@@ -1514,9 +1564,9 @@ function addStyles() {
       max-height: 220px;
       overflow: auto;
       font-size: 12px;
-      color: #A1A1AA;
-      background: #18181B;
-      border: 1px solid rgba(255,255,255,0.05);
+      color: var(--ah-muted);
+      background: var(--ah-shell);
+      border: 1px solid var(--ah-toggle);
       border-radius: 10px;
     }
 
@@ -1531,24 +1581,24 @@ function addStyles() {
       cursor: pointer;
       border-radius: 6px;
       background: transparent;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       font-weight: 400;
     }
 
     .chatster-ui-student-item.is-current {
-      background: rgba(255,255,255,0.08);
+      background: var(--ah-border);
       color: #fff;
       font-weight: 700;
     }
 
     .chatster-ui-student-sub {
       font-size: 11px;
-      color: #A1A1AA;
+      color: var(--ah-muted);
       margin-top: 2px;
     }
 
     .chatster-lmg-student-jump:hover {
-      background: rgba(255,255,255,0.06) !important;
+      background: var(--ah-border-soft) !important;
     }
   `;
   document.head.appendChild(style);
@@ -1676,9 +1726,9 @@ if (!handle || !panel.contains(handle) || clickable) return;
 
       zone.style.borderColor = active
         ? 'rgba(255,255,255,0.45)'
-        : 'rgba(255,255,255,0.14)';
-      zone.style.background = active ? '#3F3F46' : '#18181B';
-      zone.style.color = active ? '#fff' : '#A1A1AA';
+        : 'var(--ah-toggle-hover)';
+      zone.style.background = active ? 'var(--ah-control-hover)' : 'var(--ah-shell)';
+      zone.style.color = active ? '#fff' : 'var(--ah-muted)';
     }
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(type => {
@@ -1809,9 +1859,9 @@ if (!handle || !panel.contains(handle) || clickable) return;
         id="chatster-lmg-dropzone"
         class="chatster-ui-dropzone"
         style="
-          border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-          background:${state.isDropActive ? '#3F3F46' : '#18181B'};
-          color:${state.isDropActive ? '#fff' : '#A1A1AA'};
+          border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'var(--ah-toggle-hover)'};
+          background:${state.isDropActive ? 'var(--ah-control-hover)' : 'var(--ah-shell)'};
+          color:${state.isDropActive ? '#fff' : 'var(--ah-muted)'};
         "
       >
         <div style="font-weight:700;">Drop class file here</div>
@@ -1904,9 +1954,9 @@ if (!handle || !panel.contains(handle) || clickable) return;
           id="chatster-lmg-dropzone"
           class="chatster-ui-dropzone"
           style="
-            border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.14)'};
-            background:${state.isDropActive ? '#3F3F46' : '#18181B'};
-            color:${state.isDropActive ? '#fff' : '#A1A1AA'};
+            border:1px dashed ${state.isDropActive ? 'rgba(255,255,255,0.45)' : 'var(--ah-toggle-hover)'};
+            background:${state.isDropActive ? 'var(--ah-control-hover)' : 'var(--ah-shell)'};
+            color:${state.isDropActive ? '#fff' : 'var(--ah-muted)'};
           "
         >
           <div style="font-weight:700;">Drop another class file here</div>
