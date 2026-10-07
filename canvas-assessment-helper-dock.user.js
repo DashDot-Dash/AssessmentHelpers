@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Dock
 // @namespace    AssessmentHelpers
-// @version      1.0.0
+// @version      1.0.4
 // @description  Assessment Helpers floating launcher for Canvas helper panels
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -515,13 +515,15 @@
       }
 
       #${DOCK_ID} .vc-dock-title {
+        flex: 1;
         min-width: 0;
         font-size: 11px;
         font-weight: 750;
-        white-space: nowrap;
+        white-space: normal;
       }
 
       #${DOCK_ID} .vc-dock-toggle {
+        flex: 0 0 26px;
         display: grid;
         place-items: center;
         border: 0;
@@ -649,6 +651,14 @@
         padding: 0 1px;
       }
 
+      #${DOCK_ID} .vc-dock-action-row[data-vc-helper-id="tutorial-sorter"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #${DOCK_ID} .vc-dock-action[data-vc-helper-id="tutorial-sorter"][data-vc-action-id="break"] {
+        grid-column: 1 / -1;
+      }
+
       #${DOCK_ID} .vc-dock-action {
         min-width: 0;
         display: flex;
@@ -717,15 +727,6 @@
         display: none;
       }
 
-      #${DOCK_ID} .vc-dock-unavailable summary::after {
-        content: "▸";
-        color: #A1A1AA;
-        font-size: 11px;
-      }
-
-      #${DOCK_ID} .vc-dock-unavailable[open] summary::after {
-        content: "▾";
-      }
 
       #${DOCK_ID} .vc-dock-unavailable-list {
         display: grid;
@@ -759,7 +760,33 @@
         line-height: 1.15;
       }
     `;
-    document.head.appendChild(style);
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${DOCK_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${DOCK_ID} details > summary::marker { content:""; }
+    #${DOCK_ID} details > summary::-webkit-details-marker { display:none; }
+    #${DOCK_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${DOCK_ID} details[open] > summary::after { transform:rotate(90deg); }
+  `;
+  document.head.appendChild(style);
   }
 
   function pauseObserver() {
@@ -922,7 +949,7 @@
               <span class="vc-dock-name">${escapeHtml(helper.name)}</span>
             </button>
             ${actions?.length ? `
-              <div class="vc-dock-action-row">
+              <div class="vc-dock-action-row" data-vc-helper-id="${escapeHtml(helper.id)}">
                 ${actions.map(action => `
                   <button
                     type="button"

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Assessment Helpers - Benchmarker
-// @version      1.1.0
+// @version      1.1.1
 // @namespace    AssessmentHelpers
 // @description  Assessment Helpers panel for sorting Canvas SpeedGrader students into benchmark buckets
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -1347,6 +1347,49 @@ async function navigateInSelectedTutorial(direction) {
       background: #a32437;
     }
   `;
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${PANEL_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${PANEL_ID} details > summary::marker { content:""; }
+    #${PANEL_ID} details > summary::-webkit-details-marker { display:none; }
+    #${PANEL_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} details[open] > summary::after { transform:rotate(90deg); }
+  `;
+
+  style.textContent += `
+    #${PANEL_ID} .sg-section-toggle-icon {
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} .sg-section-toggle[aria-expanded="true"] .sg-section-toggle-icon {
+      transform:rotate(90deg);
+    }
+  `;
   document.head.appendChild(style);
 }
 
@@ -1539,12 +1582,13 @@ const countsSection = createElement('div', { class: 'sg-section' });
 countsSection.appendChild(
   createElement('button', {
     class: 'sg-section-toggle',
+    'aria-expanded': String(bucketsOpen),
     onclick: () => updateSectionOpen('buckets', !bucketsOpen)
   }, [
     createElement('span', { class: 'sg-section-toggle-label', text: 'Buckets' }),
     createElement('span', {
       class: 'sg-section-toggle-icon',
-      text: bucketsOpen ? '▾' : '▸'
+      'aria-hidden': 'true'
     })
   ])
 );
@@ -1586,12 +1630,13 @@ const listSection = createElement('div', { class: 'sg-section' });
 listSection.appendChild(
   createElement('button', {
     class: 'sg-section-toggle',
+    'aria-expanded': String(studentListOpen),
     onclick: () => updateSectionOpen('studentList', !studentListOpen)
   }, [
     createElement('span', { class: 'sg-section-toggle-label', text: 'Student List' }),
     createElement('span', {
       class: 'sg-section-toggle-icon',
-      text: studentListOpen ? '▾' : '▸'
+      'aria-hidden': 'true'
     })
   ])
 );
@@ -1682,7 +1727,7 @@ importExportDetails.appendChild(
 
 body.appendChild(importExportDetails);
 
-   
+
     panel.appendChild(body);
   }
 

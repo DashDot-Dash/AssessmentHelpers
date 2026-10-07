@@ -9,7 +9,8 @@
   "scripts": {
     "check:userscripts": "node scripts/check-userscripts.mjs",
     "dev:loaders": "node scripts/create-dev-loaders.mjs",
-    "test": "npm run check:userscripts && npm run test:dock",
+    "test": "npm run check:userscripts && npm run test:eta && npm run test:dock",
+    "test:eta": "node tests/eta-breaks.cjs",
     "test:dock": "node tests/dock-smoke.js"
   },
   "repository": {

@@ -40,6 +40,8 @@ https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-spe
 
 ## ETA
 Timer and logging panel that tells you how long it will take to finish your tutorial group at your current pace.
+
+Use **Pause** / **Resume** beneath Tutorial Sorter’s Prev/Next buttons (also available in compact mode) to record time away from marking. Go to the next student when finished, then pause if you need a break. Open ETA’s Logging section to view the timeline. Breaks survive page reloads, appear in the session timeline, and are included in CSV exports. Marking pace excludes explicit breaks; session pace and the finish estimate include recorded breaks. Every student visit is retained in the log, while the recent average and median exclude visits under 15 seconds or over 20 minutes. Student navigation logs a visit rather than confirming a grade was submitted.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
 
 ## Rubric slider

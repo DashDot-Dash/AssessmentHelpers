@@ -102,6 +102,20 @@ async function main() {
     const dock = document.querySelector('#assessment-helper-dock');
     return dock && dock.textContent.includes('Tutorial Sorter') && dock.textContent.includes('GradeBridge');
   });
+  const headerLayout = await page.evaluate(() => {
+    const dock = document.querySelector('#assessment-helper-dock').getBoundingClientRect();
+    const title = document.querySelector('.vc-dock-title').getBoundingClientRect();
+    const toggle = document.querySelector('.vc-dock-toggle').getBoundingClientRect();
+    return { width: toggle.width, inside: toggle.right <= dock.right, overlaps: title.right > toggle.left };
+  });
+  if (headerLayout.width < 26 || !headerLayout.inside || headerLayout.overlaps) {
+    throw new Error(`Minimise button squeezed or obscured: ${JSON.stringify(headerLayout)}`);
+  }
+  await page.locator('.vc-dock-toggle').click();
+  await page.waitForSelector('#assessment-helper-dock.is-minimized .vc-dock-tab');
+  await page.locator('.vc-dock-tab').click();
+  await page.waitForSelector('#assessment-helper-dock .vc-dock-toggle');
+
   const etaStudentKey = await page.evaluate(() => {
     const before = window.AssessmentHelpers?.helpers?.eta?.isOpen?.();
     document.querySelector('[data-testid="selected-student"]')?.remove();
@@ -119,6 +133,20 @@ async function main() {
     throw new Error('ETA did not render on demand from the dock registry');
   }
 
+  await page.evaluate(() => window.AssessmentHelpers.helpers['tutorial-sorter'].show());
+  await page.locator('#chatster-lmg-break').evaluate(el => el.click());
+  await page.waitForFunction(() => document.querySelector('#chatster-lmg-break')?.textContent === 'Resume');
+  await page.locator('#chatster-lmg-minimize').evaluate(el => el.click());
+  if (await page.locator('#chatster-lmg-next').count() !== 1) throw new Error('Compact navigation missing');
+  await page.locator('#chatster-lmg-break').evaluate(el => el.click());
+  await page.waitForFunction(() => document.querySelector('#chatster-lmg-break')?.textContent === 'Pause');
+  const recordedBreaks = await page.evaluate(() => JSON.parse(localStorage.getItem(
+    Object.keys(localStorage).find(key => key.startsWith('canvas_speedgrader_when_will_it_end_v1:') && !key.endsWith('panel_position'))
+  )).breaks);
+  if (recordedBreaks.length !== 1) throw new Error('Sorter did not record break in ETA');
+  await page.locator('#chatster-lmg-minimize').evaluate(el => el.click());
+  await page.evaluate(() => window.AssessmentHelpers.helpers['tutorial-sorter'].hide());
+
   const mainDockText = await page.locator('#assessment-helper-dock .vc-dock-list').innerText();
   if (!mainDockText.includes('Tutorial Sorter')) throw new Error('Tutorial Sorter did not appear in the main dock area');
   if (!mainDockText.includes('GradeBridge')) throw new Error('GradeBridge did not appear in the main dock area');
@@ -133,6 +161,18 @@ async function main() {
     await page.waitForTimeout(80);
     await clickDock(selector);
     await page.waitForTimeout(80);
+  }
+
+  const navLayout = await page.evaluate(() => {
+    const row = document.querySelector('.vc-dock-action-row[data-vc-helper-id="tutorial-sorter"]');
+    const rect = id => row.querySelector(`[data-vc-action-id="${id}"]`).getBoundingClientRect();
+    const prev = rect('prev'), next = rect('next'), pause = rect('break');
+    return { rowWidth: row.getBoundingClientRect().width, prevWidth: prev.width, nextWidth: next.width,
+      pauseWidth: pause.width, sameRow: Math.abs(prev.top - next.top) < 1, pauseBelow: pause.top >= prev.bottom };
+  });
+  if (!navLayout.sameRow || !navLayout.pauseBelow || navLayout.prevWidth < navLayout.rowWidth * 0.4 ||
+      navLayout.nextWidth < navLayout.rowWidth * 0.4 || navLayout.pauseWidth < navLayout.rowWidth * 0.9) {
+    throw new Error(`Dock navigation layout collapsed: ${JSON.stringify(navLayout)}`);
   }
 
   await clickDock('#assessment-helper-dock .vc-dock-action[data-vc-helper-id="tutorial-sorter"][data-vc-action-id="next"]');

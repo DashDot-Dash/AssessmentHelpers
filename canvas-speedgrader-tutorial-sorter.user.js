@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Tutorial Sorter
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.2.1
 // @description  Assessment Helpers panel for importing class rosters and navigating Canvas SpeedGrader by tutorial group
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
@@ -62,6 +62,8 @@ const selectors = {
   // state
   const state = {
     lastRenderSig: '',
+    etaAvailable: false,
+    etaPaused: false,
     tick: null,
     drag: null,
     isDropActive: false,
@@ -1551,6 +1553,32 @@ function addStyles() {
       background: rgba(255,255,255,0.06) !important;
     }
   `;
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${PANEL_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${PANEL_ID} details > summary::marker { content:""; }
+    #${PANEL_ID} details > summary::-webkit-details-marker { display:none; }
+    #${PANEL_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} details[open] > summary::after { transform:rotate(90deg); }
+  `;
   document.head.appendChild(style);
 }
 
@@ -1731,6 +1759,17 @@ if (!handle || !panel.contains(handle) || clickable) return;
     localStorage.setItem(CONTEXT_KEY, JSON.stringify(payload));
   }
 
+  function toggleMarkingBreak() {
+    window.dispatchEvent(new CustomEvent('assessment-eta-break-toggle'));
+  }
+
+  function breakControlsHtml() {
+    return `<div class="chatster-ui-row" style="margin-top:8px;">
+      <button id="chatster-lmg-break" class="chatster-ui-btn" style="width:100%;" ${state.etaAvailable ? '' : 'disabled'}
+        title="${state.etaAvailable ? 'Pause or resume marking time' : 'Install or update ETA to record breaks'}">${state.etaPaused ? 'Resume' : 'Pause'}</button>
+    </div>${state.etaPaused ? '<div class="chatster-ui-muted" style="margin-top:6px;">On break · marking timer paused</div>' : ''}`;
+  }
+
   function renderPanel(force = false) {
     const panel = ensurePanel();
     const currentCourseCode = getCurrentCourseCode();
@@ -1774,7 +1813,9 @@ if (!handle || !panel.contains(handle) || clickable) return;
       drop: state.isDropActive,
       summary: state.lastImportSummary,
       cacheCount: Object.keys(menuCache).length,
-      minimized
+      minimized,
+      etaAvailable: state.etaAvailable,
+      etaPaused: state.etaPaused
     });
 
     if (!force && sig === state.lastRenderSig) return;
@@ -1801,7 +1842,13 @@ if (!handle || !panel.contains(handle) || clickable) return;
     <button id="chatster-lmg-minimize" class="chatster-ui-btn-quiet chatster-ui-panel-toggle" title="${minimized ? 'Expand' : 'Minimise'}" aria-label="${minimized ? 'Expand Tutorial Sorter' : 'Minimise Tutorial Sorter'}">${panelToggleIcon(minimized)}</button>
   </div>
 
-  ${minimized ? '' : `
+  ${minimized ? `<div class="chatster-ui-body">
+    <div class="chatster-ui-nav-block">
+      <button id="chatster-lmg-prev" class="chatster-ui-btn">${actionIcon('prev')}<span>Prev</span></button>
+      <button id="chatster-lmg-next" class="chatster-ui-btn"><span>Next</span>${actionIcon('next')}</button>
+    </div>
+    ${breakControlsHtml()}
+  </div>` : `
   <div class="chatster-ui-body">
 
     ${groups.length ? '' : `
@@ -1875,6 +1922,7 @@ if (!handle || !panel.contains(handle) || clickable) return;
   <button id="chatster-lmg-prev" class="chatster-ui-btn">${actionIcon('prev')}<span>Prev</span></button>
   <button id="chatster-lmg-next" class="chatster-ui-btn"><span>Next</span>${actionIcon('next')}</button>
 </div>
+    ${breakControlsHtml()}
 
     ${activeGroup ? `
       <details class="chatster-ui-details chatster-ui-section-lg">
@@ -1960,6 +2008,8 @@ if (!handle || !panel.contains(handle) || clickable) return;
   </div>
   `}
 `;
+
+    panel.querySelector('#chatster-lmg-break')?.addEventListener('click', toggleMarkingBreak);
 
     panel.querySelector('#chatster-lmg-minimize')?.addEventListener('click', () => {
       updateMinimized(!minimized);
@@ -2127,12 +2177,28 @@ if (minimized) {
             icon: 'next',
             disabled,
             run: () => goToRelativeGroupStudent(1)
+          },
+          {
+            id: 'break',
+            label: state.etaPaused ? 'Resume' : 'Pause',
+            disabled: disabled || !state.etaAvailable,
+            run: toggleMarkingBreak
           }
         ];
       }
     });
   }
 
+  window.addEventListener('assessment-eta-status', event => {
+    try {
+      const status = JSON.parse(event.detail);
+      state.etaAvailable = true;
+      state.etaPaused = !!status.paused;
+      if (document.getElementById(PANEL_ID)) renderPanel(true);
+      notifyDockStatusChanged();
+    } catch {}
+  });
   registerAssessmentHelper();
+  window.dispatchEvent(new CustomEvent('assessment-eta-status-request'));
   setTimeout(init, 1800);
 })();

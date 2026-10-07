@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - GradeBridge
 // @namespace    AssessmentHelpers
-// @version      1.0.0
+// @version      1.0.1
 // @description  Assessment Helpers panel for switching between paired Canvas SpeedGrader assignments
 // @author       Jane + Chatster
 // @match        *://*/courses/*/gradebook/speed_grader*
@@ -1173,10 +1173,6 @@ function renderPanel() {
         display: none;
       }
 
-      .vc-gradebridge-manage summary::after {
-        content: " ▾";
-        color: #A1A1AA;
-      }
 
       .vc-gradebridge-manage[open] summary {
         margin-bottom: 8px;
@@ -1329,7 +1325,33 @@ function renderPanel() {
       }
     `;
 
-    document.head.appendChild(style);
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${PANEL_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${PANEL_ID} details > summary::marker { content:""; }
+    #${PANEL_ID} details > summary::-webkit-details-marker { display:none; }
+    #${PANEL_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} details[open] > summary::after { transform:rotate(90deg); }
+  `;
+  document.head.appendChild(style);
   }
 
 function init() {

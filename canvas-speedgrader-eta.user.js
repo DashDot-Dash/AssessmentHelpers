@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - ETA
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.2.4
 // @description  Assessment Helpers panel for estimating Canvas SpeedGrader marking time and logging sessions
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
@@ -53,6 +53,8 @@
   const state = {
     currentStudentKey: null,
     currentStartTime: null,
+    currentAccumulatedSeconds: 0,
+    currentVisitStartedAt: null,
     lastSeenUrl: location.href,
     lastRenderedSignature: '',
     tickInterval: null,
@@ -181,6 +183,8 @@ function formatClassAssignmentInfo(info = null) {
       timings: [],
       completedStudentKeys: [],
       entries: [],
+      breaks: [],
+      activeBreak: null,
       minimized: false,
       sessionStartedAt: Date.now()
     };
@@ -194,8 +198,48 @@ function formatClassAssignmentInfo(info = null) {
     }
   }
 
+  function publishLoggingStatus() {
+    window.dispatchEvent(new CustomEvent('assessment-eta-status', {
+      detail: JSON.stringify({ paused: !!loadData().activeBreak })
+    }));
+  }
+
+  function getCurrentElapsedSeconds() {
+    return state.currentAccumulatedSeconds + (state.currentStartTime ? (Date.now() - state.currentStartTime) / 1000 : 0);
+  }
+
+  function handleBreakToggle() {
+    detectStudentChange();
+    const data = loadData();
+    const now = Date.now();
+    if (data.activeBreak) {
+      const paused = data.activeBreak;
+      data.breaks.push({ started_at: formatISO(paused.startedAt), logged_at: formatISO(now),
+        elapsed_seconds: Math.round((now - paused.startedAt) / 1000), type: 'break' });
+      state.currentAccumulatedSeconds = paused.studentKey === state.currentStudentKey ? paused.accumulatedSeconds : 0;
+      state.currentStartTime = state.currentStudentKey ? now : null;
+      data.activeBreak = null;
+    } else {
+      data.activeBreak = { startedAt: now, studentKey: state.currentStudentKey,
+        accumulatedSeconds: getCurrentElapsedSeconds(), studentStartedAt: state.currentVisitStartedAt || state.currentStartTime };
+      state.currentAccumulatedSeconds = data.activeBreak.accumulatedSeconds;
+      state.currentStartTime = null;
+    }
+    saveData(data);
+    renderPanel(true);
+  }
+
+  function timelineHtml(data) {
+    const events = [...data.entries.map(entry => ({ ...entry, type: 'marking' })), ...data.breaks];
+    if (data.activeBreak) events.push({ type: 'break', started_at: formatISO(data.activeBreak.startedAt),
+      elapsed_seconds: (Date.now() - data.activeBreak.startedAt) / 1000, ongoing: true });
+    events.sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at));
+    return events.map(entry => `<div style="padding:5px 0;border-bottom:1px solid #3f3f46;">${escapeHtml(formatClock(Date.parse(entry.started_at)))} · ${escapeHtml(entry.type === 'break' ? 'Break' : entry.student_label || entry.student_key)} · ${escapeHtml(formatDuration(entry.elapsed_seconds))}${entry.ongoing ? ' (ongoing)' : ''}</div>`).join('') || 'No activity logged yet.';
+  }
+
   function saveData(data) {
     localStorage.setItem(getStorageKey(), JSON.stringify(data));
+    publishLoggingStatus();
   }
 
   function getPanelPosition() {
@@ -417,17 +461,15 @@ function getLocalGroupContextSignature() {
       info.source === 'local_group' && info.currentIndex != null
         ? info.currentIndex + 1
         : info.done;
-    const loggedDone = data.entries.length;
-    const done =
-      total != null
-        ? Math.min(total, Math.max(contextualDone ?? 0, loggedDone))
-        : loggedDone;
+    const loggedDone = new Set(data.completedStudentKeys.filter(isUsableStudentKey)).size;
+    const completed = Math.max(0, contextualDone ?? loggedDone);
+    const done = total != null ? Math.min(total, completed) : completed;
 
     return {
       total,
       done,
-      visibleDone: contextualDone ?? loggedDone,
-      ratio: total ? Math.min(1, done / total) : 0
+      visibleDone: done,
+      ratio: total > 0 ? done / total : 0
     };
   }
 
@@ -502,9 +544,9 @@ function stat(label, value, variant = '') {
 function updateCurrentElapsedDisplay() {
   const elapsedEl = document.querySelector(`#${PANEL_ID} #wwie-current-elapsed`);
   if (!elapsedEl) return;
-  elapsedEl.textContent = state.currentStartTime
-    ? formatDuration((Date.now() - state.currentStartTime) / 1000)
-    : '—';
+  elapsedEl.textContent = loadData().activeBreak ? 'On break' : formatDuration(getCurrentElapsedSeconds());
+  const timeline = document.querySelector(`#${PANEL_ID} #wwie-timeline`);
+  if (timeline && loadData().activeBreak) timeline.innerHTML = timelineHtml(loadData());
 }
 
 const PRINCE_RIGHT_FALLBACK_URL = 'https://raw.githubusercontent.com/DashDot-Dash/AssessmentHelpers/main/Assets/PrinceFacingRight.png';
@@ -1023,7 +1065,7 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-body {
-      padding:12px;
+      padding:8px 10px;
       user-select:text;
     }
 
@@ -1035,8 +1077,8 @@ async function celebrateTo(newProgress) {
 
     #${PANEL_ID} .wwie-stats-primary {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      margin-bottom: 8px;
+      gap: 5px;
+      margin-bottom: 6px;
     }
 
     #${PANEL_ID} .wwie-stats-secondary {
@@ -1066,6 +1108,23 @@ async function celebrateTo(newProgress) {
     #${PANEL_ID} .wwie-stat-primary {
       background:#27272A;
       border-color:rgba(255,255,255,0.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:4px;
+      padding:6px;
+      border-radius:7px;
+      min-width:0;
+      white-space:nowrap;
+    }
+
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-label {
+      margin-bottom:0;
+      font-size:10px;
+    }
+
+    #${PANEL_ID} .wwie-stat-primary .wwie-stat-value {
+      font-size:12px;
     }
 
     #${PANEL_ID} .wwie-stat-primary .wwie-stat-label,
@@ -1084,11 +1143,11 @@ async function celebrateTo(newProgress) {
     }
 
     #${PANEL_ID} .wwie-details {
-      margin-top: 8px;
+      margin-top: 5px;
       background:#27272A;
       border:1px solid rgba(255,255,255,0.05);
-      border-radius:10px;
-      padding:8px 10px;
+      border-radius:7px;
+      padding:4px 8px;
     }
 
     #${PANEL_ID} .wwie-details summary {
@@ -1097,7 +1156,7 @@ async function celebrateTo(newProgress) {
       font-size:11px;
       font-weight:700;
       letter-spacing:0.04em;
-      text-transform:uppercase;
+      text-transform:none;
       list-style:none;
     }
 
@@ -1105,18 +1164,8 @@ async function celebrateTo(newProgress) {
       display:none;
     }
 
-    #${PANEL_ID} .wwie-details summary::after {
-      content:"▸";
-      float:right;
-      color:#A1A1AA;
-    }
-
     #${PANEL_ID} .wwie-details[open] summary {
-      margin-bottom:10px;
-    }
-
-    #${PANEL_ID} .wwie-details[open] summary::after {
-      content:"▾";
+      margin-bottom:6px;
     }
 
     #${PANEL_ID} .wwie-button-row {
@@ -1184,6 +1233,32 @@ async function celebrateTo(newProgress) {
 #${PANEL_ID} .wwie-btn-danger:hover {
   background:#a32437;
 }
+  `;
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${PANEL_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${PANEL_ID} details > summary::marker { content:""; }
+    #${PANEL_ID} details > summary::-webkit-details-marker { display:none; }
+    #${PANEL_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} details[open] > summary::after { transform:rotate(90deg); }
   `;
   document.head.appendChild(style);
 }
@@ -1311,15 +1386,19 @@ function renderPanel(force = false, options = {}) {
   const avg = average(data.timings);
   const med = median(data.timings);
   const rolling = rollingAverage(data.timings);
-  const estimator = rolling || med || avg;
+  const markingSeconds = data.entries.reduce((sum, entry) => sum + entry.elapsed_seconds, 0);
+  const breakSeconds = data.breaks.reduce((sum, entry) => sum + entry.elapsed_seconds, 0);
+  const markingPace = data.entries.length ? markingSeconds / data.entries.length : null;
+  const sessionPace = data.entries.length ? (markingSeconds + breakSeconds) / data.entries.length : null;
+  const estimator = sessionPace || rolling || med || avg;
 
   const remaining = info.remaining;
   const total = progressInfo.total;
   const progressRatio = progressInfo.ratio;
- 
+
 
   const etaSeconds = (remaining != null && estimator != null) ? remaining * estimator : null;
-  const finishAt = etaSeconds != null ? Date.now() + etaSeconds * 1000 : null;
+  const finishAt = etaSeconds != null && !data.activeBreak ? Date.now() + etaSeconds * 1000 : null;
 
   const visibleDone = progressInfo.visibleDone;
 
@@ -1327,6 +1406,8 @@ function renderPanel(force = false, options = {}) {
     minimized: data.minimized,
     count: data.timings.length,
     entries: data.entries.length,
+    breaks: data.breaks.length,
+    paused: !!data.activeBreak,
     rolling: Math.round(rolling || 0),
     med: Math.round(med || 0),
     remaining,
@@ -1343,7 +1424,7 @@ function renderPanel(force = false, options = {}) {
     if (state.princeWidget) {
       state.princeWidget.setProgress(progressRatio);
       const currentElapsedSeconds = state.currentStartTime
-        ? Math.round((Date.now() - state.currentStartTime) / 1000)
+        ? Math.round(getCurrentElapsedSeconds())
         : null;
       state.princeWidget.maybeCollapse(currentElapsedSeconds, med);
     }
@@ -1377,7 +1458,7 @@ function renderPanel(force = false, options = {}) {
   <div class="wwie-muted" style="margin-bottom:8px;">
     ${escapeHtml(formatClassAssignmentInfo(info))}
   </div>
-  <div style="margin-top:8px;font-size:10px;color:#A1A1AA;padding:6px;">
+  <div style="font-size:10px;color:#A1A1AA;">
     <div class="wwie-stats-grid wwie-stats-primary">
       ${stat('ETA', formatClock(finishAt), 'primary')}
       ${stat('Completed', visibleDone, 'primary')}
@@ -1389,26 +1470,31 @@ function renderPanel(force = false, options = {}) {
     <details class="wwie-details">
       <summary>Logging</summary>
       <div class="wwie-stats-grid wwie-stats-secondary">
+        ${stat('Marking / student', formatDuration(markingPace), 'secondary')}
+        ${stat('Session / student', formatDuration(sessionPace), 'secondary')}
         ${stat('Recent avg', formatDuration(rolling), 'secondary')}
         ${stat('Median', formatDuration(med), 'secondary')}
         ${stat('Time to complete', formatDuration(etaSeconds), 'secondary')}
       </div>
 
       <div class="wwie-muted" style="margin-top:6px;color:#A1A1AA;">
-        Current student: <span id="wwie-current-elapsed">${state.currentStartTime ? formatDuration((Date.now() - state.currentStartTime) / 1000) : '—'}</span><br>
+        Current student: <span id="wwie-current-elapsed">${data.activeBreak ? 'On break' : formatDuration(getCurrentElapsedSeconds())}</span><br>
         Logged entries: ${data.entries.length}<br>
-        Ignores timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m.
+        All timings are logged. Recent average and median exclude timings under ${MIN_VALID_SECONDS}s and over ${Math.floor(MAX_VALID_SECONDS / 60)}m. Session pace includes recorded breaks. Navigation logs a visit, not a confirmed grade.
       </div>
 
       <div class="wwie-button-row">
-        <button id="wwie-log" class="${getButtonCss()}">Log now</button>
+        <button id="wwie-log" class="${getButtonCss()}" ${data.activeBreak ? 'disabled' : ''}>Log now</button>
         <button id="wwie-export-csv" class="${getButtonCss()} wwie-icon-btn" title="Export CSV" aria-label="Export CSV">${actionIcon('download')}</button>
       </div>
+
+<div class="wwie-muted" style="margin-top:10px;max-height:180px;overflow:auto;" id="wwie-timeline">${timelineHtml(data)}</div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:8px;">
         <button id="wwie-reset" class="${getDangerButtonCss()}">Reset</button>
       </div>
     </details>
+  </div>
   </div>
 `;
 
@@ -1416,13 +1502,19 @@ const princeSlot = panel.querySelector('#wwie-prince-slot');
 if (princeSlot) {
   state.princeWidget = createPrinceProgressWidget();
   princeSlot.appendChild(state.princeWidget.el);
-  state.princeWidget.setProgress(options.previousProgress ?? progressRatio);
-  if (options.animateToProgress != null && options.animateToProgress > (options.previousProgress ?? progressRatio)) {
-    state.princeWidget.celebrateTo(options.animateToProgress).then(() => {
-      state.lastProgressRatio = options.animateToProgress;
+  const previousProgress = options.previousProgress ?? progressRatio;
+  const widget = state.princeWidget;
+  state.lastProgressRatio = progressRatio;
+  if (options.animateToProgress != null && progressRatio > previousProgress) {
+    widget.setProgress(previousProgress);
+    widget.celebrateTo(progressRatio).then(() => {
+      if (state.princeWidget !== widget) return;
+      const latest = getProgressInfo(getStudentListInfo(), loadData()).ratio;
+      widget.setProgress(latest);
+      state.lastProgressRatio = latest;
     });
   } else {
-    state.lastProgressRatio = progressRatio;
+    widget.setProgress(progressRatio);
   }
 }
   panel.querySelector('#wwie-reset')?.addEventListener('click', handleResetSession);
@@ -1440,11 +1532,13 @@ if (princeSlot) {
 
   function handleResetSession() {
     const data = defaultData();
+    state.currentAccumulatedSeconds = 0;
     data.minimized = false;
     saveData(data);
     const currentKey = getCurrentStudentKey();
     state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
     state.currentStartTime = state.currentStudentKey ? Date.now() : null;
+    state.currentVisitStartedAt = state.currentStartTime;
     renderPanel(true);
   }
 
@@ -1454,24 +1548,25 @@ if (princeSlot) {
       course_assignment: getAssignmentKey(),
       student_key: state.currentStudentKey,
       student_label: getCurrentStudentDisplayName() || state.currentStudentKey,
-      started_at: formatISO(state.currentStartTime),
+      started_at: formatISO(state.currentVisitStartedAt || state.currentStartTime),
       logged_at: formatISO(now),
       elapsed_seconds: elapsedSeconds,
       elapsed_readable: formatDuration(elapsedSeconds),
-      mode
+      mode,
+      type: 'marking'
     };
   }
 
   function addEntry(elapsedSeconds, mode = 'auto') {
     if (!state.currentStudentKey || !state.currentStartTime) return false;
-    if (elapsedSeconds < MIN_VALID_SECONDS || elapsedSeconds > MAX_VALID_SECONDS) return false;
+    if (loadData().activeBreak) return false;
 
     const data = loadData();
     const lastLoggedKey = data.completedStudentKeys[data.completedStudentKeys.length - 1];
 
     if (mode === 'auto' && lastLoggedKey === state.currentStudentKey) return false;
 
-    data.timings.push(elapsedSeconds);
+    if (elapsedSeconds >= MIN_VALID_SECONDS && elapsedSeconds <= MAX_VALID_SECONDS) data.timings.push(elapsedSeconds);
     data.completedStudentKeys.push(state.currentStudentKey);
     data.entries.push(createEntry(elapsedSeconds, mode));
     saveData(data);
@@ -1480,17 +1575,19 @@ if (princeSlot) {
 
   function logCurrentStudentIfValid() {
     if (!state.currentStartTime) return false;
-    const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
+    const elapsed = Math.round(getCurrentElapsedSeconds());
     return addEntry(elapsed, 'auto');
   }
 
   function handleLogNow() {
     if (!state.currentStartTime) return;
-    const elapsed = Math.round((Date.now() - state.currentStartTime) / 1000);
+    const elapsed = Math.round(getCurrentElapsedSeconds());
     const previousProgress = state.lastProgressRatio;
     const ok = addEntry(elapsed, 'manual');
     if (ok) {
       state.currentStartTime = Date.now();
+      state.currentVisitStartedAt = state.currentStartTime;
+      state.currentAccumulatedSeconds = 0;
       const progressInfo = getProgressInfo(getStudentListInfo(), loadData());
       renderPanel(true, {
         previousProgress,
@@ -1510,17 +1607,22 @@ if (princeSlot) {
         'logged_at',
         'elapsed_seconds',
         'elapsed_readable',
-        'mode'
+        'mode',
+        'type'
       ],
-      ...data.entries.map(entry => [
-        entry.course_assignment,
+      ...[...data.entries.map(entry => ({ ...entry, type: 'marking' })), ...data.breaks,
+        ...(data.activeBreak ? [{ type: 'break', started_at: formatISO(data.activeBreak.startedAt), logged_at: formatISO(Date.now()),
+          elapsed_seconds: Math.round((Date.now() - data.activeBreak.startedAt) / 1000), mode: 'ongoing' }] : [])]
+        .sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at)).map(entry => [
+        entry.course_assignment || getAssignmentKey(),
         entry.student_key,
         entry.student_label,
         entry.started_at,
         entry.logged_at,
         entry.elapsed_seconds,
-        entry.elapsed_readable,
-        entry.mode
+        entry.elapsed_readable || formatDuration(entry.elapsed_seconds),
+        entry.mode || 'manual',
+        entry.type
       ])
     ];
 
@@ -1550,14 +1652,17 @@ if (princeSlot) {
 
   if (!state.currentStudentKey) {
     state.currentStudentKey = newKey;
-    state.currentStartTime = Date.now();
+    state.currentStartTime = loadData().activeBreak ? null : Date.now();
+    state.currentVisitStartedAt = state.currentStartTime;
     return false;
   }
 
   if (newKey !== state.currentStudentKey) {
     const logged = logCurrentStudentIfValid();
     state.currentStudentKey = newKey;
-    state.currentStartTime = Date.now();
+    state.currentStartTime = loadData().activeBreak ? null : Date.now();
+    state.currentVisitStartedAt = state.currentStartTime;
+    state.currentAccumulatedSeconds = 0;
 
     const newInfo = getStudentListInfo();
     const newProgressInfo = getProgressInfo(newInfo, loadData());
@@ -1611,7 +1716,10 @@ if (princeSlot) {
     }
     const currentKey = getCurrentStudentKey();
     state.currentStudentKey = isUsableStudentKey(currentKey) ? currentKey : null;
-    state.currentStartTime = state.currentStudentKey ? Date.now() : null;
+    const paused = loadData().activeBreak;
+    state.currentStartTime = !paused && state.currentStudentKey ? Date.now() : null;
+    state.currentAccumulatedSeconds = paused?.studentKey === state.currentStudentKey ? paused.accumulatedSeconds : 0;
+    state.currentVisitStartedAt = paused?.studentKey === state.currentStudentKey ? paused.studentStartedAt : state.currentStartTime;
     renderPanel(true);
     startLoops();
     return true;
@@ -1719,6 +1827,9 @@ if (princeSlot) {
     });
   }
 
+  window.addEventListener('assessment-eta-status-request', publishLoggingStatus);
+  window.addEventListener('assessment-eta-break-toggle', handleBreakToggle);
   registerAssessmentHelper();
+  publishLoggingStatus();
   scheduleInit();
 })();

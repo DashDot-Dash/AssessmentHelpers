@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assessment Helpers - Copy/Paster
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.1.1
 // @description  Assessment Helpers panel for reusable Canvas SpeedGrader comment snippets
 // @match        *://*/courses/*/gradebook/speed_grader*
 // @match        *://*/courses/*/gradebook/speed_grader?*
@@ -967,7 +967,7 @@ function handleImportData(file) {
     }
 
     #${PANEL_ID} .cp-small {
-     
+
       font-size:11px;
       color: #A1A1AA;
     }
@@ -998,7 +998,7 @@ function handleImportData(file) {
   padding: 4px 8px;
   cursor: pointer;
   font-size: 11px;
-  
+
   background: #18181B;
   color: #FAFAFA;
   border: 1px solid rgba(255,255,255,0.08);
@@ -1284,7 +1284,7 @@ padding: 4px 8px;
   background: #D6A21D;
   color: #18181B;
   font-size: 11pt;
- 
+
   border: 1px solid #D6A21D;
 }
 
@@ -1343,6 +1343,32 @@ padding: 4px 8px;
       color: #95d59b;
       font-size: 11px;
     }
+  `;
+
+  // Keep disclosure controls identical even when helpers are installed independently.
+  style.textContent += `
+    #${PANEL_ID} details > summary {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      list-style:none;
+      cursor:pointer;
+    }
+    #${PANEL_ID} details > summary::marker { content:""; }
+    #${PANEL_ID} details > summary::-webkit-details-marker { display:none; }
+    #${PANEL_ID} details > summary::after {
+      content:"";
+      display:block;
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      margin-left:auto;
+      background:currentColor;
+      color:#A1A1AA;
+      clip-path:polygon(20% 0, 100% 50%, 20% 100%);
+      transform:rotate(0deg);
+    }
+    #${PANEL_ID} details[open] > summary::after { transform:rotate(90deg); }
   `;
   document.head.appendChild(style);
 }
