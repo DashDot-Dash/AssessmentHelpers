@@ -1,13 +1,195 @@
 // ==UserScript==
 // @name         Assessment Helpers - Rubric Builder
 // @namespace    AssessmentHelpers
-// @version      1.1.0
+// @version      1.1.17
 // @description  Assessment Helpers panel for building Canvas rubric CSVs from reusable criteria
 // @match        https://*/courses/*/rubrics*
 // @updateURL    https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
 // @downloadURL  https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
 // @grant        none
 // ==/UserScript==
+
+// BEGIN GENERATED AH THEME (737f047ab5f1475e)
+// Edit the shared CSS/runtime/legacy-storage sources, then run npm run build:theme.
+// Compatibility only: retired identifiers are kept here to preserve saved data.
+(function () {
+  'use strict';
+  const tutorial = 'assessmentHelpers:tutorialSorter:v1:';
+  const eta = 'assessmentHelpers:eta:v1:';
+  const fixed = new Map([
+    [tutorial + 'groups', ['chatster_tutorial_sorter_groups_v11']],
+    [tutorial + 'activeGroup', ['chatster_tutorial_sorter_active_group_v11']],
+    [tutorial + 'panelPosition', ['chatster_tutorial_sorter_panel_pos_v11']],
+    [tutorial + 'panelUi', ['chatster_tutorial_sorter_ui_v11']],
+    [tutorial + 'context', ['chatster_tutorial_sorter_context_v11', 'chatster_tutorial_sorter_context_v10',
+      ...Array.from({ length: 9 }, (_, index) => `chatster_local_marking_group_context_v${9 - index}`)]],
+    [tutorial + 'exportNameMode', ['chatster_tutorial_sorter_export_name_mode_v1']],
+    [eta + 'panelPosition', ['canvas_speedgrader_when_will_it_end_v1:panel_position', 'wwie_panel_position']]
+  ]);
+
+  function aliases(key) {
+    if (fixed.has(key)) return fixed.get(key);
+    if (key.startsWith(tutorial + 'canvasMenuCache:')) {
+      return ['chatster_canvas_menu_cache_v1:' + key.slice((tutorial + 'canvasMenuCache:').length)];
+    }
+    if (key.startsWith(eta)) {
+      const assignment = key.slice(eta.length);
+      return ['canvas_speedgrader_when_will_it_end_v1:' + assignment, 'wwie_' + assignment];
+    }
+    return [];
+  }
+
+  function read(key) {
+    const current = localStorage.getItem(key);
+    if (current !== null) return current;
+    for (const oldKey of aliases(key)) {
+      const value = localStorage.getItem(oldKey);
+      if (value === null) continue;
+      try {
+        localStorage.setItem(key, value);
+        if (localStorage.getItem(key) === value) localStorage.removeItem(oldKey);
+      } catch {
+        // A quota/storage failure must leave the original readable and intact.
+      }
+      return value;
+    }
+    return null;
+  }
+
+  function migrate() {
+    const keys = new Set(fixed.keys());
+    // Snapshot keys because successful migration removes old entries.
+    const existing = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+    for (const key of existing) {
+      if (!key) continue;
+      if (key.startsWith('chatster_canvas_menu_cache_v1:')) {
+        keys.add(tutorial + 'canvasMenuCache:' + key.slice('chatster_canvas_menu_cache_v1:'.length));
+      } else if (key.startsWith('canvas_speedgrader_when_will_it_end_v1:') && !key.endsWith(':panel_position')) {
+        keys.add(eta + key.slice('canvas_speedgrader_when_will_it_end_v1:'.length));
+      } else if (key.startsWith('wwie_') && key !== 'wwie_panel_position') {
+        keys.add(eta + key.slice('wwie_'.length));
+      }
+    }
+    for (const key of keys) {
+      const value = read(key);
+      if (value === null) continue;
+      // Remove redundant copies only; differing historical values are retained.
+      for (const oldKey of aliases(key)) {
+        if (localStorage.getItem(oldKey) === value && localStorage.getItem(key) === value) localStorage.removeItem(oldKey);
+      }
+    }
+  }
+
+  function remove(key) {
+    localStorage.removeItem(key);
+    for (const oldKey of aliases(key)) localStorage.removeItem(oldKey);
+  }
+
+  window.AssessmentHelpersCompatibility = { read, remove, migrate };
+  try { migrate(); } catch { /* Other helpers retain their normal storage fallback. */ }
+})();
+
+// Source for the embedded theme runtime. npm run build:theme inserts the CSS.
+(function () {
+  'use strict';
+  const VERSION = '1.0.14';
+  const STYLE_ID = 'ah-theme';
+  const KEY = 'ah:settings';
+  const CHANGE_EVENT = 'assessment-helper-theme-changed';
+  const CSS = "\n.ah-scope{\n  --ah-soft-0:#FFFFFF;\n  --ah-soft-50:#F4F6F8;\n  --ah-soft-100:#ECF0F3;\n  --ah-soft-150:#E2E7EC;\n  --ah-soft-200:#D5DCE3;\n  --ah-soft-line:#E1E6EB;\n  --ah-soft-ink:#1E2229;\n  --ah-soft-ink-2:#3A404A;\n  --ah-soft-muted:#66707C;\n  --ah-zinc-950:#18181B;\n  --ah-zinc-800:#27272A;\n  --ah-zinc-700:#3F3F46;\n  --ah-zinc-400:#A1A1AA;\n  --ah-zinc-200:#E4E4E7;\n  --ah-zinc-50:#FAFAFA;\n  --ah-graphite-950:#111214;\n  --ah-graphite-800:#292B2E;\n  --ah-graphite-750:#36383C;\n  --ah-graphite-700:#43464A;\n  --ah-graphite-400:#A4A7AC;\n  --ah-graphite-200:#E4E6E9;\n  --ah-graphite-50:#F9FAFB;\n  --ah-stripe-500:#D6A21D;\n  --ah-stripe-400:#E0B13A;\n  --ah-stripe-300:#f3d36c;\n  --ah-stripe-100:#FFF5C7;\n  --ah-mist-50:#f8f9fb;\n  --ah-mist-100:#f3f5f8;\n  --ah-mist-150:#eef1f4;\n  --ah-mist-200:#e6eaee;\n  --ah-mist-line:#d9dde3;\n  --ah-mist-line-strong:#cfd5dd;\n  --ah-slate-ink:#25303b;\n  --ah-slate-ink-2:#2f3a45;\n  --ah-slate-muted:#5f6b76;\n  --ah-danger-900:#4c1720;\n  --ah-danger-700:#8b1e2d;\n  --ah-danger-600:#a32437;\n  --ah-danger-500:#8b1e2d;\n  --ah-danger-150:#EDD3D7;\n  --ah-danger-100:#F6E7E9;\n  --ah-danger-text:#fff2f4;\n  --ah-danger-text-soft:#F2C9CF;\n  --ah-success-900:#183D2A;\n  --ah-success-700:#1F6640;\n  --ah-success-600:#26794C;\n  --ah-success-500:#1F6640;\n  --ah-success-150:#D3E5D9;\n  --ah-success-100:#E6F0E9;\n  --ah-success-text:#B5D6C1;\n  --ah-success-fill-a:#26794C;\n  --ah-success-fill-b:#4E9A6C;\n  --ah-band-hd:#2e7d32;\n  --ah-band-d:#1b5ee4;\n  --ah-band-c:#fdbf5b;\n  --ah-band-p:#ef6c00;\n  --ah-band-f:#c62828;\n  --ah-band-ns:#8a8a8a;\n  --ah-white-a04:rgba(255,255,255,0.04);\n  --ah-white-a05:rgba(255,255,255,0.05);\n  --ah-white-a06:rgba(255,255,255,0.06);\n  --ah-white-a08:rgba(255,255,255,0.08);\n  --ah-white-a12:rgba(255,255,255,0.12);\n  --ah-white-a14:rgba(255,255,255,0.14);\n  --ah-white-a20:rgba(255,255,255,0.2);\n  --ah-white-a22:rgba(255,255,255,0.22);\n  --ah-ink-a04:rgba(30,34,41,0.04);\n  --ah-ink-a06:rgba(30,34,41,0.06);\n  --ah-ink-a10:rgba(30,34,41,0.10);\n  --ah-bg:var(--ah-soft-50);\n  --ah-surface:var(--ah-soft-0);\n  --ah-fill:var(--ah-soft-100);\n  --ah-fill-hover:var(--ah-soft-150);\n  --ah-tint:var(--ah-ink-a04);\n  --ah-tint-strong:var(--ah-ink-a06);\n  --ah-line:var(--ah-soft-line);\n  --ah-line-strong:var(--ah-soft-200);\n  --ah-text:var(--ah-soft-ink);\n  --ah-text-soft:var(--ah-soft-ink-2);\n  --ah-muted:var(--ah-soft-muted);\n  --ah-stripe:var(--ah-stripe-500);\n  --ah-stripe-hover:var(--ah-stripe-400);\n  --ah-stripe-wash:var(--ah-fill-hover);\n  --ah-on-stripe:var(--ah-zinc-950);\n  --ah-danger:var(--ah-danger-500);\n  --ah-danger-fill:var(--ah-danger-100);\n  --ah-danger-fill-hover:var(--ah-danger-150);\n  --ah-focus:rgba(214,162,29,0.45);\n  --ah-shadow:0 1px 2px rgba(30,34,41,0.06),0 12px 32px rgba(30,34,41,0.10);\n  --ah-shell:var(--ah-bg);\n  --ah-header:var(--ah-bg);\n  --ah-section:var(--ah-surface);\n  --ah-control:var(--ah-fill);\n  --ah-control-hover:var(--ah-fill-hover);\n  --ah-border:var(--ah-line);\n  --ah-surface-panel:var(--ah-bg);\n  --ah-surface-header:var(--ah-bg);\n  --ah-surface-section:var(--ah-surface);\n  --ah-border-panel:var(--ah-line);\n  --ah-border-header:var(--ah-line);\n  --ah-border-section:var(--ah-line);\n  --ah-text-body:var(--ah-text);\n  --ah-text-muted:var(--ah-muted);\n  --ah-focus-ring:var(--ah-focus);\n  --ah-surface-page:var(--ah-mist-150);\n  --ah-surface-page-2:var(--ah-mist-200);\n  --ah-surface-card-light:#ffffff;\n  --ah-surface-card-soft:var(--ah-mist-50);\n  --ah-text-ink:var(--ah-slate-ink);\n  --ah-text-ink-muted:var(--ah-slate-muted);\n}\nhtml[data-ah-theme=\"dark\"] .ah-scope{\n  --ah-bg:var(--ah-graphite-950);\n  --ah-surface:var(--ah-graphite-800);\n  --ah-fill:var(--ah-graphite-750);\n  --ah-fill-hover:var(--ah-graphite-700);\n  --ah-tint:var(--ah-white-a05);\n  --ah-tint-strong:var(--ah-white-a12);\n  --ah-line:var(--ah-white-a08);\n  --ah-line-strong:var(--ah-white-a14);\n  --ah-text:var(--ah-graphite-50);\n  --ah-text-soft:var(--ah-graphite-200);\n  --ah-muted:var(--ah-graphite-400);\n  --ah-stripe-wash:var(--ah-fill-hover);\n  --ah-danger:var(--ah-danger-text-soft);\n  --ah-danger-fill:var(--ah-danger-900);\n  --ah-danger-fill-hover:var(--ah-danger-700);\n  --ah-focus:var(--ah-white-a22);\n  --ah-shadow:0 10px 30px rgba(0,0,0,0.30);\n}\n\n.ah-scope{\n  --ah-font-ui:\"Figtree\",-apple-system,BlinkMacSystemFont,\"Segoe UI\",system-ui,sans-serif;\n  --ah-font-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,\"Liberation Mono\",monospace;\n  --ah-fs-tag:10px;\n  --ah-fs-micro:11px;\n  --ah-fs-action:11px;\n  --ah-fs-xs:12px;\n  --ah-fs-sm:13px;\n  --ah-fs-base:13px;\n  --ah-fs-md:15px;\n  --ah-fw-regular:400;\n  --ah-fw-medium:500;\n  --ah-fw-semibold:600;\n  --ah-fw-bold:700;\n  --ah-fw-heavy:700;\n  --ah-fw-black:800;\n  --ah-lh-tight:1.15;\n  --ah-lh-snug:1.3;\n  --ah-lh-body:1.45;\n  --ah-tracking-label:0.01em;\n  --ah-tracking-label-sm:0.01em;\n}\n\n.ah-scope{\n  --ah-space-2:2px;--ah-space-4:4px;--ah-space-6:6px;--ah-space-7:7px;--ah-space-8:8px;--ah-space-9:9px;--ah-space-10:10px;--ah-space-12:12px;--ah-space-14:14px;--ah-space-18:18px;\n  --ah-stripe-width:8px;\n  --ah-stripe-inset:24px;\n  --ah-stripe-inset-dock:22px;\n  --ah-radius-xs:8px;\n  --ah-radius-sm:10px;\n  --ah-radius-md:12px;\n  --ah-radius-lg:18px;\n  --ah-radius-xl:18px;\n  --ah-radius-pill:999px;\n  --ah-control-h-sm:28px;\n  --ah-control-h-md:34px;\n  --ah-shadow-panel:0 1px 2px rgba(30,34,41,0.06),0 12px 32px rgba(30,34,41,0.10);\n  --ah-shadow-panel-strong:0 1px 2px rgba(30,34,41,0.08),0 16px 40px rgba(30,34,41,0.14);\n  --ah-shadow-chip:0 1px 2px rgba(30,34,41,0.06);\n  --ah-shadow-toast:0 10px 28px rgba(17,24,39,0.12);\n  --ah-shadow-card-light:0 1px 2px rgba(30,34,41,0.04);\n  --ah-panel-w-dock:168px;\n  --ah-panel-w:340px;\n  --ah-panel-w-wide:510px;\n  --ah-dur-fast:120ms;\n  --ah-dur-base:160ms;\n  --ah-dur-slow:180ms;\n  --ah-ease:ease;\n  --ah-z-dock:2147483000;\n  --ah-z-panel:100000;\n  --ah-z-overlay:2147483646;\n}\n\n/* ---- density ---- */\n.ah-scope{--ah-panel-w:340px;--ah-gap:10px}\nhtml[data-ah-density=\"compact\"] .ah-scope{--ah-panel-w:248px;--ah-gap:8px}\n/* ---- panel shell ---- */\n.ah-panel{box-sizing:border-box;width:var(--ah-panel-w);border-radius:var(--ah-radius-lg);background:var(--ah-bg);color:var(--ah-text);border:1px solid var(--ah-line);box-shadow:var(--ah-shadow);overflow:hidden;font:400 13px/1.45 var(--ah-font-ui)}\n.ah-panel--wide{width:420px}\n.ah-panel__header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 8px 8px 12px;cursor:grab;user-select:none}\n.ah-panel.is-min .ah-panel__header{padding:8px 8px 8px 12px}\n.ah-panel__title{display:flex;align-items:center;gap:9px;min-width:0;font-size:var(--ah-fs-md);font-weight:700;letter-spacing:-.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.ah-panel__title::before{content:\"\";flex:0 0 auto;width:var(--ah-stripe-width);height:22px;border-radius:999px;background:var(--ah-stripe)}\n.ah-panel__body{display:grid;gap:var(--ah-gap);padding:4px 12px 12px}\n.ah-panel.is-dragging{opacity:.9}\n/* ---- buttons: ONE family ---- */\n.ah-btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:var(--ah-control-h-md);padding:0 14px;border:0;border-radius:999px;font:600 var(--ah-fs-sm)/1.2 var(--ah-font-ui);white-space:nowrap;cursor:pointer;background:var(--ah-fill);color:var(--ah-text);transition:background var(--ah-dur-fast) var(--ah-ease)}\n.ah-btn:hover{background:var(--ah-fill-hover)}\n.ah-btn--sm{min-height:var(--ah-control-h-sm);padding:0 12px;font-size:var(--ah-fs-xs)}\n.ah-btn--block{width:100%}\n.ah-btn--primary{background:var(--ah-stripe);color:var(--ah-on-stripe)}.ah-btn--primary:hover{background:var(--ah-stripe-hover)}\n.ah-btn--ghost{background:transparent;color:var(--ah-text-soft)}.ah-btn--ghost:hover{background:var(--ah-tint)}\n.ah-btn--danger{background:var(--ah-danger-fill);color:var(--ah-danger)}.ah-btn--danger:hover{background:var(--ah-danger-fill-hover)}\n.ah-btn[aria-pressed=\"true\"],.ah-btn.is-active{background:var(--ah-fill-hover);box-shadow:inset 0 0 0 1.5px var(--ah-stripe)}\n.ah-btn:disabled{opacity:.45;cursor:not-allowed}\n.ah-btn svg{width:16px;height:16px}.ah-btn--sm svg{width:14px;height:14px}\n.ah-icon-btn{appearance:none;display:inline-grid;place-items:center;flex:0 0 auto;width:var(--ah-control-h-md);height:var(--ah-control-h-md);padding:0;border:0;border-radius:999px;cursor:pointer;background:var(--ah-fill);color:var(--ah-text-soft);transition:background var(--ah-dur-fast) var(--ah-ease)}\n.ah-icon-btn:hover{background:var(--ah-fill-hover)}\n.ah-icon-btn--sm{width:var(--ah-control-h-sm);height:var(--ah-control-h-sm)}\n.ah-icon-btn--primary{background:var(--ah-stripe);color:var(--ah-on-stripe)}.ah-icon-btn--primary:hover{background:var(--ah-stripe-hover)}\n.ah-icon-btn--ghost{background:transparent;color:var(--ah-muted)}.ah-icon-btn--ghost:hover{background:var(--ah-tint)}\n.ah-icon-btn--danger{background:var(--ah-danger-fill);color:var(--ah-danger)}.ah-icon-btn--danger:hover{background:var(--ah-danger-fill-hover)}\n.ah-icon-btn:disabled{opacity:.45;cursor:default}\n.ah-icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}\n/* grade button: secondary pill + band dot; active = ring in band colour (set --ah-band on the element) */\n.ah-grade-btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:var(--ah-control-h-md);padding:0 8px;border:0;border-radius:999px;background:var(--ah-fill);color:var(--ah-text);font:600 var(--ah-fs-sm) var(--ah-font-ui);cursor:pointer}\n.ah-grade-btn:hover{background:var(--ah-fill-hover)}\n.ah-grade-btn::before{content:\"\";width:11px;height:11px;border-radius:999px;background:var(--ah-band,var(--ah-band-ns));flex:0 0 auto}\n.ah-grade-btn.is-active{background:var(--ah-surface);box-shadow:inset 0 0 0 2px var(--ah-band,var(--ah-band-ns))}\n/* ---- pills / chips ---- */\n.ah-chip{appearance:none;border:0;display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;background:var(--ah-fill);color:var(--ah-text-soft);font:600 var(--ah-fs-xs) var(--ah-font-ui);white-space:nowrap;cursor:pointer}\n.ah-chip:hover{background:var(--ah-fill-hover)}\n.ah-chip.is-active{background:var(--ah-stripe);color:var(--ah-on-stripe)}\n.ah-dot{display:inline-block;width:10px;height:10px;border-radius:999px;background:var(--ah-band,var(--ah-band-ns));flex:0 0 auto}\n.ah-count-chip{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--ah-fill);color:var(--ah-text);font-size:var(--ah-fs-sm);cursor:pointer}\n.ah-count-chip:hover{background:var(--ah-fill-hover)}\n.ah-count-chip.is-active{background:var(--ah-stripe-wash);box-shadow:inset 0 0 0 1.5px var(--ah-stripe)}\n.ah-count-chip b{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}\n/* ---- surfaces ---- */\n.ah-section{padding:12px;border-radius:var(--ah-radius-md);background:var(--ah-surface);box-shadow:var(--ah-shadow-card-light)}\n.ah-section--inset{background:var(--ah-fill);box-shadow:none}\n.ah-label{font-size:var(--ah-fs-xs);font-weight:600;color:var(--ah-muted)}\n.ah-muted{font-size:var(--ah-fs-xs);color:var(--ah-muted)}\n.ah-empty{padding:12px 14px;border-radius:var(--ah-radius-md);border:1px dashed var(--ah-line-strong);color:var(--ah-muted);font-size:var(--ah-fs-sm)}\n.ah-dropzone{display:grid;justify-items:center;gap:4px;padding:16px 12px 12px;border-radius:var(--ah-radius-md);border:1.5px dashed var(--ah-line-strong);text-align:center}\n.ah-dropzone.is-over{border-color:var(--ah-stripe);background:var(--ah-stripe-wash)}\n/* stat tile; .ah-stat--inline = one line (auto in compact for .ah-stat--auto) */\n.ah-stat{padding:9px 12px;border-radius:var(--ah-radius-md);background:var(--ah-surface)}\n.ah-stat__label{font-size:var(--ah-fs-micro);font-weight:500;color:var(--ah-muted);white-space:nowrap}\n.ah-stat__value{margin-top:2px;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}\n.ah-stat--primary{background:var(--ah-stripe-wash);box-shadow:inset 0 0 0 1.5px var(--ah-stripe)}.ah-stat--primary .ah-stat__value{font-size:18px}\n.ah-stat--secondary{background:var(--ah-fill)}.ah-stat--secondary .ah-stat__value{color:var(--ah-text-soft)}\n.ah-stat--inline,html[data-ah-density=\"compact\"] .ah-scope .ah-stat--auto{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 12px}\n.ah-stat--inline .ah-stat__value,html[data-ah-density=\"compact\"] .ah-scope .ah-stat--auto .ah-stat__value{margin-top:0;font-size:14px}\n/* list row */\n.ah-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--ah-radius-xs);color:var(--ah-text-soft);font-size:var(--ah-fs-base);cursor:pointer}\n.ah-row:hover{background:var(--ah-tint)}\n.ah-row.is-current{background:var(--ah-stripe-wash);box-shadow:inset 0 0 0 1.5px var(--ah-stripe);color:var(--ah-text);font-weight:600}\n.ah-row__meta{margin-left:auto;font-size:var(--ah-fs-xs);font-weight:400;color:var(--ah-muted);white-space:nowrap}\n/* fields */\n.ah-field{width:100%;box-sizing:border-box;min-height:var(--ah-control-h-md);padding:8px 12px;border:1px solid transparent;border-radius:var(--ah-radius-sm);background:var(--ah-fill);color:var(--ah-text);font:400 var(--ah-fs-base) var(--ah-font-ui);outline:none}\n.ah-field:focus{border-color:var(--ah-stripe)}\n.ah-field-label{display:block;margin-bottom:5px;font-size:var(--ah-fs-xs);font-weight:500;color:var(--ah-muted)}\n/* disclosure (use <details class=\"ah-details\">) */\n.ah-details{padding:12px;border-radius:var(--ah-radius-md);background:var(--ah-surface);box-shadow:var(--ah-shadow-card-light)}\n.ah-details--divider{padding:12px 0 0;margin-top:2px;border-radius:0;background:none;box-shadow:none;border-top:1px solid var(--ah-line)}\n.ah-details>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:var(--ah-fs-xs);font-weight:600;color:var(--ah-text-soft)}\n.ah-details>summary::-webkit-details-marker{display:none}\n.ah-details>summary::marker{content:\"\"}\n.ah-details>summary::after{content:\"\";display:block;width:10px;height:10px;flex:0 0 10px;margin-left:auto;background:var(--ah-muted);clip-path:polygon(20% 0,100% 50%,20% 100%);transition:transform var(--ah-dur-fast) var(--ah-ease)}\n.ah-details[open]>summary{margin-bottom:10px}.ah-details[open]>summary::after{transform:rotate(90deg)}\n/* segmented (settings) */\n.ah-seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;padding:3px;border-radius:999px;background:var(--ah-fill)}\n.ah-seg button{appearance:none;border:0;border-radius:999px;min-height:24px;padding:0 10px;background:transparent;color:var(--ah-text-soft);font:600 var(--ah-fs-xs) var(--ah-font-ui);cursor:pointer;white-space:nowrap}\n.ah-seg button[aria-pressed=\"true\"]{background:var(--ah-stripe);color:var(--ah-on-stripe)}\n/* quiet toast */\n.ah-toast{display:inline-flex;align-items:center;gap:10px;min-height:40px;padding:8px 16px 8px 12px;border-radius:999px;background:var(--ah-surface);color:var(--ah-text);box-shadow:var(--ah-shadow);font:600 13px/1.2 var(--ah-font-ui)}\n.ah-spinner{width:15px;height:15px;box-sizing:border-box;border:2px solid var(--ah-fill-hover);border-top-color:var(--ah-stripe);border-radius:999px;animation:ah-spin 680ms linear infinite}\n@keyframes ah-spin{to{transform:rotate(360deg)}}\n\n/* Visible keyboard focus across the shared controls. */\n.ah-scope :is(button, input, select, textarea, summary):focus-visible {\n  outline:2px solid var(--ah-stripe);\n  outline-offset:2px;\n}\n.ah-seg button:disabled { opacity:.45; cursor:default; }\n.ah-scope svg { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }\n.ah-scope *, .ah-scope *::before, .ah-scope *::after { box-sizing:border-box; }\n@media (prefers-reduced-motion:reduce) {\n  .ah-scope *, .ah-scope *::before, .ah-scope *::after { transition:none; animation:none; }\n}\n\n/* Migration adapters preserve helper event hooks and saved data while sharing\n   the visual components. Panel-specific layout remains in each userscript. */\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-panel.ah-scope {\n  width:var(--ah-panel-w); max-width:calc(100vw - 20px); border-radius:18px;\n  background:var(--ah-bg); color:var(--ah-text); border:1px solid var(--ah-line);\n  box-shadow:var(--ah-shadow); font:400 13px/1.45 var(--ah-font-ui); overflow:hidden;\n}\n#sg-copypaster-panel.ah-panel.ah-scope { width:420px; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-header, .ah-tutorial-sorter-header, .sg-head, .cp-head, .vc-gradebridge-header) {\n  display:flex; align-items:center; justify-content:space-between; gap:10px;\n  padding:10px 8px 8px 12px; background:transparent; border:0; cursor:grab;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-header, .ah-tutorial-sorter-header, .sg-head, .cp-head, .vc-gradebridge-header)::before { content:none; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-title, .ah-tutorial-sorter-title, .sg-head-title, .cp-head-title, .vc-gradebridge-title) {\n  display:flex; align-items:center; gap:9px; min-width:0;\n  font-size:15px; font-weight:700; line-height:1.2; letter-spacing:-.01em;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-title, .ah-tutorial-sorter-title, .sg-head-title, .cp-head-title, .vc-gradebridge-title)::before {\n  content:\"\"; width:8px; height:22px; flex:0 0 8px; border-radius:999px; background:var(--ah-stripe);\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-body, .ah-tutorial-sorter-body, .sg-body, .cp-body, .vc-gradebridge-body) {\n  padding:4px 12px 12px;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button {\n  appearance:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;\n  min-height:34px; padding:0 14px; border:0; border-radius:999px;\n  background:var(--ah-fill); color:var(--ah-text); font:600 13px/1.2 var(--ah-font-ui); cursor:pointer;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button:hover:not(:disabled) { background:var(--ah-fill-hover); }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button:disabled { opacity:.45; cursor:default; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button:is(.active, .is-active, [aria-pressed=\"true\"]) {\n  background:var(--ah-fill-hover); box-shadow:inset 0 0 0 1.5px var(--ah-stripe); outline:0;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-panel-toggle, .ah-tutorial-sorter-panel-toggle, .sg-panel-toggle, .cp-panel-toggle, .vc-gradebridge-header-button) {\n  flex:0 0 28px; width:28px; height:28px; min-height:28px; padding:0;\n  background:transparent; color:var(--ah-text-soft);\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-panel-toggle, .ah-tutorial-sorter-panel-toggle, .sg-panel-toggle, .cp-panel-toggle, .vc-gradebridge-header-button):hover { background:var(--ah-tint); }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button svg { width:16px; height:16px; flex:0 0 auto; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(input, select, textarea) {\n  background:var(--ah-fill); color:var(--ah-text); border:1px solid var(--ah-line); border-radius:10px;\n  padding:8px 10px; font:400 13px/1.45 var(--ah-font-ui); max-width:100%;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-eta-muted, .ah-tutorial-sorter-muted, .sg-small, .cp-small, .vc-gradebridge-context) { color:var(--ah-muted); }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(label, .ah-tutorial-sorter-label, .sg-section-title) {\n  font-size:12px; font-weight:600; color:var(--ah-muted); text-transform:none; letter-spacing:0;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details {\n  background:var(--ah-surface); border:0; border-radius:12px; padding:8px 10px;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details > summary {\n  display:flex; align-items:center; gap:8px; color:var(--ah-text-soft); font-size:12px;\n  font-weight:600; text-transform:none; letter-spacing:0; list-style:none; cursor:pointer;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details > summary::marker { content:\"\"; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details > summary::-webkit-details-marker { display:none; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details > summary::after {\n  content:\"\"; width:10px; height:10px; flex:0 0 10px; margin-left:auto;\n  background:var(--ah-muted); color:var(--ah-muted); clip-path:polygon(20% 0,100% 50%,20% 100%); transform:rotate(0deg);\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope details[open] > summary::after { transform:rotate(90deg); }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-tutorial-sorter-btn-danger, .ah-eta-btn-danger, .cp-btn-danger, #sg-reset) {\n  background:var(--ah-danger-fill); color:var(--ah-danger); min-height:28px; font-size:12px;\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(.ah-tutorial-sorter-btn-danger, .ah-eta-btn-danger, .cp-btn-danger, #sg-reset):hover { background:var(--ah-danger-fill-hover); }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(#ah-eta-log, #ah-tutorial-sorter-prev, #ah-tutorial-sorter-next, .sg-tutorial-nav button, .cp-action-secondary, .cp-icon-btn-primary, .vc-gradebridge-assignment-card-target) {\n  background:var(--ah-stripe); color:var(--ah-on-stripe);\n}\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope :is(#ah-eta-log, #ah-tutorial-sorter-prev, #ah-tutorial-sorter-next, .sg-tutorial-nav button, .cp-action-secondary, .cp-icon-btn-primary, .vc-gradebridge-assignment-card-target):hover { background:var(--ah-stripe-hover); }\n/* Tutorial Sorter */\n#ah-tutorial-sorter-panel.ah-scope :is(.ah-tutorial-sorter-card, .ah-tutorial-sorter-stat) { background:var(--ah-surface); border:0; border-radius:12px; }\n#ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-stat { padding:8px 10px; }\n#ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-student-item { border-radius:10px; background:transparent; justify-content:flex-start; }\n#ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-student-item.is-current { background:var(--ah-fill-hover); box-shadow:inset 0 0 0 1.5px var(--ah-stripe); }\nhtml[data-ah-density=\"compact\"] #ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-stat { display:flex; align-items:center; justify-content:space-between; gap:6px; }\nhtml[data-ah-density=\"compact\"] #ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-stat-label { margin:0; }\n/* ETA */\n#ah-eta-panel.ah-scope .ah-eta-stat { background:var(--ah-surface); border:0; border-radius:12px; padding:8px 10px; }\n#ah-eta-panel.ah-scope .ah-eta-stat-primary { display:flex; align-items:center; justify-content:space-between; gap:4px; }\n#ah-eta-panel.ah-scope .ah-eta-stat-label { color:var(--ah-muted); font-size:11px; margin-bottom:0; }\n#ah-eta-panel.ah-scope .ah-eta-stat-value { color:var(--ah-text); font-size:14px; white-space:nowrap; }\n#ah-eta-panel.ah-scope .ah-eta-stats-primary { gap:5px; }\n#ah-eta-panel.ah-scope .ah-eta-details { padding:4px 8px; background:var(--ah-surface); }\n#ah-eta-panel.ah-scope .ah-eta-stats-secondary { grid-template-columns:repeat(2,minmax(0,1fr)); }\n#ah-eta-panel.ah-scope .ah-eta-button-row { align-items:center; margin-top:8px; }\nhtml[data-ah-density=\"compact\"] #ah-eta-panel.ah-scope .ah-eta-stats-primary { grid-template-columns:repeat(2,minmax(0,1fr)); }\nhtml[data-ah-density=\"compact\"] #ah-eta-panel.ah-scope .ah-eta-stats-primary > :first-child { grid-column:1 / -1; }\nhtml[data-ah-density=\"compact\"] #ah-eta-panel.ah-scope .ah-eta-stats-secondary { grid-template-columns:1fr; }\nhtml[data-ah-density=\"compact\"] #ah-eta-panel.ah-scope .ah-eta-stat-secondary { display:flex; align-items:center; justify-content:space-between; gap:6px; }\n/* Benchmarker */\n#sg-benchmarker-panel.ah-scope .sg-section { background:var(--ah-surface); border:0; border-radius:12px; }\n#sg-benchmarker-panel.ah-scope .sg-section-toggle { min-height:24px; padding:0; margin:0 0 8px; border-radius:0; border:0; background:transparent; color:var(--ah-text-soft); font-size:12px; text-transform:none; letter-spacing:0; justify-content:space-between; }\n#sg-benchmarker-panel.ah-scope .sg-section-toggle:hover { background:transparent; }\n#sg-benchmarker-panel.ah-scope .sg-section-toggle-icon { color:var(--ah-muted); }\n#sg-benchmarker-panel.ah-scope .sg-grade-btn { background:var(--ah-fill); border:0; box-shadow:none; padding:0 10px; }\n#sg-benchmarker-panel.ah-scope .sg-grade-btn::before { content:\"\"; width:11px; height:11px; border-radius:50%; background:var(--ah-band); flex:0 0 11px; }\n#sg-benchmarker-panel.ah-scope .sg-grade-btn.active { background:var(--ah-surface); box-shadow:inset 0 0 0 2px var(--ah-band); }\n#sg-benchmarker-panel.ah-scope .sg-grade-primary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }\n#sg-benchmarker-panel.ah-scope .sg-grade-secondary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }\n#sg-benchmarker-panel.ah-scope .sg-count-chip { background:var(--ah-fill); border:0; border-radius:999px; color:var(--ah-text); }\n#sg-benchmarker-panel.ah-scope .sg-count-chip.active { background:var(--ah-fill-hover); box-shadow:inset 0 0 0 1.5px var(--ah-stripe); }\nhtml[data-ah-density=\"compact\"] #sg-benchmarker-panel.ah-scope .sg-grade-primary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }\n/* Copy/Paster */\n#sg-copypaster-panel.ah-scope .cp-item { background:var(--ah-surface); border:0; border-radius:12px; padding:12px; }\n#sg-copypaster-panel.ah-scope .cp-item-title { color:var(--ah-text); font-weight:600; }\n#sg-copypaster-panel.ah-scope .cp-list { background:var(--ah-fill); border-radius:14px; padding:8px; }\n#sg-copypaster-panel.ah-scope .cp-mode-details { background:transparent; border-top:1px solid var(--ah-line); border-radius:0; }\n/* GradeBridge */\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-card-current { background:var(--ah-surface); border:0; border-radius:12px; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-card-target { padding:9px 12px; border-radius:12px; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-manage { background:none; padding:9px 0 0; border-top:1px solid var(--ah-line); border-radius:0; }\n\n#sg-copypaster-panel.ah-scope .cp-icon-btn { width:28px; height:28px; min-height:28px; padding:0; background:transparent; }\n#sg-copypaster-panel.ah-scope .cp-icon-btn-primary { background:var(--ah-stripe); color:var(--ah-on-stripe); }\n#sg-copypaster-panel.ah-scope .cp-section-title { font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ah-text-soft); }\n#sg-copypaster-panel.ah-scope .cp-list { border:0; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-link { background:transparent; font-size:12px; min-height:28px; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-section-label { font-size:12px; text-transform:none; letter-spacing:0; color:var(--ah-muted); }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-card-target :is(.vc-gradebridge-assignment-tag, .vc-gradebridge-assignment-name) { color:var(--ah-on-stripe); }\n#sg-benchmarker-panel.ah-scope .sg-bucket-pill { background:var(--ah-fill); border:0; color:var(--ah-text-soft); }\n#sg-benchmarker-panel.ah-scope .sg-count-chip { border-left:0; }\n#sg-benchmarker-panel.ah-scope .sg-section-toggle-icon {\n  display:block; width:10px; height:10px; flex:0 0 10px; margin-left:auto;\n  background:var(--ah-muted); clip-path:polygon(20% 0,100% 50%,20% 100%); transform:rotate(0deg);\n}\n#sg-benchmarker-panel.ah-scope .sg-section-toggle[aria-expanded=\"true\"] .sg-section-toggle-icon { transform:rotate(90deg); }\n#ah-tutorial-sorter-panel.ah-scope .ah-tutorial-sorter-nav-block { padding:0; background:none; border:0; }\n#ah-tutorial-sorter-panel.ah-scope details.ah-details--divider,\n#sg-copypaster-panel.ah-scope .cp-import-export,\n#sg-benchmarker-panel.ah-scope .sg-details { background:none; border-radius:0; border-top:1px solid var(--ah-line); padding:9px 0 0; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-card { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:4px; padding:9px 12px; text-align:left; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-tag { background:none; padding:0; font-size:11px; font-weight:500; white-space:normal; overflow:visible; }\n#vc-gradebridge-panel.ah-scope .vc-gradebridge-assignment-name { font-size:13px; font-weight:600; white-space:normal; overflow:visible; overflow-wrap:anywhere; }\n:is(#ah-eta-panel, #ah-tutorial-sorter-panel, #sg-benchmarker-panel, #sg-copypaster-panel, #vc-gradebridge-panel).ah-scope button:focus-visible { outline:2px solid var(--ah-stripe); outline-offset:2px; }\n\n/* A dark stage keeps the white Prince sprite visible in either theme. */\n#ah-eta-panel.ah-scope .ah-eta-prince-disclosure { padding:4px 8px; margin:6px 0; }\n#ah-eta-panel.ah-scope .ah-eta-prince-stage {\n  --ah-prince-track:var(--ah-graphite-750);\n  background:var(--ah-graphite-800); border-radius:10px; margin-top:6px; overflow:hidden;\n}\n#ah-eta-panel.ah-scope .ah-eta-summary { margin-top:8px; }\n#ah-eta-panel.ah-scope .ah-eta-summary > .ah-eta-muted:first-child { margin-bottom:6px; }\n#ah-eta-panel.ah-scope .ah-eta-summary-row { padding:6px 0; font-size:11px; border-bottom:1px solid var(--ah-line); }\n#ah-eta-panel.ah-scope .ah-eta-review-list { max-height:220px; overflow:auto; }\n#ah-eta-panel.ah-scope .ah-eta-review-row { display:flex; gap:8px; align-items:flex-start; padding:6px 0; }\n#ah-eta-panel.ah-scope .ah-eta-review-row input { width:16px; height:16px; margin:2px 0; accent-color:var(--ah-stripe); flex:0 0 16px; }\n#ah-eta-panel.ah-scope .ah-eta-review-row small { display:block; color:var(--ah-muted); font-size:10px; }\n#ah-eta-panel.ah-scope .ah-eta-gap-setting { display:flex; gap:6px; align-items:center; margin:8px 0; font-size:11px; }\n#ah-eta-panel.ah-scope .ah-eta-gap-setting select { padding:4px; font-size:11px; width:auto; }\n#ah-eta-panel.ah-scope :is(.ah-eta-block-list, .ah-eta-review, .ah-eta-raw-timeline) { margin-top:8px; padding:6px 0; background:none; border-radius:0; border-top:1px solid var(--ah-line); }\n#ah-eta-panel.ah-scope .ah-eta-review-row input { padding:0; border:0; }\n#ah-eta-panel.ah-scope .ah-eta-review-row span { min-width:0; overflow-wrap:anywhere; }\n#ah-eta-panel.ah-scope .ah-eta-gap-setting { flex-wrap:wrap; }\n/* Expanded logs remain accessible without pushing controls below the screen. */\n#ah-eta-panel.ah-scope .ah-eta-body { max-height:calc(100vh - 70px); overflow-y:auto; scrollbar-width:thin; }\n#ah-eta-panel.ah-scope .ah-eta-expected-setting { display:grid; gap:4px; margin:8px 0; }\n#ah-eta-panel.ah-scope .ah-eta-expected-setting select { width:100%; }\n";
+  const DEFAULTS = { theme: 'soft', density: 'roomy' };
+  const listeners = window.AssessmentHelpersTheme?._subscribers || new Set();
+  let current = { ...DEFAULTS };
+
+  function normalise(value) {
+    return {
+      theme: value?.theme === 'dark' ? 'dark' : 'soft',
+      density: value?.density === 'compact' ? 'compact' : 'roomy'
+    };
+  }
+
+  function read() {
+    try {
+      return normalise(JSON.parse(localStorage.getItem(KEY)) || DEFAULTS);
+    } catch {
+      return { ...current };
+    }
+  }
+
+  function apply(value) {
+    current = normalise(value);
+    document.documentElement.dataset.ahTheme = current.theme;
+    document.documentElement.dataset.ahDensity = current.density;
+    for (const listener of listeners) {
+      try { listener({ ...current }); } catch (error) { console.error(error); }
+    }
+    // A wider density must not leave a previously dragged header off-screen.
+    requestAnimationFrame(() => {
+      for (const panel of document.querySelectorAll('.ah-panel')) {
+        if (getComputedStyle(panel).position !== 'fixed' || !panel.getClientRects().length) continue;
+        const rect = panel.getBoundingClientRect();
+        const left = Math.min(Math.max(10, rect.left), Math.max(10, innerWidth - rect.width - 10));
+        const top = Math.min(Math.max(10, rect.top), Math.max(10, innerHeight - rect.height - 10));
+        if (left !== rect.left) { panel.style.left = `${left}px`; panel.style.right = 'auto'; }
+        if (top !== rect.top) { panel.style.top = `${top}px`; panel.style.bottom = 'auto'; }
+      }
+    });
+  }
+
+  function compareVersions(a, b) {
+    const left = a.split('.').map(Number), right = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      const difference = (left[i] || 0) - (right[i] || 0);
+      if (difference) return difference;
+    }
+    return 0;
+  }
+
+  function inject() {
+    const existing = document.getElementById(STYLE_ID);
+    if (existing && compareVersions(existing.dataset.version || '0.0.0', VERSION) >= 0) return;
+    const style = existing || document.createElement('style');
+    style.id = STYLE_ID;
+    style.dataset.version = VERSION;
+    style.textContent = CSS;
+    if (!existing) (document.head || document.documentElement).appendChild(style);
+  }
+
+  // Separate from the helper registry: loading the theme must not create or replace it.
+  // DOM events and origin-local storage also work across userscript execution contexts.
+  inject();
+  const installed = window.AssessmentHelpersTheme;
+  if (installed && compareVersions(installed.version, VERSION) >= 0) return;
+  installed?.dispose?.(true);
+  function onStorage(event) {
+    if (event.key === KEY || event.key === null) apply(read());
+  }
+  function onChangeEvent(event) {
+    try { apply(JSON.parse(event.detail)); } catch {}
+  }
+  window.addEventListener('storage', onStorage);
+  window.addEventListener(CHANGE_EVENT, onChangeEvent);
+  window.AssessmentHelpersTheme = {
+    version: VERSION,
+    _subscribers: listeners,
+    get() { return { ...current }; },
+    set(patch) {
+      const value = normalise({ ...current, ...patch });
+      try { localStorage.setItem(KEY, JSON.stringify(value)); } catch {}
+      window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: JSON.stringify(value) }));
+      return { ...value };
+    },
+    onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    isCompact() { return current.density === 'compact'; },
+    dispose(preserveSubscribers = false) {
+      if (!preserveSubscribers) listeners.clear();
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(CHANGE_EVENT, onChangeEvent);
+    }
+  };
+  apply(read());
+})();
+// END GENERATED AH THEME
 
 (function () {
   'use strict';
@@ -232,7 +414,7 @@ Self initiated projects	SIP_04	4	Realisation & Creativity	Execution of the work 
   }
 
   function loadStoredValue(name, legacyKey = '') {
-    return localStorage.getItem(getStorageKey(name)) || (legacyKey ? localStorage.getItem(legacyKey) : null);
+    return window.AssessmentHelpersCompatibility.read(getStorageKey(name)) || (legacyKey ? window.AssessmentHelpersCompatibility.read(legacyKey) : null);
   }
 
   function saveStoredValue(name, value) {
@@ -381,10 +563,11 @@ function createLauncherButton() {
 
     const overlay = document.createElement('div');
     overlay.id = PANEL_ID;
+    overlay.classList.add('ah-scope');
     overlay.style.cssText = `
       position:fixed;
       inset:0;
-      background:rgba(0,0,0,0.45);
+      background:rgba(17,18,20,.38);
       z-index:${Z_INDEX_BASE};
       display:flex;
       align-items:center;
@@ -394,36 +577,37 @@ function createLauncherButton() {
     bringPanelToFront(overlay);
 
     const modal = document.createElement('div');
+    modal.className = 'ah-panel ah-rubric-modal';
  modal.style.cssText = `
-  background:#f8f9fb;
-  width:min(1200px, 95vw);
+  background:var(--ah-bg);
+  width:min(1100px, 95vw);
   height:min(85vh, 900px);
-  border-radius:12px;
+  border-radius:18px;
   overflow:hidden;
   display:grid;
   grid-template-rows:auto 1fr auto;
   box-shadow:0 10px 30px rgba(0,0,0,.25);
-  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  border:1px solid #d9dde3;
+  font-family:var(--ah-font-ui);
+  border:1px solid var(--ah-line);
 `;
 
     modal.innerHTML = `
-      <div style="padding:16px 20px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; gap:16px; align-items:center;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--ah-line); display:flex; justify-content:space-between; gap:16px; align-items:center;">
         <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
-<strong style="font-size:16px; font-weight:700;">Rubric Builder</strong>
-<input id="jj-rubric-title" type="text" placeholder="New rubric name" style="padding:8px 10px; font-size:14px; width:100%; max-width:420px; border:1px solid #cfd5dd; border-radius:8px; background:#eef1f4; color:#2f3a45;">
+<strong class="ah-panel__title" style="font-size:16px;">Rubric Builder</strong>
+<input class="ah-field" id="jj-rubric-title" type="text" placeholder="New rubric name" style="padding:8px 10px; font-size:14px; width:100%; max-width:420px; border:1px solid var(--ah-line-strong); border-radius:8px; background:var(--ah-fill); color:var(--ah-text);">
 </div>
-<button id="jj-close-modal" type="button" style="background:#27272A; color:#A1A1AA; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Close</button>
-</div>
-
-      <div style="display:grid; grid-template-columns: 1.2fr 1fr; min-height:0; background:#eef1f5;">
-  <div id="jj-library-panel" style="overflow:auto; padding:18px 20px; border-right:1px solid #d9dde3; background:#f3f5f8;"></div>
-  <div id="jj-selected-panel" style="overflow:auto; padding:18px 20px; background:#f8f9fb;"></div>
+<button id="jj-close-modal" type="button" class="ah-icon-btn ah-icon-btn--ghost ah-icon-btn--sm" aria-label="Close Rubric Builder">×</button>
 </div>
 
-<div style="padding:12px 20px; border-top:1px solid #d9dde3; display:flex; justify-content:space-between; align-items:center; background:#f8f9fb;">
-  <div id="jj-status" style="font-size:13px; color:#555;">Select criteria and enter weights.</div>
-  <button id="jj-download-csv" type="button" title="Download Canvas CSV" aria-label="Download Canvas CSV" style="display:inline-grid; place-items:center; min-width:34px; min-height:28px; background:#27272A; color:#FAFAFA; border:1px solid rgba(0,0,0,0.08); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">${actionIcon('download')}</button>
+      <div style="display:grid; grid-template-columns: 1.15fr 1fr; gap:12px; padding:12px; min-height:0; background:var(--ah-bg);">
+  <div id="jj-library-panel" style="overflow:auto; padding:18px 20px; border-right:1px solid var(--ah-line); background:var(--ah-bg);"></div>
+  <div id="jj-selected-panel" style="overflow:auto; padding:18px 20px; background:var(--ah-bg);"></div>
+</div>
+
+<div style="padding:12px 20px; border-top:1px solid var(--ah-line); display:flex; justify-content:space-between; align-items:center; background:var(--ah-bg);">
+  <div id="jj-status" style="font-size:13px; color:var(--ah-muted);">Select criteria and enter weights.</div>
+  <button id="jj-download-csv" type="button" class="ah-btn ah-btn--primary">${actionIcon('download')}<span>Download Canvas CSV</span></button>
 </div>
     `;
 
@@ -446,6 +630,7 @@ function createLauncherButton() {
 
   function actionIcon(name) {
     const paths = {
+      delete: '<path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6"></path>',
       download: '<path d="M12 4v12"></path><path d="M7 11l5 5l5 -5"></path><path d="M20 16v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4"></path>'
     };
     return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">${paths[name] || ''}</svg>`;
@@ -463,9 +648,9 @@ const section = document.createElement('div');
 section.style.cssText = `
   margin-bottom:20px;
   padding:14px;
-  border:1px solid #d9dde3;
+  border:1px solid var(--ah-line);
   border-radius:12px;
-  background:#eceff3;
+  background:var(--ah-surface);
 `;
 
       const heading = document.createElement('h3');
@@ -474,7 +659,7 @@ heading.style.cssText = `
   margin:0 0 12px 0;
   font-size:14px;
   font-weight:700;
-  color:#2f3a45;
+  color:var(--ah-text);
   letter-spacing:0.01em;
 `;
         section.appendChild(heading);
@@ -487,19 +672,19 @@ heading.style.cssText = `
   display:block;
   padding:10px 12px;
   margin:0 0 8px 0;
-  border:1px solid ${checked ? '#bcc4cd' : '#d9dde3'};
+  border:1px solid ${checked ? 'var(--ah-line-strong)' : 'var(--ah-line)'};
   border-radius:10px;
   cursor:pointer;
-background:${checked ? '#e7eaee' : '#FAFAFA'};
-  box-shadow:${checked ? '0 0 0 1px rgba(120, 128, 138, 0.10) inset' : 'none'};
+background:${checked ? 'var(--ah-fill-hover)' : 'var(--ah-surface)'};
+  box-shadow:${checked ? 'inset 0 0 0 1.5px var(--ah-stripe)' : 'none'};
 `;
 
         item.innerHTML = `
           <div style="display:flex; gap:10px; align-items:flex-start;">
-<input type="checkbox" data-code="${row.criterion_code}" ${checked ? 'checked' : ''} style="margin-top:3px; accent-color:#6f7782;">
+<input type="checkbox" data-code="${row.criterion_code}" ${checked ? 'checked' : ''} style="margin-top:3px; accent-color:var(--ah-stripe);width:18px;height:18px;flex:0 0 18px;">
 <div>
               <div style="font-weight:600;">${escapeHtml(row.criterion_name)}</div>
-<div style="font-size:13px; color:#5b6570; margin-top:3px; line-height:1.4;">${escapeHtml(row.criterion_summary || '')}</div>            </div>
+<div style="font-size:13px; color:var(--ah-muted); margin-top:3px; line-height:1.4;">${escapeHtml(row.criterion_summary || '')}</div>            </div>
           </div>
         `;
 
@@ -533,7 +718,7 @@ background:${checked ? '#e7eaee' : '#FAFAFA'};
       });
 
     if (!selectedItems.length) {
-      container.innerHTML = `<p style="margin:0; color:#666;">No criteria selected yet.</p>`;
+      container.innerHTML = `<p style="margin:0; color:var(--ah-muted);">No criteria selected yet.</p>`;
       updateStatus();
       return;
     }
@@ -545,11 +730,11 @@ background:${checked ? '#e7eaee' : '#FAFAFA'};
 
       const card = document.createElement('div');
 card.style.cssText = `
-  border:1px solid #d9dde3;
+  border:1px solid var(--ah-line);
   border-radius:10px;
   padding:12px;
   margin-bottom:12px;
-  background:#FAFAFA;
+  background:var(--ah-surface);
   box-shadow:0 1px 0 rgba(0,0,0,0.02);
 `;
 
@@ -557,25 +742,22 @@ card.style.cssText = `
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:start;">
           <div>
             <div style="font-weight:700;">${escapeHtml(row.criterion_name)}</div>
-            <div style="font-size:13px; color:#555; margin-top:4px;">${escapeHtml(row.category || '')}</div>
+            <div style="font-size:13px; color:var(--ah-muted); margin-top:4px;">${escapeHtml(row.category || '')}</div>
           </div>
-<button type="button" data-remove="${row.criterion_code}" style="background:#8b1e2d; color:#fff2f4; border:1px solid rgba(0,0,0,0.06); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:400;">Remove</button>
+<button type="button" data-remove="${row.criterion_code}" class="ah-icon-btn ah-icon-btn--ghost ah-icon-btn--sm" aria-label="Remove ${escapeHtml(row.criterion_name)}">${actionIcon('delete')}</button>
 </div>
 
-        <div style="font-size:13px; color:#444; margin-top:8px;">${escapeHtml(chooseDescription(row))}</div>
+        <div style="font-size:13px; color:var(--ah-text-soft); margin-top:8px;">${escapeHtml(chooseDescription(row))}</div>
 
         <div style="margin-top:10px;">
           <label style="font-size:13px;">Weight:
-<input type="number" step="0.5" min="0" value="${weight}" data-weight="${row.criterion_code}" style="width:90px; margin-left:6px; padding:6px 8px; border:1px solid #d9dde3; border-radius:8px; background:#f8f9fb;">
+<input type="number" step="0.5" min="0" value="${weight}" data-weight="${row.criterion_code}" class="ah-field" style="width:72px; margin-left:6px; padding:6px 8px; border:1px solid var(--ah-line); border-radius:8px; background:var(--ah-bg);">
 </label>
         </div>
 
-        <div style="margin-top:10px; font-size:13px; color:#333;">
-          HD ${scores.hd} &nbsp;|&nbsp;
-          D ${scores.d} &nbsp;|&nbsp;
-          C ${scores.c} &nbsp;|&nbsp;
-          P ${scores.p} &nbsp;|&nbsp;
-          F ${scores.f}
+        <div style="margin-top:10px; font-size:13px; color:var(--ah-text);">
+          ${[['HD', 'hd'], ['D', 'd'], ['C', 'c'], ['P', 'p'], ['F', 'f']].map(([label, band]) =>
+            `<span class="ah-chip" style="display:inline-flex;gap:6px;margin:3px 2px;"><span class="ah-dot" style="--ah-band:var(--ah-band-${band});"></span>${label} ${scores[band]}</span>`).join('')}
         </div>
       `;
 
@@ -617,11 +799,11 @@ function updateStatus() {
   }, 0);
 
   const roundedTotal = Math.round(totalWeight * 10) / 10;
-  const countText = `${selectedItems.length} criterion${selectedItems.length === 1 ? '' : 'a'} selected.`;
+  const countText = `${selectedItems.length} ${selectedItems.length === 1 ? 'criterion' : 'criteria'} selected.`;
   const totalText = ` Total weight: ${roundedTotal}`;
 
   status.textContent = countText + totalText;
-  status.style.color = roundedTotal > 100 ? '#b00020' : '#555';
+  status.style.color = roundedTotal > 100 ? 'var(--ah-danger)' : 'var(--ah-muted)';
   status.style.fontWeight = roundedTotal > 100 ? '700' : '400';
 }
 

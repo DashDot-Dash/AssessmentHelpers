@@ -7,9 +7,14 @@
     "doc": "docs"
   },
   "scripts": {
+    "build:theme": "node scripts/build-theme.mjs",
+    "check:theme": "node scripts/build-theme.mjs --check",
     "check:userscripts": "node scripts/check-userscripts.mjs",
     "dev:loaders": "node scripts/create-dev-loaders.mjs",
-    "test": "npm run check:userscripts && npm run test:eta && npm run test:dock",
+    "test": "npm run check:theme && npm run check:userscripts && npm run test:migration && npm run test:eta && npm run test:theme && npm run test:panels && npm run test:dock",
+    "test:migration": "node tests/legacy-storage.cjs",
+    "test:panels": "node tests/panels-theme-smoke.cjs",
+    "test:theme": "node tests/theme-smoke.cjs",
     "test:eta": "node tests/eta-breaks.cjs",
     "test:dock": "node tests/dock-smoke.js"
   },
