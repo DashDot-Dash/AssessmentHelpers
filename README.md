@@ -1,50 +1,53 @@
 # AssessmentHelpers
 
-Assessment Helpers are a suite of Tampermonkey userscripts for Canvas to help with assessment, groups and setting up rubrics.  Userscripts appear only on the pages they are coded for and only use that pages underlying data to add features. They don't change anything on Canvas. 
+Assessment Helpers are a suite of Tampermonkey userscripts for the Canvas LMS to help with assessment, groups and setting up rubrics. Userscripts appear only on the pages they are coded for and one can switch them on and off from the Tampermonkey icon on the browser toolbar.
 
 ## Installation Instructions
-1. Install Tampermonkey in your browser at https://www.tampermonkey.net  It's an extension for all major browsers and you should be able to install it (even on managaged machines) via your browser extension manager or your browser extension store.  Make sure you use your browser's extension manager page (Try Tools/Extensions on Chrome and Firefox)to access Tampermonkey preferences. 
-Make sure the following are activated:
-* activate the extension if not already activated
-* install it in your toolbar
-* allow userscripts
+1. Install Tampermonkey in your browser at https://www.tampermonkey.net It's an extension for all major browsers and you should be able to install it even on university managed machines via your browser's extension manager page.
+2. Go to your browser's extension manager page to access Tampermonkey preferences. Go to Tools/Extensions on Chrome and Firefox.
+    Make sure the following are activated:
+      * the extension is active
+      * installed to your toolbar
+      * allow userscripts is on
 
-2. Install the **Assessment Helpers** by clicking on the URLs for each one below. This will show a Tampermonkey install page. Press install.   
+2. Install the **Assessment Helpers** by clicking on the URLs for each one below. This will launch a Tampermonkey install page in your browser. Press install.
 
-3. Once installed you should see the green button toggled on in the Dashboard.  If you don't want the userscript to function you can toggle the green button off.  If you want to delete the userscript you can do so from the dashboard page.  
+3. Once installed you can access the Dashboard page by clicking on the Tampermonkey icon in the browser Toolbar. If you don't want a userscript to function you can toggle it off and it won't launch.
 
-4. Upload your roster file from Allocate+ to the **Tutorial Sorter** by drag and drop (or use the finder if you must). **Tutorial Sorter**, **ETA** and **Benchmarker** use the same class list for quick navigation.
+4. Get your class roster. **Assessment Helpers** only recognises the .xls file downloaded from Allocate+. You can access it here https://mytimetable.newcastle.edu.au/aplus/admin/adminLoginExe.do
 
-## Dock
-Floating launcher for Assessment Helpers. Install this first if you want one compact panel to open, hide, and quick-action the helpers. The dock’s Settings section controls the shared Light/Dark theme and Compact/Roomy layout across the suite.
-https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js
+## Tutorial Sorter
+Install this one first as it provides the roster information needed to drive **GradeBridge**, **ETA** and **Benchmarker**. To set up, upload or drag and drop the excel roster from Allocate+ to the page.
 
-## Rubric Builder
-Reusable rubric criteria as a clickable resource. Assemble your rubric, assign a weight and export in the format Canvas is expecting for bulk import. Never construct each criterion one at a time again!
-https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
-
-## SpeedGrader Tutorial Sorter 
-Drag and drop the roster from Allocate + to immediately create panel of tutorial groups in Canvas.   You can click on student names in the list to go directly to that student in Canvas.  No more hunting through the entire list! Mark in tutorial groups like nature intended! You can also export a .csv file that will create student groups in the canvas group system via bulk import.
+It can also export a .csv file that is formatted in the style required by Canvas to create groups in Canvas. Choose a naming convention from the dropdown list ie "Course-Day/Time - Room" will call groups after that.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-tutorial-sorter.user.js
 
-## SpeedGrader Benchmarker 
-If you have ever wanted to do a quick pass through of student submissions and roughly group them in terms of HD or Pass etc - Benchmarker has you covered. I sometimes miss my old analogue system of quickly sorting them in piles on the floor and then marking them in batches according to grade band. This panel replicates that - flick through and assign a grade and then use Benchmarker’s list function to jump directly to that group of students. Now you can mark all your HDs at once!
-https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-benchmarker.user.js
+## Dock
+Floating launcher for Assessment Helpers. One compact panel to open, hide, and quick-action the helpers. The dock’s Settings section controls the shared Light/Dark theme and Compact/Roomy layout. The dock remembers whether it is minimised.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js
 
-## Copy/Paster 
-A floating panel that offers multiple benefits to the one in Canvas.  Write your own snippets and insert them as comment, one after the other in the comment box, press keep typing to put the cursor back in the comment box and write your own comments for that student. Export comments per assignment and import them for re-use later.  
+## Rubric slider
+If you set up your rubrics with a grade range this widget puts a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
+
+## Copy/Paster
+A floating panel that, let's face it, is way better than the one in Canvas. Write and save comments with a button press, insert more of them if you want, press "keep typing" to put the cursor back where you were.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js
 
 ## GradeBridge
-Pair two SpeedGrader assignment columns to switch between assignments for the same student.
+Pair two SpeedGrader assignment columns to switch between assignments for the same student. Terrific if you need to see a major project and a creative journal for that major project at the same time.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-gradebridge.user.js
 
 ## ETA
-Timer and logging panel that tells you how long it will take to finish your tutorial group at your current pace. If you spend longer than your median time on any one assignment, the prince dies.  Don't worry.  He wakes up for the next one.
-Still under construction but getting there.
-Use **Pause** / **Resume**  if you take a break from marking. ETA will attempt to monitor overall time spent marking rather than just time entering marks in Canvas.  You can download an unfeasible amount of logging info to read at bedtime if you need to.
+This started out as a widget called "When will it end?" because sometimes you just need to know the light is at the end of the tunnel. This is a timer and logging panel that tells you how long it takes to mark a class, and predicts when you will finish.
+
+Use **Pause** / **Resume** if you take a break from marking and **ETA** will attempt to monitor overall time spent marking rather than just the time spent entering marks in Canvas. A student is logged as complete when they are marked as complete or have a score entered.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
 
-## Rubric slider
-If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category.
-https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
+## Benchmarker
+If you have ever wanted to do a quick pass through of student submissions and roughly group them in terms of HD or Pass etc - Benchmarker has you covered. I sometimes miss my old analogue system of sorting them into piles.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-benchmarker.user.js
+
+## Rubric Builder
+Reusable rubric criteria as a clickable resource. Appears on the Rubric page of Canvas (look for a floating AH panel). Open from AH panel and assemble your rubric, assign a weight and export in the format Canvas expects.
+https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
