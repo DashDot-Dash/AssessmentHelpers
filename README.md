@@ -1,21 +1,22 @@
 # AssessmentHelpers
 
-Assessment Helpers are a suite of Tampermonkey userscripts for Canvas to help with assessment, groups and setting up rubrics.  Userscripts appear only on pages they are coded for and add functionality 
+Assessment Helpers are a suite of Tampermonkey userscripts for Canvas to help with assessment, groups and setting up rubrics.  Userscripts appear only on the pages they are coded for and only use that pages underlying data to add features. They don't change anything on Canvas. 
 
 ## Installation Instructions
-Install Tampermonkey in your browser.  It's an extension for all major browsers and you should be able to install it (even on managaged machines) via your browser extension manager or your browser extension store.  Make sure you use your extension page to go to Tampermonkey preferences to:
+1. Install Tampermonkey in your browser at https://www.tampermonkey.net  It's an extension for all major browsers and you should be able to install it (even on managaged machines) via your browser extension manager or your browser extension store.  Make sure you use your browser's extension manager page (Try Tools/Extensions on Chrome and Firefox)to access Tampermonkey preferences. 
+Make sure the following are activated:
 * activate the extension if not already activated
 * install it in your toolbar
 * allow userscripts
 
-Click on the URL from each of the helpers below to trigger a Tampermonkey install page. Press install.   
+2. Install the **Assessment Helpers** by clicking on the URLs for each one below. This will show a Tampermonkey install page. Press install.   
 
-Once installed you should see the green button toggled on in the Dashboard.  If you don't want the userscript to function you can toggle the green button off.  If you want to delete the userscript you can do so from the dashboard page.  
+3. Once installed you should see the green button toggled on in the Dashboard.  If you don't want the userscript to function you can toggle the green button off.  If you want to delete the userscript you can do so from the dashboard page.  
 
-To use Tutorial Sorter and ETA with class-aware navigation, upload your roster file from Allocate+. Just drag and drop (or use the finder if you must) to enter your class details automatically. ETA uses the roster data to estimate progress through the active class, and Benchmarker can use the same class list for quick navigation.
+4. Upload your roster file from Allocate+ to the **Tutorial Sorter** by drag and drop (or use the finder if you must). **Tutorial Sorter**, **ETA** and **Benchmarker** use the same class list for quick navigation.
 
 ## Dock
-Floating launcher for Assessment Helpers. Install this first if you want one compact panel to open, hide, and quick-action the helpers.
+Floating launcher for Assessment Helpers. Install this first if you want one compact panel to open, hide, and quick-action the helpers. The dock’s Settings section controls the shared Light/Dark theme and Compact/Roomy layout across the suite.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-assessment-helper-dock.user.js
 
 ## Rubric Builder
@@ -23,32 +24,27 @@ Reusable rubric criteria as a clickable resource. Assemble your rubric, assign a
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-rubric-builder.user.js
 
 ## SpeedGrader Tutorial Sorter 
-Drag and drop the roster from Allocate + to immediately create panel of tutorial groups in Canvas.   You can click on student names in the list to go directly to that student in Canvas.  No more hunting through the entire list! Mark in tutorial groups like nature intended! You can also export a .csv file that will create student groups in the canvas group system via bulk import. 
+Drag and drop the roster from Allocate + to immediately create panel of tutorial groups in Canvas.   You can click on student names in the list to go directly to that student in Canvas.  No more hunting through the entire list! Mark in tutorial groups like nature intended! You can also export a .csv file that will create student groups in the canvas group system via bulk import.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-tutorial-sorter.user.js
 
 ## SpeedGrader Benchmarker 
-If you have ever wanted to do a quick pass through of student submissions and roughly group them in terms of HD or Pass etc - Benchmarker has you covered. I sometimes miss my old analogue system of quickly sorting them in piles on the floor and then marking them in batches according to ranking. This panel replicates that - flick through and assign a grade and then use Benchmarker’s list to jump directly to that group of students and mark all your HDs in one place.
+If you have ever wanted to do a quick pass through of student submissions and roughly group them in terms of HD or Pass etc - Benchmarker has you covered. I sometimes miss my old analogue system of quickly sorting them in piles on the floor and then marking them in batches according to grade band. This panel replicates that - flick through and assign a grade and then use Benchmarker’s list function to jump directly to that group of students. Now you can mark all your HDs at once!
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-benchmarker.user.js
 
 ## Copy/Paster 
-A floating panel that offers multiple benefits to the one in Canvas.  Write your own snippets and insert them as comment, one after the other in the comment box, press keep typing to put the cursor back in the comment box and write your own comments for that student.  Export comments per assignment and import them for re-use later.  
+A floating panel that offers multiple benefits to the one in Canvas.  Write your own snippets and insert them as comment, one after the other in the comment box, press keep typing to put the cursor back in the comment box and write your own comments for that student. Export comments per assignment and import them for re-use later.  
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-copy-paster.user.js
 
 ## GradeBridge
-Pair two SpeedGrader assignments and switch between them while keeping the current student.
+Pair two SpeedGrader assignment columns to switch between assignments for the same student.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-gradebridge.user.js
 
 ## ETA
-Timer and logging panel that tells you how long it will take to finish your tutorial group at your current pace.
-
-Use **Pause** / **Resume** beneath Tutorial Sorter’s Prev/Next buttons (also available in compact mode) to record time away from marking. Go to the next student when finished, then pause if you need a break. Open ETA’s Logging section to view the timeline. Breaks survive page reloads, appear in the session timeline, and are included in CSV exports. Logging summarises the marking period, unique students visited, active marking time, blocks, average time per student and block, and the typical same-day break. Review visits to exclude navigation or abandoned timers without deleting the raw records. The default block gap is 10 minutes and can be adjusted. Set an expected marking band (Under 10 minutes, 10–30 minutes, or 30+ minutes) for each assignment to guide the initial ETA and flag unusual timings. The finish estimate uses recent per-student timings and an allowance for typical same-day breaks, excluding overnight gaps. CSV downloads retain every visit and break, with class tags, review flags, and active time segments. Student navigation logs a visit rather than confirming a grade was submitted.
+Timer and logging panel that tells you how long it will take to finish your tutorial group at your current pace. If you spend longer than your median time on any one assignment, the prince dies.  Don't worry.  He wakes up for the next one.
+Still under construction but getting there.
+Use **Pause** / **Resume**  if you take a break from marking. ETA will attempt to monitor overall time spent marking rather than just time entering marks in Canvas.  You can download an unfeasible amount of logging info to read at bedtime if you need to.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
 
-The dock’s Settings section controls the shared Soft/Dark theme and
-Compact/Roomy density across the suite. Compact changes the layout; Minimise
-collapses a panel. See [design and build notes](docs/design/README.md) for
-the component preview and instructions for updating the shared styles.
-
 ## Rubric slider
-If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category. 
+If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-slider.user.js
