@@ -5,7 +5,7 @@
 - `DEV-canvas-viscomm-helper-dock.user.js`
 - `DEV-canvas-speedgrader-copy-paster.user.js`
 - `DEV-canvas-speedgrader-benchmarker.user.js`
-- `DEV-canvas-speedgrader-when-will-it-end.user.js`
+- `DEV-canvas-speedgrader-eta.user.js`
 - `DEV-canvas-speedgrader-tutorial-sorter.user.js`
 - `DEV-canvas-speedgrader-gradebridger.user.js`
 - `DEV-canvas-speedgrader-slider.user.js`

@@ -41,8 +41,13 @@ https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-spe
 ## ETA
 Timer and logging panel that tells you how long it will take to finish your tutorial group at your current pace.
 
-Use **Pause** / **Resume** beneath Tutorial Sorter’s Prev/Next buttons (also available in compact mode) to record time away from marking. Go to the next student when finished, then pause if you need a break. Open ETA’s Logging section to view the timeline. Breaks survive page reloads, appear in the session timeline, and are included in CSV exports. Marking pace excludes explicit breaks; session pace and the finish estimate include recorded breaks. Every student visit is retained in the log, while the recent average and median exclude visits under 15 seconds or over 20 minutes. Student navigation logs a visit rather than confirming a grade was submitted.
+Use **Pause** / **Resume** beneath Tutorial Sorter’s Prev/Next buttons (also available in compact mode) to record time away from marking. Go to the next student when finished, then pause if you need a break. Open ETA’s Logging section to view the timeline. Breaks survive page reloads, appear in the session timeline, and are included in CSV exports. Logging summarises the marking period, unique students visited, active marking time, blocks, average time per student and block, and the typical same-day break. Review visits to exclude navigation or abandoned timers without deleting the raw records. The default block gap is 10 minutes and can be adjusted. Set an expected marking band (Under 10 minutes, 10–30 minutes, or 30+ minutes) for each assignment to guide the initial ETA and flag unusual timings. The finish estimate uses recent per-student timings and an allowance for typical same-day breaks, excluding overnight gaps. CSV downloads retain every visit and break, with class tags, review flags, and active time segments. Student navigation logs a visit rather than confirming a grade was submitted.
 https://github.com/DashDot-Dash/AssessmentHelpers/raw/refs/heads/main/canvas-speedgrader-eta.user.js
+
+The dock’s Settings section controls the shared Soft/Dark theme and
+Compact/Roomy density across the suite. Compact changes the layout; Minimise
+collapses a panel. See [design and build notes](docs/design/README.md) for
+the component preview and instructions for updating the shared styles.
 
 ## Rubric slider
 If you set up your rubrics with a grade range this widget will put a little slider into the rubric so you can easily choose something that’s not automatically the top of the range in that criterion.   It adjusts automatically to the range in each category. 

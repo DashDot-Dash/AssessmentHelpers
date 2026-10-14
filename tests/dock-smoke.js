@@ -17,46 +17,7 @@ function readScript(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
 }
 
-async function seedStorage(page) {
-  await page.evaluate(() => {
-    localStorage.clear();
-    localStorage.setItem('chatster_tutorial_sorter_groups_v11', JSON.stringify({
-      courses: {
-        VCDE1000: {
-          activeClassKey: 'studio-a',
-          classes: {
-            'studio-a': {
-              id: 'studio-a',
-              classKey: 'studio-a',
-              label: 'Studio A',
-              name: 'Studio A',
-              courseCode: 'VCDE1000',
-              students: [
-                { name: 'Jane Citizen', canvas_name: 'Jane Citizen', user_id: '1' },
-                { name: 'Max Example', canvas_name: 'Max Example', user_id: '2' }
-              ]
-            }
-          }
-        }
-      }
-    }));
-    localStorage.setItem('chatster_tutorial_sorter_active_group_v11', 'studio-a');
-    localStorage.setItem('vcGradeBridge:pairs:v1', JSON.stringify({
-      42: {
-        100: {
-          targetAssignmentId: '200',
-          targetAssignmentName: 'Project 02',
-          sourceAssignmentName: 'Project 01'
-        },
-        200: {
-          targetAssignmentId: '100',
-          targetAssignmentName: 'Project 01',
-          sourceAssignmentName: 'Project 02'
-        }
-      }
-    }));
-  });
-}
+const { seedStorage } = require('./canvas-fixture.cjs');
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -126,7 +87,7 @@ async function main() {
     window.AssessmentHelpers?.helpers?.eta?.show?.();
     return {
       before,
-      entryStudentKey: document.querySelector('#wwie-prince-panel') ? 'panel-present' : 'missing'
+      entryStudentKey: document.querySelector('#ah-eta-panel') ? 'panel-present' : 'missing'
     };
   });
   if (etaStudentKey.entryStudentKey !== 'panel-present') {
@@ -134,17 +95,20 @@ async function main() {
   }
 
   await page.evaluate(() => window.AssessmentHelpers.helpers['tutorial-sorter'].show());
-  await page.locator('#chatster-lmg-break').evaluate(el => el.click());
-  await page.waitForFunction(() => document.querySelector('#chatster-lmg-break')?.textContent === 'Resume');
-  await page.locator('#chatster-lmg-minimize').evaluate(el => el.click());
-  if (await page.locator('#chatster-lmg-next').count() !== 1) throw new Error('Compact navigation missing');
-  await page.locator('#chatster-lmg-break').evaluate(el => el.click());
-  await page.waitForFunction(() => document.querySelector('#chatster-lmg-break')?.textContent === 'Pause');
+  await page.locator('#ah-tutorial-sorter-break').evaluate(el => el.click());
+  await page.waitForFunction(() => document.querySelector('#ah-tutorial-sorter-break')?.textContent === 'Resume');
+  await page.evaluate(() => window.AssessmentHelpersTheme.set({ density: 'compact' }));
+  if (await page.locator('#ah-tutorial-sorter-next').count() !== 1) throw new Error('Compact navigation missing');
+  await page.locator('#ah-tutorial-sorter-break').evaluate(el => el.click());
+  await page.waitForFunction(() => document.querySelector('#ah-tutorial-sorter-break')?.textContent === 'Pause');
   const recordedBreaks = await page.evaluate(() => JSON.parse(localStorage.getItem(
-    Object.keys(localStorage).find(key => key.startsWith('canvas_speedgrader_when_will_it_end_v1:') && !key.endsWith('panel_position'))
+    Object.keys(localStorage).find(key => key.startsWith('assessmentHelpers:eta:v1:') && !key.endsWith('panelPosition'))
   )).breaks);
   if (recordedBreaks.length !== 1) throw new Error('Sorter did not record break in ETA');
-  await page.locator('#chatster-lmg-minimize').evaluate(el => el.click());
+  await page.locator('#ah-tutorial-sorter-minimize').evaluate(el => el.click());
+  if (await page.locator('#ah-tutorial-sorter-next').count()) throw new Error('Minimise did not collapse Tutorial Sorter');
+  await page.locator('#ah-tutorial-sorter-minimize').evaluate(el => el.click());
+  await page.evaluate(() => window.AssessmentHelpersTheme.set({ density: 'roomy' }));
   await page.evaluate(() => window.AssessmentHelpers.helpers['tutorial-sorter'].hide());
 
   const mainDockText = await page.locator('#assessment-helper-dock .vc-dock-list').innerText();
@@ -179,8 +143,8 @@ async function main() {
   await page.waitForTimeout(80);
 
   await page.evaluate(() => {
-    localStorage.removeItem('chatster_tutorial_sorter_groups_v11');
-    localStorage.removeItem('chatster_tutorial_sorter_active_group_v11');
+    localStorage.removeItem('assessmentHelpers:tutorialSorter:v1:groups');
+    localStorage.removeItem('assessmentHelpers:tutorialSorter:v1:activeGroup');
     localStorage.removeItem('vcGradeBridge:pairs:v1');
     window.AssessmentHelpers?.helpers?.['tutorial-sorter']?.hide?.();
     window.AssessmentHelpers?.helpers?.gradebridge?.hide?.();
